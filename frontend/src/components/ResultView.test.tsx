@@ -62,6 +62,15 @@ function makeResult(settings: BacktestResult["summary"]["settings"]): BacktestRe
 }
 
 describe("ResultView compatibility evidence", () => {
+  it("shows a clean output state for a new backtest", () => {
+    render(<ResultView loading={false} emptyContext="create" />);
+
+    expect(screen.getByText("配置一组新的回测条件。")).toBeInTheDocument();
+    expect(screen.queryByText("metrics")).not.toBeInTheDocument();
+    expect(screen.queryByText("price chart")).not.toBeInTheDocument();
+    expect(screen.queryByText("trade table")).not.toBeInTheDocument();
+  });
+
   it("marks pre-contract results as legacy", () => {
     render(<ResultView job={job} result={makeResult({})} loading={false} />);
 

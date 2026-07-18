@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api/client";
 import type { BacktestRequest } from "./api/types";
 import { useI18n } from "./i18n/I18nContext";
+import { resolveVisibleJobId, type BacktestRail } from "./lib/backtestWorkspace";
 import { BacktestForm } from "./components/BacktestForm";
 import { Header, type WorkspaceMode } from "./components/Header";
 import { ResultView } from "./components/ResultView";
@@ -24,7 +25,7 @@ export function App() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<WorkspaceMode>("backtest");
-  const [backtestRail, setBacktestRail] = useState<"archive" | "create">("archive");
+  const [backtestRail, setBacktestRail] = useState<BacktestRail>("archive");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [selectedStrategy, setSelectedStrategy] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -38,10 +39,7 @@ export function App() {
   const strategiesQuery = useQuery({ queryKey: ["strategies"], queryFn: api.strategies });
   const jobsQuery = useQuery({ queryKey: ["jobs"], queryFn: api.jobs });
   const resolvedStrategy = selectedStrategy || configQuery.data?.strategies[0]?.path || "";
-  const resolvedJobId = activeJobId
-    ?? jobsQuery.data?.jobs.find((job) => job.status === "succeeded")?.id
-    ?? jobsQuery.data?.jobs[0]?.id
-    ?? null;
+  const resolvedJobId = resolveVisibleJobId(backtestRail, activeJobId, jobsQuery.data?.jobs ?? []);
   const jobQuery = useQuery({
     queryKey: ["job", resolvedJobId],
     queryFn: () => api.job(resolvedJobId!),
@@ -81,7 +79,10 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const job = jobQuery.data ?? jobsQuery.data?.jobs.find((item) => item.id === resolvedJobId);
+  const job = backtestRail === "archive"
+    ? jobQuery.data ?? jobsQuery.data?.jobs.find((item) => item.id === resolvedJobId)
+    : undefined;
+  const result = backtestRail === "archive" ? resultQuery.data : undefined;
   const strategies = strategiesQuery.data?.strategies ?? configQuery.data?.strategies ?? [];
   const selectedStrategyMetadata = strategies.find((strategy) => strategy.path === resolvedStrategy);
 
@@ -141,10 +142,15 @@ export function App() {
           </aside>
           <section className="result-desk" aria-live="polite">
             <div className="desk-intro">
-              <div><span className="section-code">OUTPUT</span><p>{job ? `${job.request.symbol} · ${t(`status.${job.status}`)}` : t("app.waitingConditions")}</p></div>
+              <div><span className="section-code">OUTPUT</span><p>{job ? `${job.request.symbol} · ${t(`status.${job.status}`)}` : t(backtestRail === "create" ? "app.waitingNewBacktest" : "app.waitingConditions")}</p></div>
               <p className="desk-note">{t("app.executionNote")}</p>
             </div>
-            <ResultView job={job} result={resultQuery.data} loading={resultQuery.isLoading} />
+            <ResultView
+              job={job}
+              result={result}
+              loading={backtestRail === "archive" && resultQuery.isLoading}
+              emptyContext={backtestRail === "create" ? "create" : "archive"}
+            />
           </section>
         </main>
       ) : mode === "iterate" ? (

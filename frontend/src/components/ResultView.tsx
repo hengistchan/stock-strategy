@@ -9,15 +9,21 @@ interface ResultViewProps {
   job?: BacktestJob;
   result?: BacktestResult;
   loading: boolean;
+  emptyContext?: "archive" | "create";
 }
 
-export function ResultView({ job, result, loading }: ResultViewProps) {
+export function ResultView({ job, result, loading, emptyContext = "archive" }: ResultViewProps) {
   const { locale, t } = useI18n();
   if (!job) {
+    const isCreating = emptyContext === "create";
     return (
       <section className="result-empty">
         <div className="empty-plot" aria-hidden="true"><span /><span /><span /><span /><span /><i /></div>
-        <div><p className="eyebrow">{t("result.noRun")}</p><h2>{t("result.emptyTitle")}</h2><p>{t("result.emptyBody")}</p></div>
+        <div>
+          <p className="eyebrow">{t(isCreating ? "result.newBacktestLabel" : "result.noRun")}</p>
+          <h2>{t(isCreating ? "result.newBacktestTitle" : "result.emptyTitle")}</h2>
+          <p>{t(isCreating ? "result.newBacktestBody" : "result.emptyBody")}</p>
+        </div>
       </section>
     );
   }
