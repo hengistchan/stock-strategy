@@ -9,6 +9,7 @@ import type {
   ExperimentsResponse,
   HealthResponse,
   JobsResponse,
+  PriceWindow,
   StrategiesResponse,
   StrategyDocument,
 } from "./types";
@@ -56,6 +57,8 @@ export const api = {
   jobs: () => request<JobsResponse>("/api/jobs"),
   job: (jobId: string) => request<BacktestJob>(`/api/jobs/${jobId}`),
   result: (jobId: string) => request<BacktestResult>(`/api/jobs/${jobId}/result`),
+  prices: (jobId: string, offset: number, limit: number) =>
+    request<PriceWindow>(`/api/jobs/${jobId}/prices?offset=${offset}&limit=${limit}`),
   runBacktest: (payload: BacktestRequest) =>
     request<BacktestJob>("/api/jobs", {
       method: "POST",

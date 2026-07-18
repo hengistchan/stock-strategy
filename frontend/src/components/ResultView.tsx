@@ -2,6 +2,7 @@ import type { BacktestJob, BacktestResult } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime, formatNumber, formatSignedCurrency, shortDate } from "../lib/format";
 import { MetricsGrid } from "./MetricsGrid";
+import { PerformanceChart } from "./PerformanceChart";
 import { PriceChart } from "./PriceChart";
 import { TradeTable } from "./TradeTable";
 
@@ -92,14 +93,29 @@ export function ResultView({ job, result, loading, emptyContext = "archive" }: R
           </dl>
         </aside>
       ) : null}
-      <PriceChart points={priceSeries} trades={trades} symbol={summary.symbol} ktype={ktype} autype={autype} />
+      <PriceChart
+        key={`price-${job.id}`}
+        jobId={job.id}
+        points={priceSeries}
+        pointOffset={result.price_series_offset}
+        totalPoints={result.price_series_count}
+        overview={result.price_overview}
+        trades={trades}
+        symbol={summary.symbol}
+        ktype={ktype}
+        autype={autype}
+      />
 
-      <figure className="report-frame">
-        <figcaption><span>{t("result.reportCaption")}</span><span>RUN {job.id}</span></figcaption>
-        <img src={`${result.report_url}?v=${encodeURIComponent(job.finished_at ?? "")}`} alt={t("result.reportAlt")} />
-      </figure>
+      <PerformanceChart
+        key={`performance-${job.id}`}
+        equity={result.equity_curve}
+        equityCount={result.equity_curve_count}
+        trades={trades}
+        ktype={ktype}
+        reportUrl={`${result.report_url}?v=${encodeURIComponent(job.finished_at ?? "")}`}
+      />
 
-      <TradeTable trades={trades} ktype={ktype} exposure={summary.metrics.exposure_pct} />
+      <TradeTable key={`trades-${job.id}`} trades={trades} ktype={ktype} exposure={summary.metrics.exposure_pct} />
       <p className="research-note">{t("result.researchNote")}</p>
     </section>
   );

@@ -89,6 +89,19 @@ export interface PricePoint {
   volume: number;
 }
 
+export interface PriceWindow {
+  offset: number;
+  total: number;
+  points: PricePoint[];
+}
+
+export interface EquityPoint {
+  date: string;
+  equity: number;
+  benchmark: number;
+  drawdown: number;
+}
+
 export interface Trade {
   trade_id: number;
   symbol: string;
@@ -155,8 +168,12 @@ export interface BacktestResult {
   job: BacktestJob;
   summary: BacktestSummary;
   price_series: PricePoint[];
+  price_series_offset: number;
+  price_series_count: number;
+  price_overview: PricePoint[];
   trades: Trade[];
-  equity_curve: Array<Record<string, number | string>>;
+  equity_curve: EquityPoint[];
+  equity_curve_count: number;
   report_url: string;
 }
 

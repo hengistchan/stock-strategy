@@ -10,6 +10,7 @@ from stock_strategy.web import (
     BacktestRequest,
     JobStore,
     _last_error,
+    _read_downsampled_equity_curve,
     create_app,
     list_strategies,
     resolve_strategy,
@@ -17,6 +18,24 @@ from stock_strategy.web import (
 
 
 class WebTest(unittest.TestCase):
+    def test_equity_display_sampling_preserves_extremes_without_loading_all_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "equity_curve.csv"
+            rows = ["date,equity,benchmark,drawdown"]
+            for index in range(20):
+                equity = 500 if index == 7 else 100 + index
+                drawdown = -0.9 if index == 13 else -index / 100
+                rows.append(f"2025-01-{index + 1:02d},{equity},{100 + index},{drawdown}")
+            path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+            sampled, total = _read_downsampled_equity_curve(path, max_points=8)
+
+        self.assertEqual(total, 20)
+        self.assertEqual(sampled[0]["date"], "2025-01-01")
+        self.assertEqual(sampled[-1]["date"], "2025-01-20")
+        self.assertIn(500.0, [row["equity"] for row in sampled])
+        self.assertIn(-0.9, [row["drawdown"] for row in sampled])
+
     def test_failure_summary_prefers_strategy_stderr_over_opend_stdout(self):
         self.assertEqual(
             _last_error(
@@ -240,14 +259,22 @@ class WebTest(unittest.TestCase):
             store._write_job(job)
 
             result = store.load_result(job["id"])
+            window = store.load_price_window(job["id"], offset=1, limit=1)
 
         self.assertEqual(len(result["price_series"]), 2)
+        self.assertEqual(result["price_series_offset"], 0)
+        self.assertEqual(result["price_series_count"], 2)
+        self.assertEqual(len(result["price_overview"]), 2)
         self.assertEqual(
             set(result["price_series"][0]),
             {"date", "open", "high", "low", "close", "volume"},
         )
         self.assertEqual(result["price_series"][0]["close"], 102.0)
         self.assertEqual(result["price_series"][1]["volume"], 1500.0)
+
+        self.assertEqual(window["offset"], 1)
+        self.assertEqual(window["total"], 2)
+        self.assertEqual(window["points"][0]["close"], 101.0)
 
     def test_strategy_api_creates_reads_and_atomically_saves_user_strategy(self):
         with tempfile.TemporaryDirectory() as directory:

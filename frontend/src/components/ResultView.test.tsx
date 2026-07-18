@@ -5,6 +5,7 @@ import { ResultView } from "./ResultView";
 
 vi.mock("./MetricsGrid", () => ({ MetricsGrid: () => <div>metrics</div> }));
 vi.mock("./PriceChart", () => ({ PriceChart: () => <div>price chart</div> }));
+vi.mock("./PerformanceChart", () => ({ PerformanceChart: () => <div>performance chart</div> }));
 vi.mock("./TradeTable", () => ({ TradeTable: () => <div>trade table</div> }));
 
 const job: BacktestJob = {
@@ -55,8 +56,12 @@ function makeResult(settings: BacktestResult["summary"]["settings"]): BacktestRe
       },
     },
     price_series: [],
+    price_series_offset: 0,
+    price_series_count: 0,
+    price_overview: [],
     trades: [],
     equity_curve: [],
+    equity_curve_count: 0,
     report_url: "/api/jobs/run-1/report.svg",
   };
 }
