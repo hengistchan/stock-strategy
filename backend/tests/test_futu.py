@@ -1,5 +1,6 @@
 import math
 import unittest
+from datetime import datetime, timedelta
 
 from stock_strategy.broker import Broker
 from stock_strategy.context import ExecutionContext, activate_context
@@ -18,6 +19,7 @@ from stock_strategy.futu import (
     ma,
     rsi,
 )
+from stock_strategy.models import Bar
 
 
 class FutuApiTest(unittest.TestCase):
@@ -84,7 +86,7 @@ class FutuApiTest(unittest.TestCase):
 
     def test_bar_custom_never_falls_back_to_close_for_unsupported_data(self):
         with activate_context(self.context):
-            with self.assertRaisesRegex(UnsupportedAPIError, "TURNOVER"):
+            with self.assertRaisesRegex(UnsupportedAPIError, "turnover"):
                 bar_custom(
                     self.symbol,
                     data_type=BarDataType.TURNOVER,
@@ -100,6 +102,41 @@ class FutuApiTest(unittest.TestCase):
                     custom_type="K_DAY",
                     select=1,
                 )
+
+    def test_coarser_periods_are_incremental_and_never_see_future_minutes(self):
+        start = datetime(2025, 1, 2, 9, 30)
+        bars = [
+            Bar(
+                date=(start + timedelta(minutes=index)).isoformat(sep=" "),
+                open=100 + index,
+                high=101 + index,
+                low=99 + index,
+                close=100.5 + index,
+                volume=1000,
+            )
+            for index in range(7)
+        ]
+        context = ExecutionContext(
+            bars,
+            self.symbol,
+            Broker(10_000, 0, 0, 0, False, bar_type=BarType.K_1M),
+            current_index=4,
+            bar_type=BarType.K_1M,
+        )
+        with activate_context(context):
+            self.assertEqual(
+                bar_close(self.symbol, BarType.K_5M, select=1), bars[4].close
+            )
+            self.assertTrue(
+                math.isnan(bar_close(self.symbol, BarType.K_5M, select=2))
+            )
+            context.current_index = 5
+            self.assertEqual(
+                bar_close(self.symbol, BarType.K_5M, select=1), bars[5].close
+            )
+            self.assertEqual(
+                bar_close(self.symbol, BarType.K_5M, select=2), bars[4].close
+            )
 
 
 if __name__ == "__main__":

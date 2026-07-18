@@ -512,7 +512,7 @@ def create_app(
             strategy_document = strategy_repository.read(request.strategy)
             definitions = strategy_document["parameters"]
             incompatibility = compatibility_error(
-                strategy_document["compatibility"], request.ktype
+                strategy_document["compatibility"], request.ktype, request.session
             )
             if incompatibility:
                 raise StrategyValidationError(incompatibility)
@@ -580,7 +580,9 @@ def create_app(
             strategy_document = strategy_repository.read(request.base.strategy)
             definitions = strategy_document["parameters"]
             incompatibility = compatibility_error(
-                strategy_document["compatibility"], request.base.ktype
+                strategy_document["compatibility"],
+                request.base.ktype,
+                request.base.session,
             )
             if incompatibility:
                 raise StrategyValidationError(incompatibility)

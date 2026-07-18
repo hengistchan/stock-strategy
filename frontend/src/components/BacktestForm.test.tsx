@@ -16,7 +16,7 @@ const config: AppConfig = {
       parameters: [{ name: "period", label: "均线周期", description: "", type: "int", default: 20, min: 2, max: 120, candidates: [10, 20] }],
     },
   ],
-  kline_types: ["K_DAY", "K_5M"],
+  kline_types: ["K_DAY", "K_5M", "K_1M"],
   adjustment_types: ["QFQ", "HFQ", "NONE"],
   session_types: ["ALL", "RTH", "ETH"],
 };
@@ -78,15 +78,43 @@ describe("BacktestForm", () => {
         opendConnected
         compatibility={{
           supported: false,
-          issues: ["unsupported_names", "multiple_bar_types"],
+          issues: ["unsupported_names"],
           unsupported_names: ["lot_size", "order_status"],
           bar_types: ["K_1M", "K_5M"],
+          driver_bar_type: "K_1M",
+          session_types: ["RTH"],
+          required_session: "RTH",
         }}
       />,
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("lot_size · order_status");
-    expect(screen.getByRole("alert")).toHaveTextContent("K_1M · K_5M");
     expect(screen.getByRole("button", { name: /运行 OpenD 回测/ })).toBeDisabled();
+  });
+
+  it("selects the smallest driver and session for a multi-period stock strategy", () => {
+    render(
+      <BacktestForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        onStrategyChange={() => undefined}
+        onSubmit={() => undefined}
+        running={false}
+        opendConnected
+        compatibility={{
+          supported: true,
+          issues: [],
+          unsupported_names: [],
+          bar_types: ["K_15M", "K_1M", "K_5M", "K_DAY"],
+          driver_bar_type: "K_1M",
+          session_types: ["RTH"],
+          required_session: "RTH",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("多周期股票回测已就绪");
+    expect(screen.getByLabelText(/K 线周期/)).toHaveValue("K_1M");
+    expect(screen.getByLabelText(/交易时段/)).toHaveValue("RTH");
   });
 });

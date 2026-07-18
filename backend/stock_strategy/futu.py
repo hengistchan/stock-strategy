@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import statistics
+import builtins
 from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -11,22 +12,43 @@ from .models import (
     AlgoStrategyType,
     BarDataType,
     BarType,
+    CltRiskStatus,
     Contract,
+    CostPriceModel,
+    Currency,
     CustomType,
     DataType,
+    DealStatus,
+    DTStatus,
+    ErrCode,
+    FutureType,
     GlobalType,
+    IndexOptionType,
+    InlinePriceType,
+    Market,
+    MktStatus,
+    Moneyness,
+    OptionCategory,
+    OptionClass,
+    OptionType,
     OrderSide,
+    OrderStatus,
     OrdType,
     PositionSide,
+    SymbolType,
     THType,
     TSType,
+    TradeSide,
+    TrailType,
+    TrdHours,
+    TimeOrientation,
     TimeZone,
     TimeInForce,
+    USMktStatus,
+    Week,
 )
-
-
-class UnsupportedAPIError(NotImplementedError):
-    pass
+from .timeframes import can_derive
+from .errors import APIException, DataUnavailableError, UnsupportedAPIError
 
 
 class StrategyBase:
@@ -39,15 +61,14 @@ class StrategyBase:
         raise NotImplementedError
 
     def register_indicator(self, *_args: Any, **_kwargs: Any) -> None:
-        raise UnsupportedAPIError(
-            "register_indicator/get_MyLang_indicator is not supported in the MVP; "
-            "use built-in ma/ema/rsi/macd APIs"
-        )
+        from .custom_indicators import register_indicator
+
+        register_indicator(*_args, **_kwargs)
 
     def register_indicator_Python(self, *_args: Any, **_kwargs: Any) -> None:
-        raise UnsupportedAPIError(
-            "register_indicator_Python is not supported in the MVP"
-        )
+        from .custom_indicators import register_indicator_Python
+
+        register_indicator_Python(*_args, **_kwargs)
 
 
 def declare_strategy_type(strategy_type: AlgoStrategyType = AlgoStrategyType.SECURITY) -> None:
@@ -108,6 +129,86 @@ def device_time(time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE) -> datetime:
     return current.astimezone(_time_zone_info(requested_zone, market_zone))
 
 
+def is_the_time(
+    orientation: TimeOrientation,
+    hour: int,
+    min: int = 0,
+    sec: int = 0,
+    year: int | None = None,
+    month: int | None = None,
+    day: int | None = None,
+    time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE,
+) -> bool:
+    current = device_time(time_zone)
+    target = current.replace(
+        year=year or current.year,
+        month=month or current.month,
+        day=day or current.day,
+        hour=hour,
+        minute=min,
+        second=sec,
+        microsecond=0,
+    )
+    normalized = TimeOrientation(orientation)
+    return {
+        TimeOrientation.LATER_THAN: current > target,
+        TimeOrientation.EARLIER_THAN: current < target,
+        TimeOrientation.NOT_LATER_THAN: current <= target,
+        TimeOrientation.NOT_EARLIER_THAN: current >= target,
+    }[normalized]
+
+
+def is_the_day(day: list[int], time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE) -> bool:
+    return device_time(time_zone).day in day
+
+
+def is_the_week(
+    week: list[int | Week], time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE
+) -> bool:
+    current = device_time(time_zone).isoweekday()
+    mapping = {value: index for index, value in enumerate(Week, start=1)}
+    normalized = {
+        mapping[value] if isinstance(value, Week) else int(value) for value in week
+    }
+    return current in normalized
+
+
+def is_the_month(
+    month: list[int], time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE
+) -> bool:
+    return device_time(time_zone).month in month
+
+
+def is_the_year(
+    year: list[int], time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE
+) -> bool:
+    return device_time(time_zone).year in year
+
+
+def ceil(value: float) -> int:
+    return math.ceil(value)
+
+
+def floor(value: float) -> int:
+    return math.floor(value)
+
+
+def power(base: float, exponent: float) -> float:
+    return math.pow(base, exponent)
+
+
+def integer_division(dividend: float, divisor: float) -> int:
+    return math.floor(dividend / divisor)
+
+
+def mod(dividend: float, divisor: float) -> float:
+    return dividend % divisor
+
+
+def math_log(arg: float, base: float = math.e) -> float:
+    return math.log(arg, base)
+
+
 def _market_time_zone(symbol: str) -> tzinfo:
     market = symbol.partition(".")[0]
     zones = {
@@ -125,7 +226,9 @@ def _market_time_zone(symbol: str) -> tzinfo:
 
 
 def _time_zone_info(value: TimeZone, market_zone: tzinfo) -> tzinfo:
-    if value in {TimeZone.DEVICE_TIME_ZONE, TimeZone.MARKET_TIME_ZONE}:
+    if value == TimeZone.DEVICE_TIME_ZONE:
+        return datetime.now().astimezone().tzinfo or timezone.utc
+    if value == TimeZone.MARKET_TIME_ZONE:
         return market_zone
     named_zones = {
         TimeZone.ET: "America/New_York",
@@ -161,7 +264,7 @@ def bar_open(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    return _bar_value(symbol, "open", select)
+    return _bar_value(symbol, "open", select, bar_type)
 
 
 def bar_high(
@@ -171,7 +274,7 @@ def bar_high(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    return _bar_value(symbol, "high", select)
+    return _bar_value(symbol, "high", select, bar_type)
 
 
 def bar_low(
@@ -181,7 +284,7 @@ def bar_low(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    return _bar_value(symbol, "low", select)
+    return _bar_value(symbol, "low", select, bar_type)
 
 
 def bar_close(
@@ -191,7 +294,7 @@ def bar_close(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    return _bar_value(symbol, "close", select)
+    return _bar_value(symbol, "close", select, bar_type)
 
 
 def bar_volume(
@@ -201,7 +304,7 @@ def bar_volume(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    return _bar_value(symbol, "volume", select)
+    return _bar_value(symbol, "volume", select, bar_type)
 
 
 def bar_custom(
@@ -218,20 +321,16 @@ def bar_custom(
         normalized_data_type = BarDataType(data_type)
     except (TypeError, ValueError) as error:
         raise UnsupportedAPIError(f"unsupported bar_custom data type: {data_type}") from error
-    if normalized_data_type == BarDataType.TURNOVER:
-        raise UnsupportedAPIError(
-            "bar_custom TURNOVER requires turnover data, which the OHLCV MVP does not retain"
-        )
     if not 1 <= custom_num <= 200:
         raise ValueError("custom_num must be between 1 and 200")
     if not 1 <= select <= 5:
         raise ValueError("select must be between 1 and 5 for bar_custom")
-    context = get_context()
-    end = context.current_index - (select - 1) * custom_num
+    series = get_context().bars_for(custom_bar_type)
+    end = len(series) - 1 - (select - 1) * custom_num
     start = end - custom_num + 1
     if start < 0:
         return math.nan
-    window = context.bars[start : end + 1]
+    window = series[start : end + 1]
     if normalized_data_type == BarDataType.OPEN:
         return window[0].open
     if normalized_data_type == BarDataType.HIGH:
@@ -240,6 +339,16 @@ def bar_custom(
         return min(bar.low for bar in window)
     if normalized_data_type == BarDataType.VOLUME:
         return sum(bar.volume for bar in window)
+    if normalized_data_type == BarDataType.TURNOVER:
+        return _sum_required(window, "turnover")
+    if normalized_data_type == BarDataType.TURNOVER_RATE:
+        return _last_required(window, "turnover_rate")
+    if normalized_data_type == BarDataType.CHG:
+        previous = window[0].last_close
+        return math.nan if previous is None else window[-1].close - previous
+    if normalized_data_type == BarDataType.CHG_RATE:
+        previous = window[0].last_close
+        return math.nan if not previous else (window[-1].close / previous - 1) * 100
     if normalized_data_type == BarDataType.CLOSE:
         return window[-1].close
     raise UnsupportedAPIError(f"unsupported bar_custom data type: {normalized_data_type}")
@@ -258,14 +367,16 @@ def ma(
         raise ValueError("period must be positive")
     if select <= 0:
         raise ValueError("select must be positive")
-    context = get_context()
-    end = context.current_index - (select - 1)
-    start = end - period + 1
-    if start < 0:
+    values = _values(symbol, data_type, select, bar_type)
+    if BarType(bar_type) == get_context().bar_type:
+        field = DataType(data_type).value.lower()
+        prefix = get_context().series_prefix_sums.setdefault(field, [0.0])
+        while len(prefix) < get_context().current_index + 2:
+            index = len(prefix) - 1
+            prefix.append(prefix[-1] + float(getattr(get_context().bars[index], field)))
+    if len(values) < period:
         return math.nan
-    field = data_type.value.lower()
-    prefix = _series_prefix_sum(field)
-    return (prefix[end + 1] - prefix[start]) / period
+    return statistics.fmean(values[-period:])
 
 
 def ema(
@@ -277,7 +388,7 @@ def ema(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    values = _values(symbol, data_type, select)
+    values = _values(symbol, data_type, select, bar_type)
     if period <= 0:
         raise ValueError("period must be positive")
     if len(values) < period:
@@ -293,7 +404,7 @@ def rsi(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    closes = _values(symbol, DataType.CLOSE, select)
+    closes = _values(symbol, DataType.CLOSE, select, bar_type)
     if period <= 0:
         raise ValueError("period must be positive")
     if len(closes) <= period:
@@ -323,11 +434,14 @@ def historical_volatility(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    closes = _values(symbol, DataType.CLOSE, select)
+    closes = _values(symbol, DataType.CLOSE, select, bar_type)
     if len(closes) <= period:
         return math.nan
     returns = [math.log(current / previous) for previous, current in zip(closes[-period - 1 : -1], closes[-period:])]
-    periods_per_year = _observed_periods_per_year(get_context())
+    context = get_context()
+    periods_per_year = _observed_periods_per_year(
+        BarType(bar_type), context.bars_for(bar_type)
+    )
     return statistics.stdev(returns) * math.sqrt(periods_per_year) * 100 if len(returns) > 1 else 0.0
 
 
@@ -342,7 +456,9 @@ def macd_dif(
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
     del signal_period
-    dif, _dea, _histogram = _macd(symbol, fast_period, slow_period, 9, select)
+    dif, _dea, _histogram = _macd(
+        symbol, fast_period, slow_period, 9, select, bar_type
+    )
     return dif
 
 
@@ -356,7 +472,9 @@ def macd_dea(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    _dif, dea, _histogram = _macd(symbol, fast_period, slow_period, signal_period, select)
+    _dif, dea, _histogram = _macd(
+        symbol, fast_period, slow_period, signal_period, select, bar_type
+    )
     return dea
 
 
@@ -370,7 +488,9 @@ def macd_macd(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    _dif, _dea, histogram = _macd(symbol, fast_period, slow_period, signal_period, select)
+    _dif, _dea, histogram = _macd(
+        symbol, fast_period, slow_period, signal_period, select, bar_type
+    )
     return histogram
 
 
@@ -384,8 +504,12 @@ def is_macd_golden_cross(
     select: int = 2,
 ) -> bool:
     _validate_series_request(symbol, bar_type, session_type)
-    dif_now, dea_now, _ = _macd(symbol, fast_period, slow_period, signal_period, select)
-    dif_previous, dea_previous, _ = _macd(symbol, fast_period, slow_period, signal_period, select + 1)
+    dif_now, dea_now, _ = _macd(
+        symbol, fast_period, slow_period, signal_period, select, bar_type
+    )
+    dif_previous, dea_previous, _ = _macd(
+        symbol, fast_period, slow_period, signal_period, select + 1, bar_type
+    )
     return all(math.isfinite(value) for value in (dif_now, dea_now, dif_previous, dea_previous)) and dif_now > dea_now and dif_previous <= dea_previous
 
 
@@ -399,8 +523,12 @@ def is_macd_death_cross(
     select: int = 2,
 ) -> bool:
     _validate_series_request(symbol, bar_type, session_type)
-    dif_now, dea_now, _ = _macd(symbol, fast_period, slow_period, signal_period, select)
-    dif_previous, dea_previous, _ = _macd(symbol, fast_period, slow_period, signal_period, select + 1)
+    dif_now, dea_now, _ = _macd(
+        symbol, fast_period, slow_period, signal_period, select, bar_type
+    )
+    dif_previous, dea_previous, _ = _macd(
+        symbol, fast_period, slow_period, signal_period, select + 1, bar_type
+    )
     return all(math.isfinite(value) for value in (dif_now, dea_now, dif_previous, dea_previous)) and dif_now < dea_now and dif_previous >= dea_previous
 
 
@@ -448,8 +576,36 @@ def place_limit(
     time_in_force: TimeInForce = TimeInForce.DAY,
     order_trade_session_type: TSType = TSType.ALL,
 ) -> str:
-    del order_trade_session_type
-    return _submit(symbol, qty, side, "LIMIT", time_in_force, limit_price=price)
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "LIMIT",
+        time_in_force,
+        limit_price=price,
+        trade_session=order_trade_session_type,
+    )
+
+
+def place_stop_limit(
+    symbol: Contract,
+    aux_price: float,
+    price: float,
+    qty: float,
+    side: OrderSide = OrderSide.BUY,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+    order_trade_session_type: TSType = TSType.RTH,
+) -> str:
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "STOP_LIMIT",
+        time_in_force,
+        limit_price=price,
+        stop_price=aux_price,
+        trade_session=order_trade_session_type,
+    )
 
 
 def place_stop(
@@ -460,6 +616,86 @@ def place_stop(
     time_in_force: TimeInForce = TimeInForce.DAY,
 ) -> str:
     return _submit(symbol, qty, side, "STOP", time_in_force, stop_price=aux_price)
+
+
+def place_limit_if_touched(
+    symbol: Contract,
+    aux_price: float,
+    price: float,
+    qty: float,
+    side: OrderSide = OrderSide.BUY,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+    order_trade_session_type: TSType = TSType.RTH,
+) -> str:
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "LIMIT_IF_TOUCHED",
+        time_in_force,
+        limit_price=price,
+        stop_price=aux_price,
+        trade_session=order_trade_session_type,
+    )
+
+
+def place_market_if_touched(
+    symbol: Contract,
+    aux_price: float,
+    qty: float,
+    side: OrderSide = OrderSide.BUY,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+) -> str:
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "MARKET_IF_TOUCHED",
+        time_in_force,
+        stop_price=aux_price,
+    )
+
+
+def place_trailing_stop(
+    symbol: Contract,
+    trail_type: TrailType,
+    trail_value: float,
+    qty: float,
+    side: OrderSide = OrderSide.BUY,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+) -> str:
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "TRAILING_STOP",
+        time_in_force,
+        trail_type=trail_type,
+        trail_value=trail_value,
+    )
+
+
+def place_trailing_stop_limit(
+    symbol: Contract,
+    trail_type: TrailType,
+    trail_value: float,
+    trail_spread: float,
+    qty: float,
+    side: OrderSide = OrderSide.BUY,
+    time_in_force: TimeInForce = TimeInForce.DAY,
+    order_trade_session_type: TSType = TSType.RTH,
+) -> str:
+    return _submit(
+        symbol,
+        qty,
+        side,
+        "TRAILING_STOP_LIMIT",
+        time_in_force,
+        trade_session=order_trade_session_type,
+        trail_type=trail_type,
+        trail_value=trail_value,
+        trail_spread=trail_spread,
+    )
 
 
 def close_positions(symbol: Contract, qty: float | None = None) -> str | None:
@@ -477,6 +713,79 @@ def cancel_order_all() -> None:
     context.broker.cancel_all(context.current_bar.date)
 
 
+def cancel_order_by_orderid(orderid: str) -> None:
+    context = get_context()
+    context.broker.cancel_order(str(orderid), context.current_bar.date)
+
+
+def cancel_order_by_symbol(
+    symbol: Contract, side: TradeSide = TradeSide.ALL
+) -> None:
+    _validate_symbol(symbol)
+    normalized = TradeSide(side)
+    order_side = None
+    if normalized == TradeSide.BUY:
+        order_side = OrderSide.BUY
+    elif normalized == TradeSide.SELL:
+        order_side = OrderSide.SELL
+    context = get_context()
+    context.broker.cancel_symbol(symbol, context.current_bar.date, order_side)
+
+
+def modify_order(
+    orderid: str,
+    qty: float,
+    price: float | None = None,
+    aux_price: float | None = None,
+    trail_type: TrailType | None = None,
+    trail_value: float | None = None,
+    trail_spread: float | None = None,
+) -> str:
+    context = get_context()
+    return context.broker.modify_order(
+        str(orderid),
+        context.current_bar.date,
+        quantity=qty,
+        price=price,
+        aux_price=aux_price,
+        trail_type=trail_type,
+        trail_value=trail_value,
+        trail_spread=trail_spread,
+    )
+
+
+def liquidate() -> str | None:
+    return close_positions(get_context().symbol)
+
+
+def cancel_and_liquidate() -> str | None:
+    cancel_order_all()
+    return liquidate()
+
+
+def reverse_positions(symbol: Contract) -> str | None:
+    _validate_symbol(symbol)
+    context = get_context()
+    context.broker.cancel_symbol(symbol, context.current_bar.date)
+    position = context.broker.position
+    if position.quantity == 0:
+        return None
+    if position.quantity > 0 and not context.broker.allow_short:
+        raise UnsupportedAPIError(
+            "reverse_positions from long to short requires allow_short=True"
+        )
+    quantity = abs(position.quantity)
+    close_order_id = close_positions(symbol, quantity)
+    if close_order_id is None:  # pragma: no cover - guarded above
+        return None
+    close_order = context.broker.get_order(close_order_id)
+    close_order.follow_up_side = (
+        OrderSide.SELL_SHORT if position.quantity > 0 else OrderSide.BUY
+    )
+    close_order.follow_up_quantity = quantity
+    return context.broker.create_order_group(close_order_id)
+
+
 def _submit(
     symbol: Contract,
     qty: float,
@@ -486,13 +795,23 @@ def _submit(
     *,
     limit_price: float | None = None,
     stop_price: float | None = None,
+    trade_session: TSType = TSType.ALL,
+    trail_type: TrailType | None = None,
+    trail_value: float | None = None,
+    trail_spread: float | None = None,
 ) -> str:
     _validate_symbol(symbol)
+    from .stock_api import lot_size
+
+    lot = lot_size(symbol)
+    normalized_qty = math.floor(float(qty) / lot) * lot
+    if normalized_qty <= 0:
+        raise ValueError(f"order quantity {qty} is below one tradable lot ({lot:g})")
     context = get_context()
     return context.broker.submit(
         symbol=symbol,
         side=side,
-        quantity=qty,
+        quantity=normalized_qty,
         order_type=order_type,
         current_index=context.current_index,
         current_date=context.current_bar.date,
@@ -500,39 +819,58 @@ def _submit(
         limit_price=limit_price,
         stop_price=stop_price,
         current_price=context.current_bar.close,
+        trade_session=trade_session,
+        trail_type=trail_type,
+        trail_value=trail_value,
+        trail_spread=trail_spread,
     )
 
 
-def _bar_value(symbol: Contract, field: str, select: int) -> float:
+def _bar_value(
+    symbol: Contract, field: str, select: int, bar_type: BarType | str
+) -> float:
     _validate_symbol(symbol)
-    index = get_context().current_index - (select - 1)
     if select <= 0:
         raise ValueError("select must be positive")
+    series = get_context().bars_for(bar_type)
+    index = len(series) - select
     if index < 0:
         return math.nan
-    return float(getattr(get_context().bars[index], field))
+    value = getattr(series[index], field)
+    if value is None:
+        raise UnsupportedAPIError(f"{field} is unavailable in the OpenD history input")
+    return float(value)
 
 
-def _values(symbol: Contract, data_type: DataType, select: int) -> list[float]:
+def _values(
+    symbol: Contract,
+    data_type: DataType,
+    select: int,
+    bar_type: BarType | str,
+) -> list[float]:
     _validate_symbol(symbol)
     if select <= 0:
         raise ValueError("select must be positive")
-    context = get_context()
-    end = context.current_index - (select - 1)
+    series = get_context().bars_for(bar_type)
+    end = len(series) - select
     if end < 0:
         return []
     field = data_type.value.lower()
-    return [float(getattr(bar, field)) for bar in context.bars[: end + 1]]
+    return [float(getattr(bar, field)) for bar in series[: end + 1]]
 
 
-def _series_prefix_sum(field: str) -> list[float]:
-    context = get_context()
-    prefix = context.series_prefix_sums.setdefault(field, [0.0])
-    target_length = context.current_index + 2
-    while len(prefix) < target_length:
-        bar_index = len(prefix) - 1
-        prefix.append(prefix[-1] + float(getattr(context.bars[bar_index], field)))
-    return prefix
+def _sum_required(bars: list[Any], field: str) -> float:
+    values = [getattr(bar, field) for bar in bars]
+    if any(value is None for value in values):
+        raise DataUnavailableError(f"{field} is unavailable in the OpenD history input")
+    return sum(float(value) for value in values)
+
+
+def _last_required(bars: list[Any], field: str) -> float:
+    value = getattr(bars[-1], field)
+    if value is None:
+        raise DataUnavailableError(f"{field} is unavailable in the OpenD history input")
+    return float(value)
 
 
 def _ema_series(values: list[float], period: int) -> list[float]:
@@ -550,8 +888,9 @@ def _macd(
     slow_period: int,
     signal_period: int,
     select: int,
+    bar_type: BarType | str,
 ) -> tuple[float, float, float]:
-    closes = _values(symbol, DataType.CLOSE, select)
+    closes = _values(symbol, DataType.CLOSE, select, bar_type)
     if min(fast_period, slow_period, signal_period) <= 0:
         raise ValueError("MACD periods must be positive")
     if len(closes) < slow_period + signal_period - 1:
@@ -593,10 +932,11 @@ def _validate_series_request(
         requested_bar_type = BarType(bar_type)
     except (TypeError, ValueError) as error:
         raise UnsupportedAPIError(f"unsupported bar type: {bar_type}") from error
-    if requested_bar_type != context.bar_type:
+    if not can_derive(context.bar_type, requested_bar_type):
         raise UnsupportedAPIError(
-            f"requested {requested_bar_type.value}, but this backtest contains "
-            f"{context.bar_type.value} bars; resampling is not implemented"
+            f"requested {requested_bar_type.value}, but this backtest is driven by "
+            f"{context.bar_type.value}; resampling is not implemented toward a finer period; "
+            "choose the smallest strategy period as the OpenD input"
         )
     _validate_session(session_type)
     if context.autype.upper() != "QFQ":
@@ -633,20 +973,20 @@ def _custom_bar_type(custom_type: Any) -> BarType:
     return BarType(normalized)
 
 
-def _observed_periods_per_year(context: Any) -> float:
-    if context.bar_type == BarType.K_WEEK:
+def _observed_periods_per_year(bar_type: BarType, bars: list[Any]) -> float:
+    if bar_type == BarType.K_WEEK:
         return 52.0
-    if context.bar_type == BarType.K_DAY:
+    if bar_type == BarType.K_DAY:
         return 252.0
-    trading_dates = {bar.date.strip()[:10] for bar in context.bars if bar.date.strip()}
+    trading_dates = {bar.date.strip()[:10] for bar in bars if bar.date.strip()}
     if not trading_dates:
         return 252.0
-    return max(1.0, len(context.bars) / len(trading_dates)) * 252.0
+    return max(1.0, len(bars) / len(trading_dates)) * 252.0
 
 
 def _validate_symbol(symbol: Contract) -> None:
     if str(symbol) != str(get_context().symbol):
-        raise UnsupportedAPIError("MVP supports one trigger symbol per backtest")
+        raise UnsupportedAPIError("a backtest supports one trigger stock at a time")
 
 
 __all__ = [
@@ -661,11 +1001,29 @@ __all__ = [
     "OrdType",
     "PositionSide",
     "StrategyBase",
+    "CltRiskStatus",
+    "CostPriceModel",
+    "Currency",
+    "DTStatus",
+    "ErrCode",
+    "DealStatus",
+    "Market",
+    "MktStatus",
+    "OrderStatus",
+    "SymbolType",
+    "TradeSide",
+    "TrailType",
+    "TrdHours",
+    "TimeOrientation",
+    "USMktStatus",
+    "Week",
     "THType",
     "TSType",
     "TimeZone",
     "TimeInForce",
     "UnsupportedAPIError",
+    "DataUnavailableError",
+    "APIException",
     "bar_close",
     "bar_custom",
     "bar_high",
@@ -673,6 +1031,9 @@ __all__ = [
     "bar_open",
     "bar_volume",
     "cancel_order_all",
+    "cancel_order_by_orderid",
+    "cancel_order_by_symbol",
+    "cancel_and_liquidate",
     "close_positions",
     "current_bar_type",
     "current_price",
@@ -680,6 +1041,11 @@ __all__ = [
     "declare_strategy_type",
     "declare_trig_symbol",
     "device_time",
+    "is_the_time",
+    "is_the_day",
+    "is_the_week",
+    "is_the_month",
+    "is_the_year",
     "ema",
     "historical_volatility",
     "is_macd_death_cross",
@@ -691,11 +1057,36 @@ __all__ = [
     "max_qty_to_buy_on_cash",
     "max_qty_to_sell",
     "place_limit",
+    "place_limit_if_touched",
     "place_market",
+    "place_market_if_touched",
     "place_stop",
+    "place_stop_limit",
+    "place_trailing_stop",
+    "place_trailing_stop_limit",
+    "modify_order",
+    "liquidate",
+    "reverse_positions",
     "position_holding_qty",
     "position_side",
     "rsi",
     "show_variable",
     "strategy_parameter",
+    "ceil",
+    "floor",
+    "power",
+    "integer_division",
+    "mod",
+    "math_log",
 ]
+
+
+from . import stock_api as _stock_api
+from . import stock_indicators as _stock_indicators
+from . import custom_indicators as _custom_indicators
+
+for _module in (_stock_api, _stock_indicators, _custom_indicators):
+    for _name in _module.__all__:
+        globals()[_name] = getattr(_module, _name)
+        if _name not in __all__:
+            __all__.append(_name)

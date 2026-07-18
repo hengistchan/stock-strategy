@@ -6,12 +6,14 @@
 - OpenD direct mode: require one symbol, explicit start/end dates, a reachable read-only quote context, and the optional `opend` dependency. Follow every pagination key, close the context on success or failure, and save a raw cache when reproducibility matters.
 - Generic CSV: require `date`, `open`, `high`, `low`, `close`; require an explicit symbol when no `code` column exists.
 - Keep exactly one symbol. Preserve full `time_key` so intraday bars on the same date are not deduplicated.
-- Treat the supplied rows as the driving bar interval. The MVP accepts `BarType` arguments but does not resample or filter sessions.
+- Treat the supplied rows as the driving bar interval. For multi-period stock strategies, use the smallest requested `BarType`; the engine incrementally derives coarser bars without future data.
+- Keep one US session scope (`RTH`, `ETH`, or `ALL`) for the run. Match it to the strategy's declared `THType`.
 - Require at least 30 valid bars. Ensure prices are positive and `low <= open/close <= high`.
 
 ## Execution model
 
 - Call `handle_data()` after the current bar closes.
+- Expose `select=1` as the current partial target-period bar and `select=2` as the previous target-period bar.
 - Fill a submitted market order no earlier than the next bar open.
 - Evaluate limit and stop orders against the next bar's OHLC range.
 - Apply commission and slippage to cash, equity, and trade P&L.

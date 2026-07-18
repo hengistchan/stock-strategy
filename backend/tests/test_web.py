@@ -149,7 +149,7 @@ class WebTest(unittest.TestCase):
         self.assertEqual(unknown_parameter.status_code, 422)
         self.assertEqual(unknown_experiment_parameter.status_code, 422)
 
-    def test_incompatible_strategy_is_blocked_before_a_job_is_created(self):
+    def test_non_stock_manual_api_is_blocked_before_a_job_is_created(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             strategy = root / "strategies" / "multi.py"
@@ -163,7 +163,7 @@ class Strategy(StrategyBase):
         self.slow = BarType.K_5M
 
     def handle_data(self):
-        lot_size(self.symbol)
+        future_previous_settle(self.symbol)
         bar_close(self.symbol, bar_type=self.fast)
         bar_close(self.symbol, bar_type=self.slow)
 """,
@@ -184,9 +184,52 @@ class Strategy(StrategyBase):
                 jobs = client.get("/api/jobs").json()["jobs"]
 
         self.assertEqual(response.status_code, 422)
-        self.assertIn("lot_size", response.json()["detail"])
-        self.assertIn("多个 K 线周期", response.json()["detail"])
+        self.assertIn("future_previous_settle", response.json()["detail"])
         self.assertEqual(jobs, [])
+
+    def test_multi_period_stock_strategy_selects_smallest_opend_driver(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "strategies" / "multi.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text(
+                """
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.symbol = declare_trig_symbol()
+        self.fast = BarType.K_1M
+        self.slow = BarType.K_15M
+        self.session = THType.RTH
+    def handle_data(self):
+        bar_close(self.symbol, bar_type=self.fast, session_type=self.session)
+        bar_close(self.symbol, bar_type=self.slow, session_type=self.session)
+""",
+                encoding="utf-8",
+            )
+            app = create_app(project_root=root, opend_probe=lambda host, port: True)
+            with TestClient(app) as client:
+                config = client.get("/api/config").json()
+                response = client.post(
+                    "/api/jobs",
+                    json={
+                        "strategy": "strategies/multi.py",
+                        "symbol": "US.AAPL",
+                        "start": "2025-01-01",
+                        "end": "2025-02-01",
+                        "ktype": "K_5M",
+                        "session": "RTH",
+                    },
+                )
+        compatibility = next(
+            item["compatibility"]
+            for item in config["strategies"]
+            if item["path"] == "strategies/multi.py"
+        )
+        self.assertTrue(compatibility["supported"])
+        self.assertEqual(compatibility["driver_bar_type"], "K_1M")
+        self.assertEqual(compatibility["required_session"], "RTH")
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("最细周期为 K_1M", response.json()["detail"])
 
     def test_strategy_paths_stay_inside_allowed_folders(self):
         project_root = Path(__file__).parents[2]

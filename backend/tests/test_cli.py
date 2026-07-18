@@ -124,34 +124,38 @@ class Strategy(StrategyBase):
             with patch(
                 "stock_strategy.cli.fetch_history_kline", return_value=history
             ) as fetch_history:
-                with redirect_stdout(io.StringIO()):
-                    return_code = main(
-                        [
-                            "--strategy",
-                            str(strategy_path),
-                            "--opend",
-                            "--symbol",
-                            "US.AAPL",
-                            "--start",
-                            "2025-01-01",
-                            "--end",
-                            "2025-01-31",
-                            "--warmup-bars",
-                            "0",
-                            "--ktype",
-                            "K_5M",
-                            "--autype",
-                            "HFQ",
-                            "--session",
-                            "RTH",
-                            "--liquidate-on-end",
-                            "--opend-cache",
-                            str(cache_path),
-                            "--output",
-                            str(output_path),
-                            "--no-chart",
-                        ]
-                    )
+                with patch(
+                    "stock_strategy.cli.fetch_stock_metadata",
+                    return_value={"lot_size": 1, "price_spread": 0.01},
+                ):
+                    with redirect_stdout(io.StringIO()):
+                        return_code = main(
+                            [
+                                "--strategy",
+                                str(strategy_path),
+                                "--opend",
+                                "--symbol",
+                                "US.AAPL",
+                                "--start",
+                                "2025-01-01",
+                                "--end",
+                                "2025-01-31",
+                                "--warmup-bars",
+                                "0",
+                                "--ktype",
+                                "K_5M",
+                                "--autype",
+                                "HFQ",
+                                "--session",
+                                "RTH",
+                                "--liquidate-on-end",
+                                "--opend-cache",
+                                str(cache_path),
+                                "--output",
+                                str(output_path),
+                                "--no-chart",
+                            ]
+                        )
             fetch_history.assert_called_once_with(
                 "US.AAPL",
                 start="2025-01-01",
@@ -216,17 +220,21 @@ class Strategy(StrategyBase):
                 encoding="utf-8",
             )
             with patch("stock_strategy.cli.fetch_history_kline") as fetch_history:
-                with redirect_stdout(io.StringIO()):
-                    return_code = main(
-                        [
-                            "--strategy", str(strategy_path),
-                            "--opend", "--symbol", "US.AAPL",
-                            "--start", "2025-01-01", "--end", "2025-12-31",
-                            "--opend-cache", str(cache_path),
-                            "--parameter", "quantity=3",
-                            "--output", str(output_path), "--no-chart",
-                        ]
-                    )
+                with patch(
+                    "stock_strategy.cli.fetch_stock_metadata",
+                    return_value={"lot_size": 1, "price_spread": 0.01},
+                ):
+                    with redirect_stdout(io.StringIO()):
+                        return_code = main(
+                            [
+                                "--strategy", str(strategy_path),
+                                "--opend", "--symbol", "US.AAPL",
+                                "--start", "2025-01-01", "--end", "2025-12-31",
+                                "--opend-cache", str(cache_path),
+                                "--parameter", "quantity=3",
+                                "--output", str(output_path), "--no-chart",
+                            ]
+                        )
             summary = json.loads(next(output_path.glob("*/summary.json")).read_text())
 
         self.assertEqual(return_code, 0)

@@ -19,6 +19,10 @@ ALIASES = {
     "low": ("low", "最低"),
     "close": ("close", "收盘", "收盤"),
     "volume": ("volume", "vol", "成交量"),
+    "turnover": ("turnover", "成交额", "成交額"),
+    "turnover_rate": ("turnover_rate", "换手率", "換手率"),
+    "change_rate": ("change_rate", "chg_rate", "涨跌幅", "漲跌幅"),
+    "last_close": ("last_close", "昨收", "前收盘", "前收盤"),
 }
 
 
@@ -163,7 +167,16 @@ def _resolve_columns(fieldnames: Iterable[str]) -> dict[str, str | None]:
     missing = [
         field
         for field, source in result.items()
-        if source is None and field not in ("code", "volume")
+        if source is None
+        and field
+        not in (
+            "code",
+            "volume",
+            "turnover",
+            "turnover_rate",
+            "change_rate",
+            "last_close",
+        )
     ]
     if missing:
         raise ValueError(f"CSV missing required columns: {', '.join(missing)}")
@@ -183,6 +196,10 @@ def _parse_row(
         close = _number(row[columns["close"]])  # type: ignore[index]
         volume_column = columns["volume"]
         volume = _number(row[volume_column]) if volume_column else 0.0
+        turnover = _optional_number(row, columns["turnover"])
+        turnover_rate = _optional_number(row, columns["turnover_rate"])
+        change_rate = _optional_number(row, columns["change_rate"])
+        last_close = _optional_number(row, columns["last_close"])
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError(f"Invalid value on CSV line {line_no}: {error}") from error
 
@@ -192,11 +209,32 @@ def _parse_row(
         raise ValueError(f"Prices must be positive on CSV line {line_no}")
     if high < max(open_price, close) or low > min(open_price, close):
         raise ValueError(f"Invalid OHLC relationship on CSV line {line_no}")
-    return Bar(bar_date, open_price, high, low, close, volume)
+    return Bar(
+        bar_date,
+        open_price,
+        high,
+        low,
+        close,
+        volume,
+        turnover,
+        turnover_rate,
+        change_rate,
+        last_close,
+    )
 
 
 def _number(value: Any) -> float:
     return float(str(value).strip().replace(",", ""))
+
+
+def _optional_number(row: Mapping[str, Any], column: str | None) -> float | None:
+    if not column:
+        return None
+    value = row.get(column)
+    if value is None or str(value).strip() in {"", "N/A", "nan", "None"}:
+        return None
+    result = _number(value)
+    return result if math.isfinite(result) else None
 
 
 def _normalize_timestamp(value: Any) -> str:

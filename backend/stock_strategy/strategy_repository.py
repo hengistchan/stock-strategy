@@ -211,7 +211,9 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
     assigned = {"self"}
     loaded: set[str] = set()
     bar_attributes: dict[str, str] = {}
+    session_attributes: dict[str, str] = {}
     bar_types: set[str] = set()
+    session_types: set[str] = set()
 
     for node in ast.walk(module):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -239,6 +241,17 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
             and node.value.attr.startswith("K_")
         ):
             bar_attributes[node.targets[0].attr] = node.value.attr
+        elif (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Attribute)
+            and isinstance(node.targets[0].value, ast.Name)
+            and node.targets[0].value.id == "self"
+            and isinstance(node.value, ast.Attribute)
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "THType"
+        ):
+            session_attributes[node.targets[0].attr] = node.value.attr
 
     supported = set(futu.__all__) | set(vars(builtins)) | assigned
     unsupported_names = sorted(
@@ -266,53 +279,98 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
         ):
             continue
         keyword = next((item for item in node.keywords if item.arg == "bar_type"), None)
-        if keyword is None:
-            continue
-        value = keyword.value
-        if (
-            isinstance(value, ast.Attribute)
-            and isinstance(value.value, ast.Name)
-            and value.value.id == "BarType"
-        ):
-            bar_types.add(value.attr)
-        elif (
-            isinstance(value, ast.Attribute)
-            and isinstance(value.value, ast.Name)
-            and value.value.id == "self"
-            and value.attr in bar_attributes
-        ):
-            bar_types.add(bar_attributes[value.attr])
+        if keyword is not None:
+            value = keyword.value
+            if (
+                isinstance(value, ast.Attribute)
+                and isinstance(value.value, ast.Name)
+                and value.value.id == "BarType"
+            ):
+                bar_types.add(value.attr)
+            elif (
+                isinstance(value, ast.Attribute)
+                and isinstance(value.value, ast.Name)
+                and value.value.id == "self"
+                and value.attr in bar_attributes
+            ):
+                bar_types.add(bar_attributes[value.attr])
+        session_keyword = next(
+            (item for item in node.keywords if item.arg == "session_type"), None
+        )
+        if session_keyword is not None:
+            session_value = session_keyword.value
+            if (
+                isinstance(session_value, ast.Attribute)
+                and isinstance(session_value.value, ast.Name)
+                and session_value.value.id == "THType"
+            ):
+                session_types.add(session_value.attr)
+            elif (
+                isinstance(session_value, ast.Attribute)
+                and isinstance(session_value.value, ast.Name)
+                and session_value.value.id == "self"
+                and session_value.attr in session_attributes
+            ):
+                session_types.add(session_attributes[session_value.attr])
 
     issues: list[str] = []
     if unsupported_names:
         issues.append("unsupported_names")
-    if len(bar_types) > 1:
-        issues.append("multiple_bar_types")
+    if len(session_types) > 1:
+        issues.append("multiple_session_types")
+    driver_bar_type = min(bar_types, key=_bar_type_rank) if bar_types else None
     return {
         "supported": not issues,
         "issues": issues,
         "unsupported_names": unsupported_names,
         "bar_types": sorted(bar_types),
+        "driver_bar_type": driver_bar_type,
+        "session_types": sorted(session_types),
+        "required_session": next(iter(session_types)) if len(session_types) == 1 else None,
     }
 
 
-def compatibility_error(compatibility: dict[str, Any], selected_ktype: str) -> str | None:
+def compatibility_error(
+    compatibility: dict[str, Any],
+    selected_ktype: str,
+    selected_session: str | None = None,
+) -> str | None:
     parts: list[str] = []
     unsupported_names = compatibility.get("unsupported_names") or []
     bar_types = compatibility.get("bar_types") or []
     if unsupported_names:
         parts.append("尚未支持的 Futu 名称：" + "、".join(unsupported_names))
-    if len(bar_types) > 1:
+    driver_bar_type = compatibility.get("driver_bar_type")
+    if driver_bar_type and driver_bar_type != selected_ktype:
         parts.append(
-            "策略依赖多个 K 线周期："
-            + "、".join(bar_types)
-            + "；当前回测引擎一次只支持一个 OpenD 周期"
+            f"策略最细周期为 {driver_bar_type}，当前 OpenD 驱动周期为 {selected_ktype}"
         )
-    elif len(bar_types) == 1 and bar_types[0] != selected_ktype:
+    if len(compatibility.get("session_types") or []) > 1:
+        parts.append("策略混用了多个美股时段，单次回测必须统一 THType")
+    required_session = compatibility.get("required_session")
+    if selected_session and required_session and required_session != selected_session:
         parts.append(
-            f"策略要求 {bar_types[0]}，当前选择为 {selected_ktype}"
+            f"策略要求 {required_session} 时段，当前 OpenD 时段为 {selected_session}"
         )
     return "；".join(parts) if parts else None
+
+
+def _bar_type_rank(value: str) -> int:
+    ranks = {
+        "K_1M": 1,
+        "K_3M": 3,
+        "K_5M": 5,
+        "K_10M": 10,
+        "K_15M": 15,
+        "K_30M": 30,
+        "K_60M": 60,
+        "K_120M": 120,
+        "K_180M": 180,
+        "K_240M": 240,
+        "K_DAY": 1440,
+        "K_WEEK": 10080,
+    }
+    return ranks.get(value, 1_000_000)
 
 
 def _revision(content: str) -> str:

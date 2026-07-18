@@ -7,6 +7,7 @@ from typing import Any, Iterator
 
 from .broker import Broker
 from .models import Bar, BarType, Contract, THType
+from .timeframes import IncrementalBarSeries
 
 
 @dataclass(slots=True)
@@ -20,16 +21,24 @@ class ExecutionContext:
     session_type: THType = THType.ALL
     autype: str = "QFQ"
     strategy_parameters: dict[str, Any] = field(default_factory=dict)
+    market_metadata: dict[str, Any] = field(default_factory=dict)
     series_prefix_sums: dict[str, list[float]] = field(default_factory=dict)
+    registered_indicators: dict[str, Any] = field(default_factory=dict)
+    quit_requested: bool = False
+    _timeframes: IncrementalBarSeries = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.bar_type = BarType(self.bar_type)
         self.session_type = THType(self.session_type)
         self.autype = str(self.autype).upper()
+        self._timeframes = IncrementalBarSeries(self.bar_type, self.bars)
 
     @property
     def current_bar(self) -> Bar:
         return self.bars[self.current_index]
+
+    def bars_for(self, bar_type: BarType | str) -> list[Bar]:
+        return self._timeframes.values(BarType(bar_type), self.current_index)
 
 
 _ACTIVE_CONTEXT: ContextVar[ExecutionContext | None] = ContextVar(

@@ -23,6 +23,18 @@ class BarType(StringEnum):
     K_240M = "K_240M"
     K_DAY = "K_DAY"
     K_WEEK = "K_WEEK"
+    M1 = "K_1M"
+    M3 = "K_3M"
+    M5 = "K_5M"
+    M10 = "K_10M"
+    M15 = "K_15M"
+    M30 = "K_30M"
+    H1 = "K_60M"
+    H2 = "K_120M"
+    H3 = "K_180M"
+    H4 = "K_240M"
+    D1 = "K_DAY"
+    W1 = "K_WEEK"
 
 
 class DataType(StringEnum):
@@ -40,6 +52,9 @@ class BarDataType(StringEnum):
     LOW = "LOW"
     VOLUME = "VOLUME"
     TURNOVER = "TURNOVER"
+    TURNOVER_RATE = "TURNOVER_RATE"
+    CHG_RATE = "CHG_RATE"
+    CHG = "CHG"
 
 
 class CustomType(StringEnum):
@@ -62,6 +77,7 @@ class TSType(StringEnum):
     ETH = "ETH"
     ALL = "ALL"
     OVERNIGHT = "OVERNIGHT"
+    AUTO = "AUTO"
 
 
 class TimeZone(StringEnum):
@@ -138,7 +154,204 @@ class GlobalType(StringEnum):
 class OrdType(StringEnum):
     LMT = "LMT"
     MKT = "MKT"
+    STOP_LMT = "STOP_LMT"
     STOP = "STOP"
+    LIM_IF_TOUCHED = "LIM_IF_TOUCHED"
+    MKT_IF_TOUCHED = "MKT_IF_TOUCHED"
+    TRAILING_STOP_LMT = "TRAILING_STOP_LMT"
+    TRAILING_STOP = "TRAILING_STOP"
+
+
+class IndexOptionType(StringEnum):
+    NORMAL = "NORMAL"
+    SMALL = "SMALL"
+
+
+class DealStatus(StringEnum):
+    OK = "OK"
+    CANCELLED = "CANCELLED"
+    CHANGED = "CHANGED"
+
+
+class CltRiskStatus(StringEnum):
+    LEVEL1 = "LEVEL1"
+    LEVEL2 = "LEVEL2"
+    LEVEL3 = "LEVEL3"
+    LEVEL4 = "LEVEL4"
+    LEVEL5 = "LEVEL5"
+    LEVEL6 = "LEVEL6"
+    LEVEL7 = "LEVEL7"
+    LEVEL8 = "LEVEL8"
+    LEVEL9 = "LEVEL9"
+
+
+class OptionType(StringEnum):
+    ALL = "ALL"
+    CALL = "CALL"
+    PUT = "PUT"
+
+
+class Currency(StringEnum):
+    HKD = "HKD"
+    USD = "USD"
+    CNH = "CNH"
+    JPY = "JPY"
+    SGD = "SGD"
+    AUD = "AUD"
+    EUR = "EUR"
+    GBP = "GBP"
+    CAD = "CAD"
+    MYR = "MYR"
+    KRW = "KRW"
+    INR = "INR"
+    TWD = "TWD"
+
+
+class Week(StringEnum):
+    MON = "MON"
+    TUE = "TUE"
+    WED = "WED"
+    THU = "THU"
+    FRI = "FRI"
+    SAT = "SAT"
+    SUN = "SUN"
+
+
+class Moneyness(StringEnum):
+    ITM = "ITM"
+    OTM = "OTM"
+
+
+class TradeSide(StringEnum):
+    BUY = "BUY"
+    SELL = "SELL"
+    ALL = "ALL"
+
+
+class OrderStatus(StringEnum):
+    WAITING_SUBMIT = "WAITING_SUBMIT"
+    SUBMITTING = "SUBMITTING"
+    SUBMITTED = "SUBMITTED"
+    FILLED_PART = "FILLED_PART"
+    FILLED_ALL = "FILLED_ALL"
+    CANCELLED_PART = "CANCELLED_PART"
+    CANCELLED_ALL = "CANCELLED_ALL"
+    FAILED = "FAILED"
+    DISABLED = "DISABLED"
+
+
+class TrdHours(StringEnum):
+    RTH = "RTH"
+    ITH = "ITH"
+    CLOSED = "CLOSED"
+
+
+class TrailType(StringEnum):
+    RATIO = "RATIO"
+    AMOUNT = "AMOUNT"
+
+
+class TimeOrientation(StringEnum):
+    LATER_THAN = "LATER_THAN"
+    EARLIER_THAN = "EARLIER_THAN"
+    NOT_LATER_THAN = "NOT_LATER_THAN"
+    NOT_EARLIER_THAN = "NOT_EARLIER_THAN"
+
+
+class ErrCode(StringEnum):
+    ExceedReqLimit = "ExceedReqLimit"
+    ReqTimeout = "ReqTimeout"
+    NoQuoteRight = "NoQuoteRight"
+    InvalidArgument = "InvalidArgument"
+    ReqFailed = "ReqFailed"
+    NoDataAvailable = "NoDataAvailable"
+    EmptySymbol = "EmptySymbol"
+    EmptyCode = "EmptyCode"
+    Unknow = "Unknow"
+    Unknown = "Unknown"
+
+
+class InlinePriceType(StringEnum):
+    UPPER_LIMIT = "UPPER_LIMIT"
+    LOWER_LIMIT = "LOWER_LIMIT"
+
+
+class OptionClass(StringEnum):
+    Moneyness = "Moneyness"
+    Type = "Type"
+    Style = "Style"
+
+
+class DTStatus(StringEnum):
+    UNLIMITED = "UNLIMITED"
+    EM_Call = "EM_Call"
+    DT_Call = "DT_Call"
+
+
+class OptionCategory(StringEnum):
+    ITM = "ITM"
+    OTM = "OTM"
+    CALL = "CALL"
+    PUT = "PUT"
+    AMERICAN = "AMERICAN"
+    EUROPEAN = "EUROPEAN"
+    BERMUDA = "BERMUDA"
+
+
+class CostPriceModel(StringEnum):
+    DILUTED = "DILUTED"
+    AVG = "AVG"
+
+
+class FutureType(StringEnum):
+    ALL = "ALL"
+    MAIN = "MAIN"
+    CURRENT = "CURRENT"
+    NEXT = "NEXT"
+    DAY = "DAY"
+    MONTH = "MONTH"
+
+
+class MktStatus(StringEnum):
+    AUCTION = "AUCTION"
+    CONTINUOUS_TRADE = "CONTINUOUS_TRADE"
+    CLOSED = "CLOSED"
+
+
+class USMktStatus(StringEnum):
+    PRE_MARKET = "PRE_MARKET"
+    RTH = "RTH"
+    POST_MARKET = "POST_MARKET"
+    OVERNIGHT = "OVERNIGHT"
+    CLOSED = "CLOSED"
+
+
+class Market(StringEnum):
+    HK = "HK"
+    US = "US"
+    SZ = "SZ"
+    SH = "SH"
+    SG = "SG"
+    JP = "JP"
+    MY = "MY"
+    CA = "CA"
+    AU = "AU"
+    FX = "FX"
+    EU = "EU"
+    KR = "KR"
+    IN = "IN"
+    TW = "TW"
+
+
+class SymbolType(StringEnum):
+    STOCK = "STOCK"
+    FUTURES = "FUTURES"
+    OPTION = "OPTION"
+    ETF = "ETF"
+    INDEX = "INDEX"
+    WARRANT = "WARRANT"
+    FOREX = "FOREX"
+    PLATE = "PLATE"
 
 
 class Contract(str):
@@ -159,6 +372,10 @@ class Bar:
     low: float
     close: float
     volume: float
+    turnover: float | None = None
+    turnover_rate: float | None = None
+    change_rate: float | None = None
+    last_close: float | None = None
 
 
 @dataclass(slots=True)
@@ -176,6 +393,19 @@ class Order:
     exit_reason: str = "signal"
     active_date: str | None = None
     reserved_cash: float = 0.0
+    status: OrderStatus = OrderStatus.SUBMITTED
+    filled_quantity: float = 0.0
+    filled_avg_price: float = 0.0
+    execution_ids: list[str] = field(default_factory=list)
+    trade_session: TSType = TSType.ALL
+    trail_type: TrailType | None = None
+    trail_value: float | None = None
+    trail_spread: float | None = None
+    triggered: bool = False
+    trail_reference: float | None = None
+    follow_up_side: OrderSide | None = None
+    follow_up_quantity: float | None = None
+    group_id: str | None = None
 
 
 @dataclass(slots=True)

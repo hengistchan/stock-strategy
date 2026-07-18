@@ -21,8 +21,8 @@ If the strategy rules or real market data are missing and cannot be found locall
 ## Inspect before running
 
 1. Locate the project root. The Python package lives under `backend/`; for the bundled script, the workspace root is derived from this Skill's path. Override it with `--project-root` only when needed.
-2. Confirm the strategy uses APIs supported by `docs/FUTU_COMPATIBILITY.md`.
-3. Confirm OpenD data contains `code`, `time_key`, `open`, `close`, `high`, `low`, and optionally `volume`. Preserve OpenD timestamps without timezone conversion.
+2. Confirm the strategy uses stock APIs supported by `docs/FUTU_COMPATIBILITY.md`; reject futures, options, warrants, and other derivative-only calls.
+3. Confirm OpenD data contains `code`, `time_key`, `open`, `close`, `high`, `low`, and optionally `volume`, turnover fields, and previous close. Preserve OpenD timestamps without timezone conversion.
 4. Reject mixed-symbol input unless the requested `--symbol` selects exactly one symbol.
 5. Keep next-bar execution, fees, and slippage enabled. Do not silently set costs to zero.
 

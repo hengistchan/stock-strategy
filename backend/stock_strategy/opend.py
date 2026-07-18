@@ -24,6 +24,52 @@ class OpenDHistory:
     pages: int
 
 
+def fetch_stock_metadata(
+    symbol: str,
+    *,
+    host: str = "127.0.0.1",
+    port: int = 11111,
+    context_factory: Callable[..., Any] | None = None,
+    success_code: int = 0,
+) -> dict[str, Any]:
+    """Read stock lot, tick and classification metadata from OpenD."""
+    if context_factory is None:
+        try:
+            from futu import OpenQuoteContext, RET_OK
+        except ImportError as error:
+            raise OpenDUnavailableError(
+                "Futu SDK is not installed; install the project with the opend extra"
+            ) from error
+        context_factory = OpenQuoteContext
+        success_code = RET_OK
+    context = context_factory(host=host, port=port)
+    try:
+        ret, frame = context.get_market_snapshot([symbol])
+        if ret != success_code:
+            raise OpenDRequestError(f"OpenD get_market_snapshot failed: {frame}")
+        if not hasattr(frame, "to_dict"):
+            raise OpenDRequestError("OpenD returned an unexpected stock metadata payload")
+        records = frame.to_dict("records")
+        if not records:
+            raise OpenDRequestError(f"OpenD returned no stock metadata for {symbol}")
+        record = dict(records[0])
+        return {
+            key: record[key]
+            for key in (
+                "name",
+                "lot_size",
+                "price_spread",
+                "stock_type",
+                "suspension",
+                "is_marginable",
+                "is_shortable",
+            )
+            if key in record
+        }
+    finally:
+        context.close()
+
+
 def fetch_history_kline(
     symbol: str,
     *,

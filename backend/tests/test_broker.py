@@ -174,6 +174,36 @@ class BrokerTest(unittest.TestCase):
                 limit_price=110,
             )
 
+    def test_modify_order_revalidates_reserved_cash(self):
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+        )
+        order_id = broker.submit(
+            symbol=Contract("US.TEST"),
+            side=OrderSide.BUY,
+            quantity=60,
+            order_type="LIMIT",
+            current_index=0,
+            current_date="2025-01-02 09:30:00",
+            limit_price=100,
+        )
+        with self.assertRaisesRegex(ValueError, "exceeds cash available"):
+            broker.modify_order(
+                order_id,
+                "2025-01-02 09:30:00",
+                quantity=101,
+            )
+        broker.modify_order(
+            order_id,
+            "2025-01-02 09:30:00",
+            quantity=80,
+        )
+        self.assertEqual(broker.reserved_buy_cash, 8_000)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,9 +30,12 @@ export interface StrategyMetadata {
 
 export interface StrategyCompatibility {
   supported: boolean;
-  issues: Array<"unsupported_names" | "multiple_bar_types">;
+  issues: Array<"unsupported_names" | "multiple_session_types">;
   unsupported_names: string[];
   bar_types: string[];
+  driver_bar_type?: string | null;
+  session_types?: string[];
+  required_session?: string | null;
 }
 
 export interface StrategyDocument extends StrategyMetadata {

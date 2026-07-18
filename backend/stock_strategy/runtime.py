@@ -24,7 +24,7 @@ class StrategyExecutionError(RuntimeError):
     pass
 
 
-ENGINE_CONTRACT_VERSION = 2
+ENGINE_CONTRACT_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +42,7 @@ class BacktestConfig:
     autype: str = "QFQ"
     liquidate_on_end: bool = False
     strategy_parameters: dict[str, Any] = field(default_factory=dict)
+    market_metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         try:
@@ -57,6 +58,7 @@ class BacktestConfig:
             raise ValueError(f"unsupported autype: {self.autype}")
         object.__setattr__(self, "autype", normalized_autype)
         object.__setattr__(self, "strategy_parameters", dict(self.strategy_parameters))
+        object.__setattr__(self, "market_metadata", dict(self.market_metadata))
 
 
 def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
@@ -88,6 +90,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         session_type=config.session_type,
         autype=config.autype,
         strategy_parameters=strategy_parameters,
+        market_metadata=config.market_metadata,
     )
     equity_curve: list[EquityPoint] = []
     exposed_bars = 0
@@ -105,7 +108,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         for index, bar in enumerate(bars):
             context.current_index = index
             broker.process_bar(bar, index)
-            if index >= config.warmup_bars:
+            if index >= config.warmup_bars and not context.quit_requested:
                 try:
                     strategy.handle_data()
                 except Exception as error:
@@ -153,7 +156,9 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "ending_position": ending_position,
             "engine_contract": {
                 "version": ENGINE_CONTRACT_VERSION,
-                "strict_single_period": True,
+                "strict_single_period": False,
+                "driver_bar_type": config.bar_type.value,
+                "coarser_periods": "incremental-no-lookahead",
                 "day_order_scope": "trading-day",
                 "end_position_policy": (
                     "liquidate" if config.liquidate_on_end else "mark-to-market"

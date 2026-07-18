@@ -91,10 +91,15 @@ export function BacktestForm({
           {compatibility.unsupported_names.length > 0 ? (
             <p>{t("form.unsupportedNames", { names: compatibility.unsupported_names.join(" · ") })}</p>
           ) : null}
-          {compatibility.bar_types.length > 1 ? (
-            <p>{t("form.multipleBarTypes", { types: compatibility.bar_types.join(" · ") })}</p>
-          ) : null}
           <small>{t("form.compatibilityHelp")}</small>
+        </aside>
+      ) : null}
+
+      {compatibility?.supported && compatibility.bar_types.length > 1 ? (
+        <aside className="strategy-compatibility strategy-compatibility-ready" role="status">
+          <strong>{t("form.multiPeriodReady")}</strong>
+          <p>{t("form.multipleBarTypes", { types: compatibility.bar_types.join(" · ") })}</p>
+          <small>{t("form.multiPeriodHelp", { driver: compatibility.driver_bar_type ?? "—" })}</small>
         </aside>
       ) : null}
 
@@ -121,7 +126,7 @@ export function BacktestForm({
           <select
             key={`ktype-${selectedStrategy}`}
             name="ktype"
-            defaultValue={compatibility?.bar_types.length === 1 ? compatibility.bar_types[0] : "K_DAY"}
+            defaultValue={compatibility?.driver_bar_type ?? "K_DAY"}
           >
             {(config?.kline_types ?? ["K_DAY"]).map((value) => (
               <option key={value} value={value}>{value}</option>
@@ -140,7 +145,11 @@ export function BacktestForm({
 
       <label className="field field-wide session-field">
         <span>{t("form.session")}</span>
-        <select name="session" defaultValue="ALL">
+        <select
+          key={`session-${selectedStrategy}`}
+          name="session"
+          defaultValue={compatibility?.required_session ?? "ALL"}
+        >
           {(config?.session_types ?? ["ALL", "RTH", "ETH"]).map((value) => (
             <option key={value} value={value}>
               {sessionLabels[value] ?? value}

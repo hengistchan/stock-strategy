@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .data import bars_from_opend_records, generate_sample_bars, load_market_data
-from .opend import fetch_history_kline, write_history_csv
+from .opend import fetch_history_kline, fetch_stock_metadata, write_history_csv
 from .reporting import print_summary, write_artifacts
 from .runtime import BacktestConfig, run_backtest
 from .strategy_parameters import parse_parameter_assignment
@@ -86,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         history = None
+        market_metadata = {}
         cache_path = None
         cache_hit = False
         strategy_parameters = {}
@@ -129,6 +130,11 @@ def main(argv: list[str] | None = None) -> int:
                     fieldnames=history.fieldnames,
                 )
                 bars = market_data.bars
+            market_metadata = fetch_stock_metadata(
+                args.symbol,
+                host=args.opend_host,
+                port=args.opend_port,
+            )
         else:
             market_data = None
             bars = generate_sample_bars(args.sample_bars)
@@ -149,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
             autype=args.autype,
             liquidate_on_end=args.liquidate_on_end,
             strategy_parameters=strategy_parameters,
+            market_metadata=market_metadata,
         )
         result = run_backtest(config, bars)
         result.settings["data_source_format"] = (

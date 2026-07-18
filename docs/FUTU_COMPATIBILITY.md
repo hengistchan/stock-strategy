@@ -1,70 +1,86 @@
-# Futu 脚本兼容范围（MVP）
+# Futu 股票代码策略兼容契约
 
-本项目参考 `量化使用手冊.md` 中的代码策略运行框架：`initialize()` 只运行一次，默认从第一根 K 线开始触发 `handle_data()`。目标是让常用的 Futu 风格策略可在本地回测，而不是完整复制 Futu 平台。
+本项目以 `量化使用手冊.md` 的代码策略环境为接口边界，模拟股票历史回测。运行时契约版本为 `3`。期货、期权、窝轮、牛熊证和其他衍生品不在本项目范围内。
 
-## OpenD 行情输入
+## OpenD 数据边界
 
-- 原生识别 `request_history_kline()` DataFrame 导出的 `code`、`time_key`、OHLCV 列。
-- 单标的文件自动采用 `code`；多标的文件必须通过 `--symbol` 选择，否则明确报错。
-- 完整保留分钟 K 的 `time_key`。美股时间按 OpenD 返回的美东时间保存，港股与 A 股按默认北京时间保存，不做隐式转换。
-- OpenD 直连会显式传入 `session`；`ALL` / `ETH` 请求扩展时段，`RTH` 只请求盘中行情。
-- `name`、`turnover`、`turnover_rate`、`pe_ratio`、`change_rate`、`last_close` 等非撮合字段可存在但不会进入 MVP 撮合。
+- 历史行情来自 OpenD `request_history_kline()`，保留 `code`、`time_key`、OHLCV、`turnover`、`turnover_rate`、`change_rate` 和 `last_close`。
+- 股票名称、每手股数、最小价差、停牌和品类等静态信息来自 OpenD `get_market_snapshot()`。
+- 单次回测只交易一个触发标的；不做组合资金分配。
+- 美股历史时间保留 OpenD 返回的美东市场时间。`device_time()` 可按手册转换到指定 `TimeZone`，包含夏令时。
+- Futu K 线和指标接口采用前复权语义，因此要求 `QFQ`。非复权数据仍可供完全自定义、且不调用这些接口的策略使用。
 
-## 已支持
+## 多周期历史回测
 
-| 类别 | API |
-| --- | --- |
-| 策略框架 | `StrategyBase`、`initialize()`、`handle_data()`、`declare_strategy_type()`、`declare_trig_symbol()`、`show_variable()` |
-| 行情 | `current_price()`、`bar_open()`、`bar_high()`、`bar_low()`、`bar_close()`、`bar_volume()`、`bar_custom()` |
-| 指标 | `ma()`、`ema()`、`rsi()`、`historical_volatility()`、`macd_dif()`、`macd_dea()`、`macd_macd()`、MACD 金叉/死叉 |
-| 订单 | `place_market()`、`place_limit()`、`place_stop()`、`close_positions()`、`cancel_order_all()` |
-| 持仓 | `position_holding_qty()`、`position_side()`、`max_qty_to_buy_on_cash()`、`max_qty_to_sell()` |
-| 时间 | `device_time()`；历史回测返回当前 K 线时间，支持 `TimeZone` 显式转换与美股夏令时 |
-| 常用类型 | `Contract`、`BarType`、`CustomType`、`DataType`、`BarDataType`、`THType`、`TSType`、`TimeZone`、`OrderSide`、`PositionSide`、`TimeInForce`、`OrdType`、`AlgoStrategyType`、`GlobalType` |
+策略可以同时使用 `K_1M`、`K_3M`、`K_5M`、`K_10M`、`K_15M`、`K_30M`、`K_60M`、`K_120M`、`K_180M`、`K_240M`、`K_DAY` 和 `K_WEEK`。
 
-## 单周期兼容契约
+- OpenD 只需要读取策略声明的最细周期，Web 会自动选择该周期作为驱动周期。
+- 更粗周期由已到达的驱动 K 线增量聚合；当前未完成 K 线只包含历史时点已经发生的数据。
+- `select=1` 表示当前周期 K 线，`select=2` 表示上一根 K 线。不会用目标周期最终收盘价填充尚未结束的 K 线。
+- 不能由较粗数据反推较细数据；选择错误时会在创建任务前明确阻止。
+- 同一次美股回测必须统一使用一个 `THType`，Web 会按策略声明自动选择 `RTH`、`ETH` 或 `ALL`。
 
-一次回测只持有一套 OpenD K 线。所选 `ktype`、`session` 和 `autype` 会进入执行上下文，并遵循以下规则：
+## 已实现的股票环境
 
-- Futu `bar_*` 和指标 API 请求的 `BarType` 必须与输入 `ktype` 一致；MVP 不做隐式重采样。
-- 对美股，API 请求的 `THType` 必须与 OpenD 输入时段一致；非美股沿用手册“该参数不生效”的约定。
-- 手册中的 `bar_*` 和指标是前复权语义，因此这些 API 只接受 `QFQ` 输入。`HFQ` / `NONE` 仍可用于不调用这些接口的自定义策略。
-- 不一致或尚未支持的组合会抛出 `UnsupportedAPIError`，不会忽略参数或伪造返回值。
-- `bar_custom()` 当前可靠支持聚合 OHLCV；`TURNOVER` 等尚未进入 `Bar` 模型的字段会明确报错。
-- `warmup_bars` 默认为 `0`，与手册逐 K 线触发生命周期一致。显式设置为正数时，前 N 根只建立行情历史、不调用 `handle_data()`；这是本项目的可选扩展，不是 Futu 接口语义。
-- 新结果写入 `settings.engine_contract.version = 2`。缺少该版本的历史任务会在 Web 中标记为 `LEGACY RESULT`，需要重新运行后再比较。
+### 生命周期与基础环境
 
-## Strategy Lab 参数扩展
+- `StrategyBase`、`initialize()`、`handle_data()`
+- `declare_strategy_type()`、`declare_trig_symbol()`、`show_variable()`
+- `device_time()`、`is_the_time()`、`is_the_day()`、`is_the_week()`、`is_the_month()`、`is_the_year()`
+- `APIException` / `ErrCode`；参数错误和点时数据缺失可按手册错误码捕获
+- 手册中的股票相关枚举、数学辅助函数与标准 Python 策略写法
+- `quit_strategy()`、`alert()`、`add_to_watchlist()`；回测中写入运行日志，不发送外部消息
 
-- `STRATEGY_PARAMETERS`、`strategy_parameter()`、`current_bar_type()` 和 `current_session_type()` 是本项目为策略迭代与单周期适配提供的扩展，不属于 Futu 原生脚本 API。
-- 参数声明必须是顶层字面量字典；编辑保存、Web API、CLI 和运行时会重复验证类型、上下界和可选值。
-- 参数声明可提供 `label_i18n` / `description_i18n` 字典；Web 按当前语言选择文案，缺失时回退到基础文案。
-- `--parameter NAME=JSON_VALUE` 或 Web 参数表单只覆盖声明过的参数，未知参数会明确失败。
-- 参数实验只改变策略参数，行情、费用、撮合和回测区间保持一致；每组都生成独立结果，排名不是额外回测模型。
-- 周期自适应策略可把 `current_bar_type()` / `current_session_type()` 的返回值显式传给指标；严格单周期校验仍然生效，系统不会重采样。
+### 股票行情
 
-## 撮合约定
+- `current_price()`、`bar_open()`、`bar_high()`、`bar_low()`、`bar_close()`、`bar_volume()`、`bar_custom()`
+- `amplitude()`、`bar_chg()`、`bar_chg_rate()`、`bar_turnover()`、`bar_turnover_rate()`、`volume_ratio()`
+- `get_symbol_name()`、`get_symbol_code()`、`get_symbol_market()`、`get_symbol_type()`、`get_symbol_currency()`
+- `lot_size()`、`min_tick()`、`is_suspended()`、`market_status()`、`USmarket_status()`
+- `bid()`、`ask()`、`bid_qty()`、`ask_qty()`、`bid_order_qty()`、`ask_order_qty()`、`rate_ratio()`、`mid_price()`
 
-- `handle_data()` 在当前 K 线收盘后运行。
-- 在 `handle_data()` 中提交的市价单，下一根 K 线开盘成交并计入滑点。
-- 限价单和止损单从下一根 K 线开始，根据 OHLC 区间判断是否触发。
-- `DAY` 从第一根可执行 K 线所属交易日开始生效，在该交易日内持续等待，跨交易日后失效；`GTC` 会继续保留。
-- 待成交买单会冻结估算现金，待成交卖单会冻结可卖持仓；可买、可卖查询会扣除冻结部分。
-- 回测结束默认保留持仓并按最后收盘价盯市，`summary.json` 记录 `ending_position`。只有显式启用 `--liquidate-on-end`（或 Web 中的“末根 K 线强制平仓”）才会按最后收盘价加滑点平仓。
-- 手续费和滑点均进入净值与成交盈亏。
-- 分钟级 Sharpe 与历史波动率依据输入数据中实际观察到的每日 K 线数量年化，不假定固定的美股 RTH 时长。
-- 默认只允许多头；启用 `--allow-short` 后可使用 `SELL_SHORT` / `BUY_BACK`。
+历史 K 线不包含逐档盘口。盘口函数采用确定性的回测报价模型：当前收盘价为中间价，买卖价按最小价差展开，数量使用当前 K 线成交量。结果属于撮合假设，不是历史 Level 2 重放。
 
-这些约定保证收盘信号不会使用同一根 K 线的开盘价成交，从而避免明显的未来函数。
+### 技术指标
 
-## 暂不支持
+- MA、EMA 及多头/空头排列
+- SAR 及趋势/反转判断
+- ATR、历史波动率、MACD、KDJ、RSI、VWAP、BOLL、神奇九转
+- MACD、KDJ、RSI 的交叉和背离接口
+- `register_indicator()` / `get_MyLang_indicator()`：支持常用向量运算、MA、EMA、SMA、REF、SUM、HHV、LLV、STD、ABS、MAX、MIN、IF、CROSS
+- `register_indicator_Python()` / `get_Python_indicator()`：支持手册的 `close().sma()`、输入参数和 `output_parameter()` 运行模型
 
-- 多标的、组合级资金分配和跨品种订单
-- Tick / 每 N 秒 / 定时触发
-- 复权、拆股、分红与交易日历处理（应在导入数据前处理）
-- `register_indicator()`、`get_MyLang_indicator()`、`register_indicator_Python()`
-- 跟踪止损、触及单、改单、期权、期货转仓、融资融券与完整账户 API
-- 证券 `lot_size` / 期货合约手数自动下舍入
-- 部分成交、订单簿、涨跌停、流动性和成交量限制
+自定义指标解释器不执行磁盘、网络或第三方包访问。使用解释器未覆盖的麦语言语法时会给出具体表达式错误，不会伪造指标值。
 
-未支持的自定义指标注册会抛出 `UnsupportedAPIError`，不会返回伪造数据。
+### 股票订单与撮合
+
+- 限价、市价、止损限价、止损市价、触及限价、触及市价、跟踪止损限价和跟踪止损市价
+- `modify_order()`、按订单/标的/全部撤单、`liquidate()`、`cancel_and_liquidate()`、`close_positions()`、`reverse_positions()`
+- 数量按 OpenD `lot_size` 自动下舍入；美股默认一股，A 股默认一百股，港股从 OpenD 读取
+- `handle_data()` 在当前驱动 K 线收盘后执行；新订单最早在下一根驱动 K 线成交
+- 市价单使用下一根开盘价和滑点；条件单使用下一根 OHLC 区间；手续费、最低佣金和滑点进入现金、盈亏与净值
+- `DAY` 订单按交易日失效，`GTC` 保留；待成交买单冻结现金，待成交卖单冻结可卖持仓
+- 默认只做多；启用 `allow_short` 后支持 `SELL_SHORT` / `BUY_BACK`
+- 当前采用整笔成交模型，不模拟部分成交、队列位置、涨跌停、历史逐笔流动性和成交量上限
+
+### 账户、持仓、订单与成交查询
+
+- 资产净值、现金、可用/冻结资金、证券/长仓/短仓市值、已实现/未实现盈亏与购买力
+- 持仓方向、数量、成本、盈亏、可用数量、当日成交量与成交额
+- 最大现金可买、保证金可买、持仓可卖、空仓可回补和可卖空数量
+- `request_orderid()` 及全部订单字段查询
+- `request_executionid()` 及全部成交字段查询
+- 股票融资融券能力、保证金比例、风险状态和沽空池查询
+
+账户是单标的、单资金池模拟账户。`currency` 参数保留手册签名，但不会自动引入历史外汇转换；初始资金和所有结果使用同一个账户记账单位。
+
+## 明确排除
+
+- 期货、期权、窝轮、牛熊证、界内证及相关筛选、希腊值、转仓和合约保证金接口
+- 多标的组合和跨品种订单
+- Tick、每 N 秒和定时实时触发；历史回测由 K 线驱动
+- 实时消息推送、真实自选列表写入和真实落盘
+- 历史 Level 2、部分成交、订单队列、交易所涨跌停与流动性重放
+- 拆股、分红、精确交易日历和历史外汇换算；应在输入数据或后续专用数据层处理
+
+任何不在股票契约内的名称会在任务创建前被兼容性预检阻止。需要额外点时数据但 OpenD 输入缺失的接口会抛出 `DataUnavailableError`，不会返回看似合理的假值。

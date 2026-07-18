@@ -26,6 +26,7 @@ def build_parser():
     parser.add_argument("--end")
     parser.add_argument("--ktype", default="K_DAY")
     parser.add_argument("--autype", choices=("QFQ", "HFQ", "NONE"), default="QFQ")
+    parser.add_argument("--session", choices=("ALL", "RTH", "ETH"), default="ALL")
     parser.add_argument("--opend-host", default="127.0.0.1")
     parser.add_argument("--opend-port", type=int, default=11111)
     parser.add_argument("--opend-cache")
@@ -40,6 +41,7 @@ def build_parser():
     parser.add_argument("--sample-bars", type=int, default=880)
     parser.add_argument("--allow-short", action="store_true")
     parser.add_argument("--no-chart", action="store_true")
+    parser.add_argument("--liquidate-on-end", action="store_true")
     parser.add_argument("--json-only", action="store_true")
     return parser
 
@@ -124,6 +126,8 @@ def main(argv=None):
                 args.ktype,
                 "--autype",
                 args.autype,
+                "--session",
+                args.session,
                 "--opend-host",
                 args.opend_host,
                 "--opend-port",
@@ -141,6 +145,8 @@ def main(argv=None):
         command.append("--allow-short")
     if args.no_chart:
         command.append("--no-chart")
+    if args.liquidate_on_end:
+        command.append("--liquidate-on-end")
 
     environment = os.environ.copy()
     existing_pythonpath = environment.get("PYTHONPATH")

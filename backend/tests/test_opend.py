@@ -7,6 +7,7 @@ from stock_strategy.opend import (
     OpenDHistory,
     OpenDRequestError,
     fetch_history_kline,
+    fetch_stock_metadata,
     write_history_csv,
 )
 
@@ -39,6 +40,35 @@ class FakeContext:
 
 
 class OpenDTest(unittest.TestCase):
+    def test_fetch_stock_metadata_reads_snapshot_and_closes(self):
+        class SnapshotContext:
+            closed = False
+
+            def get_market_snapshot(self, symbols):
+                self.symbols = symbols
+                return 0, FakeFrame(
+                    [
+                        {
+                            "code": "US.AAPL",
+                            "name": "Apple",
+                            "lot_size": 1,
+                            "price_spread": 0.01,
+                            "suspension": False,
+                        }
+                    ]
+                )
+
+            def close(self):
+                self.closed = True
+
+        context = SnapshotContext()
+        metadata = fetch_stock_metadata(
+            "US.AAPL", context_factory=lambda **kwargs: context
+        )
+        self.assertEqual(context.symbols, ["US.AAPL"])
+        self.assertEqual(metadata["lot_size"], 1)
+        self.assertTrue(context.closed)
+
     def test_fetch_history_paginates_and_closes(self):
         first = [{"code": "US.AAPL", "time_key": "2025-01-02 00:00:00"}]
         second = [{"code": "US.AAPL", "time_key": "2025-01-03 00:00:00"}]
