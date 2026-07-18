@@ -60,38 +60,58 @@ export function RunHistory({ jobs, activeJobId, onSelect, onRefresh, onCreate }:
         <button className="text-button" type="button" onClick={onRefresh}>{t("common.refresh")}</button>
       </div>
 
-      <div className="archive-stage">
-        <span className="archive-stage-label">01 / {t("history.symbols")}</span>
-        <nav className="symbol-index" aria-label={t("history.symbols")}>
-          {archive.map((group) => (
-            <button
-              key={group.symbol}
-              type="button"
-              aria-current={group.symbol === activeSymbol?.symbol ? "true" : undefined}
-              onClick={() => onSelect(group.jobs[0].id)}
-            >
-              <strong>{group.symbol}</strong>
-              <small>{t("history.runCount", { count: group.jobs.length })} · {t("history.strategyCount", { count: group.strategies.length })}</small>
-            </button>
-          ))}
-        </nav>
-      </div>
+      <div className="archive-picker-stack">
+        <label className="archive-picker-row">
+          <span className="archive-picker-index">01 / {t("history.symbols")}</span>
+          <span className="archive-picker-control">
+            <span className="archive-select-shell">
+              <select
+                aria-label={t("history.symbols")}
+                value={activeSymbol?.symbol}
+                onChange={(event) => {
+                  const selected = archive.find((group) => group.symbol === event.target.value);
+                  if (selected?.jobs[0]) onSelect(selected.jobs[0].id);
+                }}
+              >
+                {archive.map((group) => (
+                  <option key={group.symbol} value={group.symbol}>{group.symbol}</option>
+                ))}
+              </select>
+              <span className="archive-select-arrow" aria-hidden="true">⌄</span>
+            </span>
+            <small>
+              {t("history.runCount", { count: activeSymbol?.jobs.length ?? 0 })}
+              {" · "}
+              {t("history.strategyCount", { count: activeSymbol?.strategies.length ?? 0 })}
+            </small>
+          </span>
+        </label>
 
-      <div className="archive-stage">
-        <span className="archive-stage-label">02 / {t("history.strategies")}</span>
-        <nav className="strategy-index" aria-label={t("history.strategies")}>
-          {activeSymbol?.strategies.map((group) => (
-            <button
-              key={group.path}
-              type="button"
-              aria-current={group.path === activeStrategy?.path ? "true" : undefined}
-              onClick={() => onSelect(group.jobs[0].id)}
-            >
-              <span><strong>{strategyName(group.path)}</strong><small>{group.path}</small></span>
-              <em>{group.jobs.length}</em>
-            </button>
-          ))}
-        </nav>
+        <label className="archive-picker-row">
+          <span className="archive-picker-index">02 / {t("history.strategies")}</span>
+          <span className="archive-picker-control">
+            <span className="archive-select-shell">
+              <select
+                aria-label={t("history.strategies")}
+                value={activeStrategy?.path}
+                onChange={(event) => {
+                  const selected = activeSymbol?.strategies.find(
+                    (group) => group.path === event.target.value,
+                  );
+                  if (selected?.jobs[0]) onSelect(selected.jobs[0].id);
+                }}
+              >
+                {activeSymbol?.strategies.map((group) => (
+                  <option key={group.path} value={group.path}>
+                    {strategyName(group.path)} · {t("history.runCount", { count: group.jobs.length })}
+                  </option>
+                ))}
+              </select>
+              <span className="archive-select-arrow" aria-hidden="true">⌄</span>
+            </span>
+            <small title={activeStrategy?.path}>{activeStrategy?.path}</small>
+          </span>
+        </label>
       </div>
 
       <div className="archive-stage archive-runs">

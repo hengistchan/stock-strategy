@@ -51,14 +51,20 @@ describe("RunHistory", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /US\.AAPL.*回测 2.*策略 2/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("combobox", { name: "标的" })).toHaveValue("US.AAPL");
+    expect(screen.getByRole("combobox", { name: "策略" })).toHaveValue("examples/ma_cross.py");
+    expect(screen.getByText("回测 2 · 策略 2")).toBeInTheDocument();
     expect(screen.getByText("2024-01-01 → 2025-12-31")).toBeInTheDocument();
     expect(screen.queryByText("2023-01-01 → 2025-12-31")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /breakout.*strategies\/breakout\.py/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "策略" }), {
+      target: { value: "strategies/breakout.py" },
+    });
     expect(onSelect).toHaveBeenCalledWith("aapl-breakout");
 
-    fireEvent.click(screen.getByRole("button", { name: /US\.FUTU/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "标的" }), {
+      target: { value: "US.FUTU" },
+    });
     expect(onSelect).toHaveBeenCalledWith("futu-ma");
   });
 
