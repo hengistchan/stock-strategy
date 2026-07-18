@@ -15,7 +15,7 @@ export function Header({ health, mode, onModeChange }: HeaderProps) {
   return (
     <header className="app-header">
       <div className="brand-lockup">
-        <div className="brand-index" aria-hidden="true">SL/03</div>
+        <div className="brand-index" aria-hidden="true">SL/04</div>
         <div>
           <p className="eyebrow">{t("header.eyebrow")}</p>
           <h1>Strategy Lab</h1>

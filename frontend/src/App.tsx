@@ -24,6 +24,7 @@ export function App() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<WorkspaceMode>("backtest");
+  const [backtestRail, setBacktestRail] = useState<"archive" | "create">("archive");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [selectedStrategy, setSelectedStrategy] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function App() {
       setActiveJobId(job.id);
       queryClient.setQueryData(["job", job.id], job);
       void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setBacktestRail("archive");
       setToast(t("app.backtestQueued", { id: job.id }));
     },
     onError: (error) => setToast(error.message),
@@ -86,12 +88,14 @@ export function App() {
   function useStrategyForBacktest(path: string) {
     setSelectedStrategy(path);
     setMode("backtest");
+    setBacktestRail("create");
     setToast(t("app.strategySelected", { path }));
   }
 
   function openExperimentRun(jobId: string) {
     setActiveJobId(jobId);
     setMode("backtest");
+    setBacktestRail("archive");
     setToast(t("app.experimentRunOpened", { id: jobId }));
   }
 
@@ -103,24 +107,37 @@ export function App() {
         <main className="backtest-workspace">
           <aside className="control-rail" aria-label={t("app.backtestConfig")}>
             <div className="rail-heading">
-              <div><span className="section-code">INPUT</span><h2>{t("app.experimentConditions")}</h2></div>
-              <button className="source-seal" type="button" onClick={() => setMode("strategies")}>{t("app.editStrategy")}</button>
+              <div>
+                <span className="section-code">{backtestRail === "create" ? "INPUT" : "ARCHIVE"}</span>
+                <h2>{backtestRail === "create" ? t("app.experimentConditions") : t("history.title")}</h2>
+              </div>
+              <button
+                className="source-seal"
+                type="button"
+                onClick={() => setBacktestRail((current) => current === "create" ? "archive" : "create")}
+              >
+                {backtestRail === "create" ? t("history.viewArchive") : t("history.newBacktest")}
+              </button>
             </div>
-            <BacktestForm
-              config={configQuery.data}
-              selectedStrategy={resolvedStrategy}
-              onStrategyChange={setSelectedStrategy}
-              onSubmit={(request) => runMutation.mutate(request)}
-              running={runMutation.isPending || job?.status === "queued" || job?.status === "running"}
-              opendConnected={healthQuery.data?.opend.connected === true}
-              parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
-            />
-            <RunHistory
-              jobs={jobsQuery.data?.jobs ?? []}
-              activeJobId={resolvedJobId}
-              onSelect={setActiveJobId}
-              onRefresh={() => void jobsQuery.refetch()}
-            />
+            {backtestRail === "create" ? (
+              <BacktestForm
+                config={configQuery.data}
+                selectedStrategy={resolvedStrategy}
+                onStrategyChange={setSelectedStrategy}
+                onSubmit={(request) => runMutation.mutate(request)}
+                running={runMutation.isPending || job?.status === "queued" || job?.status === "running"}
+                opendConnected={healthQuery.data?.opend.connected === true}
+                parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
+              />
+            ) : (
+              <RunHistory
+                jobs={jobsQuery.data?.jobs ?? []}
+                activeJobId={resolvedJobId}
+                onSelect={setActiveJobId}
+                onRefresh={() => void jobsQuery.refetch()}
+                onCreate={() => setBacktestRail("create")}
+              />
+            )}
           </aside>
           <section className="result-desk" aria-live="polite">
             <div className="desk-intro">

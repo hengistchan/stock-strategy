@@ -3,4 +3,4 @@
 from .runtime import BacktestConfig, BacktestResult, run_backtest
 
 __all__ = ["BacktestConfig", "BacktestResult", "run_backtest"]
-__version__ = "0.4.0"
+__version__ = "0.5.0"
