@@ -63,6 +63,40 @@ class BrokerTest(unittest.TestCase):
         self.assertEqual(broker.position.quantity, 100)
         self.assertEqual(len(broker.pending_orders), 0)
 
+    def test_buy_stop_limit_does_not_fill_above_its_limit(self):
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            bar_type=BarType.K_1M,
+        )
+        order_id = broker.submit(
+            symbol=Contract("US.TEST"),
+            side=OrderSide.BUY,
+            quantity=10,
+            order_type="STOP_LIMIT",
+            current_index=0,
+            current_date="2025-01-02 09:30:00",
+            stop_price=100,
+            limit_price=101,
+            current_price=99,
+        )
+
+        broker.process_bar(
+            Bar("2025-01-02 09:31:00", 102, 103, 102, 102.5, 1_000), 1
+        )
+        self.assertTrue(broker.get_order(order_id).triggered)
+        self.assertEqual(broker.position.quantity, 0)
+        self.assertEqual(len(broker.pending_orders), 1)
+
+        broker.process_bar(
+            Bar("2025-01-02 09:32:00", 100.5, 101, 100, 100.8, 1_000), 2
+        )
+        self.assertEqual(broker.position.quantity, 10)
+        self.assertLessEqual(broker.position.average_price, 101)
+
     def test_sell_closes_position_and_records_net_trade(self):
         broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
         symbol = Contract("US.TEST")

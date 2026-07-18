@@ -1,4 +1,4 @@
-# V1.5 Balanced Entry + Measured Move + Multi-stage Profit Protection
+# V1.6 Capped Stop-Limit Entry + Measured Move + Profit Protection
 # US/HK market-time schedule + 15M context/support + 5M signal + 1M execution
 # Exit: structural stop + 0.6R/1.0R protection + important-low trailing + measured move
 class Strategy(StrategyBase):
@@ -91,9 +91,8 @@ class Strategy(StrategyBase):
         # 仓位、风险及目标
         # ============================================================
         self.RISK_PER_TRADE_PCT = 0.0025
-        # 原 20% 市值上限会使中小账户无法买入一手港股。
-        # 风险预算仍由 RISK_PER_TRADE_PCT 控制，市值上限放宽至 50%。
-        self.MAX_POSITION_VALUE_PCT = 0.50
+        # 价格行为策略保持较低资本暴露；港股仍会按整手数量下舍入。
+        self.MAX_POSITION_VALUE_PCT = 0.20
 
         self.MIN_R_TICKS = 3
         self.MIN_R_MR = 0.20
@@ -534,11 +533,11 @@ class Strategy(StrategyBase):
                     if entry_fully_filled:
                         if self.entry_fill_valid:
                             self.state = self.ENTRY_SYNC_VALID
-                            print("Buy Stop 在有效窗口内全部成交")
+                            print("Buy Stop Limit 在有效窗口内全部成交")
                         else:
                             self.operational_error_today = True
                             self.state = self.ENTRY_SYNC_LATE
-                            print("Buy Stop 过期后成交，准备退出")
+                            print("Buy Stop Limit 过期后成交，准备退出")
                     else:
                         try:
                             cancel_order_by_orderid(self.entry_order_id)
@@ -582,7 +581,7 @@ class Strategy(StrategyBase):
                     try:
                         cancel_order_by_orderid(self.entry_order_id)
                     except Exception as error:
-                        print("撤销过期 Buy Stop 失败：", error)
+                        print("撤销过期 Buy Stop Limit 失败：", error)
                     self.entry_cancel_wait_count = 0
                     self.state = self.ENTRY_CANCEL_PENDING
                     print("下一根 5 分钟 K 未触发，发送撤单")
@@ -644,7 +643,7 @@ class Strategy(StrategyBase):
                     print("重复确认撤入场单失败：", error)
 
                 if self.entry_cancel_wait_count >= self.CANCEL_WARNING_BARS:
-                    print("警告：Buy Stop 撤单长时间未确认：", self.entry_order_id)
+                    print("警告：Buy Stop Limit 撤单长时间未确认：", self.entry_order_id)
 
                 return
 
@@ -2723,16 +2722,24 @@ class Strategy(StrategyBase):
             self.planned_qty = planned_lots * self.lot
             self.diag_budget_pass += 1
 
+            # 使用 Stop Limit 将可接受滑点写进订单。价格跳空超过上限时
+            # 保持未成交，而不是先按 Stop Market 成交再立即市价退出。
+            max_entry_price = (
+                self.planned_entry
+                + self.MAX_ENTRY_SLIPPAGE_R * self.planned_r
+            )
+
             try:
-                entry_id = place_stop(
+                entry_id = place_stop_limit(
                     symbol=self.symbol,
                     aux_price=self.planned_entry,
+                    price=max_entry_price,
                     qty=self.planned_qty,
                     side=OrderSide.BUY,
                     time_in_force=TimeInForce.DAY
                 )
             except Exception as error:
-                print("提交 Buy Stop 失败：", error)
+                print("提交 Buy Stop Limit 失败：", error)
                 entry_id = ""
 
             if entry_id == "":
@@ -2748,8 +2755,9 @@ class Strategy(StrategyBase):
             self.state = self.ENTRY_ACTIVE
 
             print(
-                "挂出 Buy Stop：",
+                "挂出 Buy Stop Limit：",
                 "entry=", self.planned_entry,
+                "limit=", max_entry_price,
                 "stop=", self.planned_stop,
                 "qty=", self.planned_qty,
                 "expire_minute=", self.entry_expire_minute,
