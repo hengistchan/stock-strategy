@@ -1,0 +1,266 @@
+import tempfile
+import unittest
+from datetime import date
+import json
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from stock_strategy.web import (
+    BacktestRequest,
+    JobStore,
+    create_app,
+    list_strategies,
+    resolve_strategy,
+)
+
+
+class WebTest(unittest.TestCase):
+    def test_home_config_and_health_render(self):
+        with tempfile.TemporaryDirectory() as directory:
+            frontend_root = Path(directory)
+            (frontend_root / "index.html").write_text(
+                '<div id="root">Strategy Lab</div>', encoding="utf-8"
+            )
+            app = create_app(
+                opend_probe=lambda host, port: True,
+                frontend_root=frontend_root,
+            )
+            with TestClient(app) as client:
+                home = client.get("/")
+                health = client.get("/api/health")
+                config = client.get("/api/config")
+        self.assertEqual(home.status_code, 200)
+        self.assertIn("Strategy Lab", home.text)
+        self.assertIn('id="root"', home.text)
+        self.assertTrue(health.json()["opend"]["connected"])
+        self.assertIn("examples/ma_cross.py", [item["path"] for item in config.json()["strategies"]])
+        example = next(item for item in config.json()["strategies"] if item["path"] == "examples/ma_cross.py")
+        self.assertTrue(example["readonly"])
+        self.assertEqual(len(example["revision"]), 64)
+        self.assertEqual(config.json()["session_types"], ["ALL", "RTH", "ETH"])
+
+    def test_request_rejects_invalid_symbol_and_date_range(self):
+        app = create_app(opend_probe=lambda host, port: True)
+        with TestClient(app) as client:
+            invalid_symbol = client.post(
+                "/api/jobs",
+                json={
+                    "strategy": "examples/ma_cross.py",
+                    "symbol": "AAPL",
+                    "start": "2025-01-01",
+                    "end": "2025-02-01",
+                },
+            )
+            invalid_range = client.post(
+                "/api/jobs",
+                json={
+                    "strategy": "examples/ma_cross.py",
+                    "symbol": "US.AAPL",
+                    "start": "2025-02-01",
+                    "end": "2025-01-01",
+                },
+            )
+            invalid_session = client.post(
+                "/api/jobs",
+                json={
+                    "strategy": "examples/ma_cross.py",
+                    "symbol": "US.AAPL",
+                    "start": "2025-01-01",
+                    "end": "2025-02-01",
+                    "session": "OVERNIGHT",
+                },
+            )
+            unsupported_monthly = client.post(
+                "/api/jobs",
+                json={
+                    "strategy": "examples/ma_cross.py",
+                    "symbol": "US.AAPL",
+                    "start": "2025-01-01",
+                    "end": "2025-02-01",
+                    "ktype": "K_MON",
+                },
+            )
+        self.assertEqual(invalid_symbol.status_code, 422)
+        self.assertEqual(invalid_range.status_code, 422)
+        self.assertEqual(invalid_session.status_code, 422)
+        self.assertEqual(unsupported_monthly.status_code, 422)
+
+    def test_strategy_paths_stay_inside_allowed_folders(self):
+        project_root = Path(__file__).parents[2]
+        strategies = list_strategies(project_root)
+        self.assertTrue(any(item["path"] == "examples/ma_cross.py" for item in strategies))
+        self.assertEqual(
+            resolve_strategy(project_root, "examples/ma_cross.py"),
+            (project_root / "examples/ma_cross.py").resolve(),
+        )
+        with self.assertRaisesRegex(ValueError, "策略文件"):
+            resolve_strategy(project_root, "backend/stock_strategy/cli.py")
+
+    def test_job_command_uses_only_opend_market_data(self):
+        project_root = Path(__file__).parents[2]
+        request = BacktestRequest(
+            strategy="examples/ma_cross.py",
+            symbol="US.AAPL",
+            start=date(2024, 1, 1),
+            end=date(2025, 12, 31),
+            ktype="K_5M",
+            autype="HFQ",
+            session="RTH",
+            liquidate_on_end=True,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "runs" / "web").mkdir(parents=True)
+            (root / "examples").mkdir()
+            strategy = root / "examples" / "ma_cross.py"
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = JobStore(root)
+            job = store.create_job(request, strategy)
+            command = store.build_command(job)
+            stored_request = job["request"]
+            legacy_job = {**job, "request": dict(job["request"])}
+            legacy_job["request"].pop("session")
+            legacy_job["request"].pop("liquidate_on_end")
+            legacy_command = store.build_command(legacy_job)
+        self.assertIn("--opend", command)
+        self.assertNotIn("--data", command)
+        self.assertIn("--opend-cache", command)
+        self.assertIn("--opend-host", command)
+        self.assertIn("127.0.0.1", command)
+        self.assertEqual(command[command.index("--ktype") + 1], "K_5M")
+        self.assertEqual(command[command.index("--autype") + 1], "HFQ")
+        self.assertEqual(command[command.index("--session") + 1], "RTH")
+        self.assertIn("--liquidate-on-end", command)
+        self.assertEqual(stored_request["session"], "RTH")
+        self.assertTrue(stored_request["liquidate_on_end"])
+        self.assertEqual(legacy_command[legacy_command.index("--session") + 1], "ALL")
+        self.assertNotIn("--liquidate-on-end", legacy_command)
+
+    def test_result_returns_sanitized_ohlcv_from_the_job_opend_cache(self):
+        request = BacktestRequest(
+            strategy="examples/ma_cross.py",
+            symbol="US.AAPL",
+            start=date(2025, 1, 1),
+            end=date(2025, 1, 3),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "ma_cross.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = JobStore(root)
+            job = store.create_job(request, strategy)
+            run_dir = store.root / job["id"] / "output" / "run"
+            run_dir.mkdir(parents=True)
+            cache_path = root / "data" / "opend" / "web" / "prices.csv"
+            cache_path.parent.mkdir(parents=True)
+            cache_path.write_text(
+                "code,name,time_key,open,close,high,low,volume,pe_ratio\n"
+                "US.AAPL,Apple,2025-01-02 00:00:00,100,102,103,99,1200,30\n"
+                "HK.00700,Tencent,2025-01-02 00:00:00,400,405,406,399,900,20\n"
+                "US.AAPL,Apple,2025-01-03 00:00:00,102,101,104,100,1500,29\n",
+                encoding="utf-8",
+            )
+            summary = {
+                "symbol": "US.AAPL",
+                "settings": {"opend": {"cache_path": str(cache_path)}},
+            }
+            (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+            (run_dir / "trades.csv").write_text("trade_id,symbol\n", encoding="utf-8")
+            (run_dir / "equity_curve.csv").write_text("date,equity\n", encoding="utf-8")
+            job.update(status="succeeded", run_dir=str(run_dir))
+            store._write_job(job)
+
+            result = store.load_result(job["id"])
+
+        self.assertEqual(len(result["price_series"]), 2)
+        self.assertEqual(
+            set(result["price_series"][0]),
+            {"date", "open", "high", "low", "close", "volume"},
+        )
+        self.assertEqual(result["price_series"][0]["close"], 102.0)
+        self.assertEqual(result["price_series"][1]["volume"], 1500.0)
+
+    def test_strategy_api_creates_reads_and_atomically_saves_user_strategy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            example = root / "examples" / "ma_cross.py"
+            example.parent.mkdir(parents=True)
+            example.write_text("class Strategy:\n    pass\n", encoding="utf-8")
+            app = create_app(project_root=root, opend_probe=lambda host, port: True)
+            with TestClient(app) as client:
+                created = client.post(
+                    "/api/strategies",
+                    json={"name": "my_strategy", "template_path": "examples/ma_cross.py"},
+                )
+                loaded = client.get("/api/strategies/strategies/my_strategy.py")
+                revision = loaded.json()["revision"]
+                saved = client.put(
+                    "/api/strategies/strategies/my_strategy.py",
+                    json={
+                        "content": "class Strategy:\n    value = 2\n",
+                        "expected_revision": revision,
+                    },
+                )
+
+            self.assertEqual(created.status_code, 201)
+            self.assertFalse(created.json()["readonly"])
+            self.assertEqual(loaded.status_code, 200)
+            self.assertEqual(saved.status_code, 200)
+            self.assertNotEqual(saved.json()["revision"], revision)
+            self.assertEqual(
+                (root / "strategies" / "my_strategy.py").read_text(encoding="utf-8"),
+                "class Strategy:\n    value = 2\n",
+            )
+
+    def test_strategy_api_rejects_invalid_source_stale_revision_and_example_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            example = root / "examples" / "ma_cross.py"
+            example.parent.mkdir(parents=True)
+            example.write_text("class Strategy:\n    pass\n", encoding="utf-8")
+            app = create_app(project_root=root, opend_probe=lambda host, port: True)
+            with TestClient(app) as client:
+                created = client.post("/api/strategies", json={"name": "guarded"})
+                path = created.json()["path"]
+                revision = created.json()["revision"]
+                invalid = client.put(
+                    f"/api/strategies/{path}",
+                    json={
+                        "content": "class Strategy(:\n    pass\n",
+                        "expected_revision": revision,
+                    },
+                )
+                saved = client.put(
+                    f"/api/strategies/{path}",
+                    json={
+                        "content": "class Strategy:\n    value = 1\n",
+                        "expected_revision": revision,
+                    },
+                )
+                stale = client.put(
+                    f"/api/strategies/{path}",
+                    json={
+                        "content": "class Strategy:\n    value = 2\n",
+                        "expected_revision": revision,
+                    },
+                )
+                readonly = client.put(
+                    "/api/strategies/examples/ma_cross.py",
+                    json={
+                        "content": "class Strategy:\n    value = 3\n",
+                        "expected_revision": "0" * 64,
+                    },
+                )
+
+            self.assertEqual(invalid.status_code, 422)
+            self.assertIn("Python 语法错误", invalid.json()["detail"])
+            self.assertEqual(saved.status_code, 200)
+            self.assertEqual(stale.status_code, 409)
+            self.assertEqual(readonly.status_code, 403)
+            self.assertEqual(example.read_text(encoding="utf-8"), "class Strategy:\n    pass\n")
+
+
+if __name__ == "__main__":
+    unittest.main()

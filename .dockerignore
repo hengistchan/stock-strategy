@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+frontend/node_modules
+backend/stock_strategy/web_dist
+backend/build
+backend/dist
+backend/*.egg-info
+runs
+data/opend
+**/__pycache__
+*.pyc
+.DS_Store

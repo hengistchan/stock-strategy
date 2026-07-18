@@ -1,0 +1,4 @@
+interface:
+  display_name: "单标的量化回测"
+  short_description: "基于 Futu/OpenD 数据运行并解读单标的策略回测"
+  default_prompt: "使用 $backtest-single-symbol 对指定标的运行一次量化回测并解读结果。"

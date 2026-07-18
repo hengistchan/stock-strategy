@@ -1,0 +1,15 @@
+services:
+  strategy-lab:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      STOCK_STRATEGY_PROJECT_ROOT: /app
+      OPEND_HOST: host.docker.internal
+      OPEND_PORT: "11111"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./strategies:/app/strategies
+      - ./runs:/app/runs
+      - ./data/opend:/app/data/opend

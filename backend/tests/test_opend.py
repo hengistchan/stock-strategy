@@ -1,0 +1,130 @@
+import csv
+import tempfile
+import unittest
+from pathlib import Path
+
+from stock_strategy.opend import (
+    OpenDHistory,
+    OpenDRequestError,
+    fetch_history_kline,
+    write_history_csv,
+)
+
+
+class FakeFrame:
+    def __init__(self, records):
+        self.records = records
+        self.columns = list(records[0]) if records else []
+
+    def to_dict(self, orientation):
+        if orientation != "records":
+            raise AssertionError("unexpected orientation")
+        return self.records
+
+
+class FakeContext:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.page_keys = []
+        self.requests = []
+        self.closed = False
+
+    def request_history_kline(self, symbol, **kwargs):
+        self.page_keys.append(kwargs["page_req_key"])
+        self.requests.append({"symbol": symbol, **kwargs})
+        return self.responses.pop(0)
+
+    def close(self):
+        self.closed = True
+
+
+class OpenDTest(unittest.TestCase):
+    def test_fetch_history_paginates_and_closes(self):
+        first = [{"code": "US.AAPL", "time_key": "2025-01-02 00:00:00"}]
+        second = [{"code": "US.AAPL", "time_key": "2025-01-03 00:00:00"}]
+        context = FakeContext(
+            [
+                (0, FakeFrame(first), b"next-page"),
+                (0, FakeFrame(second), None),
+            ]
+        )
+        history = fetch_history_kline(
+            "US.AAPL",
+            start="2025-01-01",
+            end="2025-01-31",
+            context_factory=lambda **kwargs: context,
+        )
+        self.assertEqual(history.records, first + second)
+        self.assertEqual(history.pages, 2)
+        self.assertEqual(context.page_keys, [None, b"next-page"])
+        self.assertEqual(context.requests[0]["session"], "ALL")
+        self.assertTrue(context.requests[0]["extended_time"])
+        self.assertTrue(context.closed)
+
+    def test_fetch_history_uses_regular_session_without_extended_time(self):
+        records = [{"code": "US.AAPL", "time_key": "2025-01-02 09:30:00"}]
+        context = FakeContext([(0, FakeFrame(records), None)])
+
+        fetch_history_kline(
+            "US.AAPL",
+            start="2025-01-01",
+            end="2025-01-31",
+            session="rth",
+            context_factory=lambda **kwargs: context,
+        )
+
+        self.assertEqual(context.requests[0]["session"], "RTH")
+        self.assertFalse(context.requests[0]["extended_time"])
+
+    def test_fetch_history_uses_extended_time_for_eth_session(self):
+        records = [{"code": "US.AAPL", "time_key": "2025-01-02 08:00:00"}]
+        context = FakeContext([(0, FakeFrame(records), None)])
+
+        fetch_history_kline(
+            "US.AAPL",
+            start="2025-01-01",
+            end="2025-01-31",
+            session="ETH",
+            context_factory=lambda **kwargs: context,
+        )
+
+        self.assertEqual(context.requests[0]["session"], "ETH")
+        self.assertTrue(context.requests[0]["extended_time"])
+
+    def test_fetch_history_rejects_unknown_session_before_opening_context(self):
+        with self.assertRaisesRegex(ValueError, "unsupported OpenD history session"):
+            fetch_history_kline(
+                "US.AAPL",
+                start="2025-01-01",
+                end="2025-01-31",
+                session="OVERNIGHT",
+                context_factory=lambda **kwargs: self.fail("context should not be opened"),
+            )
+
+    def test_fetch_history_closes_after_request_error(self):
+        context = FakeContext([(1, "permission denied", None)])
+        with self.assertRaisesRegex(OpenDRequestError, "permission denied"):
+            fetch_history_kline(
+                "US.AAPL",
+                start="2025-01-01",
+                end="2025-01-31",
+                context_factory=lambda **kwargs: context,
+            )
+        self.assertTrue(context.closed)
+
+    def test_write_history_csv_preserves_fields(self):
+        history = OpenDHistory(
+            records=[{"code": "US.AAPL", "time_key": "2025-01-02", "close": 100}],
+            fieldnames=("code", "time_key", "close"),
+            pages=1,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = write_history_csv(history, Path(directory) / "nested" / "history.csv")
+            with path.open("r", encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+        self.assertEqual(rows[0]["code"], "US.AAPL")
+        self.assertEqual(rows[0]["close"], "100")
+
+
+if __name__ == "__main__":
+    unittest.main()
