@@ -7,6 +7,7 @@ import type {
   StrategyParameterDefinition,
 } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
+import { localizeParameter } from "../lib/parameterLocalization";
 
 interface ExperimentFormProps {
   config?: AppConfig;
@@ -27,7 +28,7 @@ export function ExperimentForm({
   running,
   opendConnected,
 }: ExperimentFormProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const objectives: Array<{ value: ExperimentObjective; label: string }> = [
     { value: "sharpe_ratio", label: t("experiment.objectiveSharpe") },
     { value: "total_return_pct", label: t("experiment.objectiveReturn") },
@@ -133,19 +134,22 @@ export function ExperimentForm({
         {parameterDefinitions.length === 0 ? (
           <p className="quiet-state">{t("experiment.parametersRequired")}</p>
         ) : null}
-        {parameterDefinitions.map((definition) => (
-          <label className="grid-value-field" key={definition.name}>
-            <span><strong>{definition.label}</strong><small>{definition.name} · {definition.type}</small></span>
-            <input
-              aria-label={t("experiment.candidateLabel", { label: definition.label })}
-              value={gridText[definition.name] ?? ""}
-              onChange={(event) => setGridText((current) => ({ ...current, [definition.name]: event.target.value }))}
-              placeholder={String(definition.default)}
-              required
-            />
-            <small>{t("experiment.range", { range: formatRange(definition, t("experiment.freeValue")) })}</small>
-          </label>
-        ))}
+        {parameterDefinitions.map((definition) => {
+          const copy = localizeParameter(definition, locale);
+          return (
+            <label className="grid-value-field" key={definition.name}>
+              <span><strong>{copy.label}</strong><small>{definition.name} · {definition.type}</small></span>
+              <input
+                aria-label={t("experiment.candidateLabel", { label: copy.label })}
+                value={gridText[definition.name] ?? ""}
+                onChange={(event) => setGridText((current) => ({ ...current, [definition.name]: event.target.value }))}
+                placeholder={String(definition.default)}
+                required
+              />
+              <small>{t("experiment.range", { range: formatRange(definition, t("experiment.freeValue")) })}</small>
+            </label>
+          );
+        })}
       </section>
 
       <details className="execution-sheet">

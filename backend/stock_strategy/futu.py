@@ -76,6 +76,16 @@ def current_price(symbol: Contract, price_type: THType = THType.ALL) -> float:
     return get_context().current_bar.close
 
 
+def current_bar_type() -> BarType:
+    """Return the single OpenD K-line interval driving this backtest."""
+    return get_context().bar_type
+
+
+def current_session_type() -> THType:
+    """Return the OpenD session scope driving this backtest."""
+    return get_context().session_type
+
+
 def bar_open(
     symbol: Contract,
     bar_type: BarType = BarType.K_60M,
@@ -176,10 +186,18 @@ def ma(
     session_type: THType = THType.ALL,
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
-    values = _values(symbol, data_type, select)
     if period <= 0:
         raise ValueError("period must be positive")
-    return statistics.fmean(values[-period:]) if len(values) >= period else math.nan
+    if select <= 0:
+        raise ValueError("select must be positive")
+    context = get_context()
+    end = context.current_index - (select - 1)
+    start = end - period + 1
+    if start < 0:
+        return math.nan
+    field = data_type.value.lower()
+    prefix = _series_prefix_sum(field)
+    return (prefix[end + 1] - prefix[start]) / period
 
 
 def ema(
@@ -439,6 +457,16 @@ def _values(symbol: Contract, data_type: DataType, select: int) -> list[float]:
     return [float(getattr(bar, field)) for bar in context.bars[: end + 1]]
 
 
+def _series_prefix_sum(field: str) -> list[float]:
+    context = get_context()
+    prefix = context.series_prefix_sums.setdefault(field, [0.0])
+    target_length = context.current_index + 2
+    while len(prefix) < target_length:
+        bar_index = len(prefix) - 1
+        prefix.append(prefix[-1] + float(getattr(context.bars[bar_index], field)))
+    return prefix
+
+
 def _ema_series(values: list[float], period: int) -> list[float]:
     alpha = 2 / (period + 1)
     seed = statistics.fmean(values[:period])
@@ -577,7 +605,9 @@ __all__ = [
     "bar_volume",
     "cancel_order_all",
     "close_positions",
+    "current_bar_type",
     "current_price",
+    "current_session_type",
     "declare_strategy_type",
     "declare_trig_symbol",
     "ema",

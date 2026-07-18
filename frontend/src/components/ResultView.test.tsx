@@ -71,6 +71,23 @@ describe("ResultView compatibility evidence", () => {
     expect(screen.queryByText("trade table")).not.toBeInTheDocument();
   });
 
+  it("shows the strategy failure instead of a later OpenD disconnect log", () => {
+    render(
+      <ResultView
+        job={{
+          ...job,
+          status: "failed",
+          error: "OpenD disconnected: CallClose",
+          stderr: "回测失败：K 线周期与策略不一致\n",
+        }}
+        loading={false}
+      />,
+    );
+
+    expect(screen.getByText("回测失败：K 线周期与策略不一致")).toBeInTheDocument();
+    expect(screen.queryByText("OpenD disconnected: CallClose")).not.toBeInTheDocument();
+  });
+
   it("marks pre-contract results as legacy", () => {
     render(<ResultView job={job} result={makeResult({})} loading={false} />);
 

@@ -8,7 +8,11 @@ from stock_strategy.futu import *
 STRATEGY_PARAMETERS = {
     "fast_period": {
         "label": "短均线周期",
+        "label_i18n": {"en-US": "Fast moving-average period"},
         "description": "用于产生快速趋势信号的移动平均周期。",
+        "description_i18n": {
+            "en-US": "Moving-average period used for the fast trend signal."
+        },
         "type": "int",
         "default": 20,
         "min": 2,
@@ -18,7 +22,11 @@ STRATEGY_PARAMETERS = {
     },
     "slow_period": {
         "label": "长均线周期",
+        "label_i18n": {"en-US": "Slow moving-average period"},
         "description": "用于过滤长期趋势的移动平均周期。",
+        "description_i18n": {
+            "en-US": "Moving-average period used to filter the longer-term trend."
+        },
         "type": "int",
         "default": 60,
         "min": 5,
@@ -28,7 +36,11 @@ STRATEGY_PARAMETERS = {
     },
     "capital_fraction": {
         "label": "资金使用比例",
+        "label_i18n": {"en-US": "Capital allocation"},
         "description": "开仓时使用可买数量的比例。",
+        "description_i18n": {
+            "en-US": "Fraction of the available buying capacity used to open a position."
+        },
         "type": "float",
         "default": 0.9,
         "min": 0.1,
@@ -49,6 +61,8 @@ class Strategy(StrategyBase):
         self.symbol = declare_trig_symbol()
 
     def global_variables(self):
+        self.bar_type = current_bar_type()
+        self.session_type = current_session_type()
         self.fast_period = strategy_parameter("fast_period")
         self.slow_period = strategy_parameter("slow_period")
         self.capital_fraction = strategy_parameter("capital_fraction")
@@ -56,10 +70,34 @@ class Strategy(StrategyBase):
             raise ValueError("fast_period must be smaller than slow_period")
 
     def handle_data(self):
-        fast_now = ma(self.symbol, period=self.fast_period, bar_type=BarType.K_DAY, select=1)
-        slow_now = ma(self.symbol, period=self.slow_period, bar_type=BarType.K_DAY, select=1)
-        fast_previous = ma(self.symbol, period=self.fast_period, bar_type=BarType.K_DAY, select=2)
-        slow_previous = ma(self.symbol, period=self.slow_period, bar_type=BarType.K_DAY, select=2)
+        fast_now = ma(
+            self.symbol,
+            period=self.fast_period,
+            bar_type=self.bar_type,
+            session_type=self.session_type,
+            select=1,
+        )
+        slow_now = ma(
+            self.symbol,
+            period=self.slow_period,
+            bar_type=self.bar_type,
+            session_type=self.session_type,
+            select=1,
+        )
+        fast_previous = ma(
+            self.symbol,
+            period=self.fast_period,
+            bar_type=self.bar_type,
+            session_type=self.session_type,
+            select=2,
+        )
+        slow_previous = ma(
+            self.symbol,
+            period=self.slow_period,
+            bar_type=self.bar_type,
+            session_type=self.session_type,
+            select=2,
+        )
 
         if any(math.isnan(value) for value in (fast_now, slow_now, fast_previous, slow_previous)):
             return
@@ -71,7 +109,7 @@ class Strategy(StrategyBase):
             cash_quantity = max_qty_to_buy_on_cash(
                 self.symbol,
                 order_type=OrdType.MKT,
-                price=current_price(self.symbol),
+                price=current_price(self.symbol, price_type=self.session_type),
             )
             quantity = math.floor(cash_quantity * self.capital_fraction)
             if quantity > 0:

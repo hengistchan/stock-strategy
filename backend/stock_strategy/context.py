@@ -20,6 +20,7 @@ class ExecutionContext:
     session_type: THType = THType.ALL
     autype: str = "QFQ"
     strategy_parameters: dict[str, Any] = field(default_factory=dict)
+    series_prefix_sums: dict[str, list[float]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.bar_type = BarType(self.bar_type)

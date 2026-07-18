@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 from stock_strategy.data import generate_sample_bars
+from stock_strategy.models import BarType, THType
 from stock_strategy.reporting import write_artifacts
 from stock_strategy.runtime import ENGINE_CONTRACT_VERSION, BacktestConfig, run_backtest
 
@@ -23,6 +24,21 @@ class RuntimeTest(unittest.TestCase):
             result.settings["engine_contract"]["version"],
             ENGINE_CONTRACT_VERSION,
         )
+
+    def test_example_strategy_uses_the_selected_opend_interval_and_session(self):
+        strategy = Path(__file__).parents[2] / "examples" / "ma_cross.py"
+        result = run_backtest(
+            BacktestConfig(
+                strategy_path=strategy,
+                bar_type=BarType.K_5M,
+                session_type=THType.RTH,
+                warmup_bars=60,
+            ),
+            generate_sample_bars(400),
+        )
+
+        self.assertEqual(result.settings["bar_type"], BarType.K_5M)
+        self.assertEqual(result.settings["session_type"], THType.RTH)
 
     def test_default_lifecycle_has_no_project_specific_warmup(self):
         self.assertEqual(BacktestConfig(strategy_path="strategy.py").warmup_bars, 0)

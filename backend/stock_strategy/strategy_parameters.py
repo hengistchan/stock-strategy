@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 PARAMETER_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 PARAMETER_TYPES = frozenset({"int", "float", "bool", "string"})
+LOCALE_PATTERN = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 MAX_PARAMETERS = 16
 MAX_STRING_LENGTH = 200
 
@@ -138,6 +139,16 @@ def _normalize_definition(name: str, specification: Mapping[str, Any]) -> dict[s
         "description": str(specification.get("description") or "")[:240],
         "type": parameter_type,
     }
+    label_i18n = _normalize_localized_copy(
+        name, "label_i18n", specification.get("label_i18n"), 80
+    )
+    description_i18n = _normalize_localized_copy(
+        name, "description_i18n", specification.get("description_i18n"), 240
+    )
+    if label_i18n:
+        definition["label_i18n"] = label_i18n
+    if description_i18n:
+        definition["description_i18n"] = description_i18n
     for boundary in ("min", "max", "step"):
         if boundary in specification:
             value = specification[boundary]
@@ -173,6 +184,31 @@ def _normalize_definition(name: str, specification: Mapping[str, Any]) -> dict[s
             normalized_candidates.append(normalized)
     definition["candidates"] = normalized_candidates
     return definition
+
+
+def _normalize_localized_copy(
+    name: str,
+    field: str,
+    value: Any,
+    max_length: int,
+) -> dict[str, str]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise StrategyParameterError(f"parameter {name!r} {field} must be a dictionary")
+
+    localized: dict[str, str] = {}
+    for locale, copy in value.items():
+        if not isinstance(locale, str) or not LOCALE_PATTERN.fullmatch(locale):
+            raise StrategyParameterError(
+                f"parameter {name!r} {field} has an invalid locale: {locale!r}"
+            )
+        if not isinstance(copy, str) or not copy.strip():
+            raise StrategyParameterError(
+                f"parameter {name!r} {field}[{locale!r}] must be non-empty text"
+            )
+        localized[locale] = copy.strip()[:max_length]
+    return localized
 
 
 def _coerce_value(name: str, parameter_type: str, value: Any) -> Any:

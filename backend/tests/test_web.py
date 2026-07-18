@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from stock_strategy.web import (
     BacktestRequest,
     JobStore,
+    _last_error,
     create_app,
     list_strategies,
     resolve_strategy,
@@ -16,6 +17,15 @@ from stock_strategy.web import (
 
 
 class WebTest(unittest.TestCase):
+    def test_failure_summary_prefers_strategy_stderr_over_opend_stdout(self):
+        self.assertEqual(
+            _last_error(
+                "回测失败：requested K_DAY, but this backtest contains K_5M bars\n",
+                "OpenD disconnected: CallClose\n",
+            ),
+            "回测失败：requested K_DAY, but this backtest contains K_5M bars",
+        )
+
     def test_home_config_and_health_render(self):
         with tempfile.TemporaryDirectory() as directory:
             frontend_root = Path(directory)
@@ -42,6 +52,10 @@ class WebTest(unittest.TestCase):
         self.assertEqual(
             [parameter["name"] for parameter in example["parameters"]],
             ["fast_period", "slow_period", "capital_fraction"],
+        )
+        self.assertEqual(
+            example["parameters"][0]["label_i18n"]["en-US"],
+            "Fast moving-average period",
         )
         self.assertEqual(config.json()["session_types"], ["ALL", "RTH", "ETH"])
 

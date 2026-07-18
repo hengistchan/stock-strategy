@@ -1,5 +1,6 @@
 import type { StrategyParameterDefinition } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
+import { localizeParameter } from "../lib/parameterLocalization";
 
 interface StrategyParameterFieldsProps {
   definitions: StrategyParameterDefinition[];
@@ -10,7 +11,7 @@ export function StrategyParameterFields({
   definitions,
   namePrefix = "parameter",
 }: StrategyParameterFieldsProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   if (definitions.length === 0) return null;
 
   return (
@@ -28,6 +29,7 @@ export function StrategyParameterFields({
             key={definition.name}
             definition={definition}
             inputName={`${namePrefix}:${definition.name}`}
+            locale={locale}
           />
         ))}
       </div>
@@ -38,16 +40,18 @@ export function StrategyParameterFields({
 interface ParameterFieldProps {
   definition: StrategyParameterDefinition;
   inputName: string;
+  locale: "zh-CN" | "en-US";
 }
 
-function ParameterField({ definition, inputName }: ParameterFieldProps) {
+function ParameterField({ definition, inputName, locale }: ParameterFieldProps) {
+  const copy = localizeParameter(definition, locale);
   if (definition.type === "bool") {
     return (
       <label className="parameter-check">
         <input type="checkbox" name={inputName} defaultChecked={definition.default === true} />
         <span>
-          <strong>{definition.label}</strong>
-          {definition.description ? <small>{definition.description}</small> : null}
+          <strong>{copy.label}</strong>
+          {copy.description ? <small>{copy.description}</small> : null}
         </span>
       </label>
     );
@@ -55,7 +59,7 @@ function ParameterField({ definition, inputName }: ParameterFieldProps) {
 
   return (
     <label className="field parameter-field">
-      <span>{definition.label}</span>
+      <span>{copy.label}</span>
       {definition.choices ? (
         <select name={inputName} defaultValue={String(definition.default)}>
           {definition.choices.map((choice) => (
@@ -73,7 +77,7 @@ function ParameterField({ definition, inputName }: ParameterFieldProps) {
           required
         />
       )}
-      {definition.description ? <small>{definition.description}</small> : null}
+      {copy.description ? <small>{copy.description}</small> : null}
     </label>
   );
 }

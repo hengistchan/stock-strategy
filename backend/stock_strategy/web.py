@@ -681,8 +681,11 @@ def _now() -> str:
 
 
 def _last_error(stderr: str, stdout: str) -> str:
-    lines = [line.strip() for line in (stderr + "\n" + stdout).splitlines() if line.strip()]
-    return lines[-1] if lines else "回测进程失败，未返回错误信息。"
+    stderr_lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    if stderr_lines:
+        return stderr_lines[-1]
+    stdout_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    return stdout_lines[-1] if stdout_lines else "回测进程失败，未返回错误信息。"
 
 
 def main(argv: list[str] | None = None) -> int:

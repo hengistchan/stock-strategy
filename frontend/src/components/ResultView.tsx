@@ -29,10 +29,11 @@ export function ResultView({ job, result, loading, emptyContext = "archive" }: R
   }
 
   if (job.status !== "succeeded" || loading || !result) {
+    const stderrDetail = job.stderr.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).at(-1);
     const copy = {
       queued: [t("result.queuedLabel"), t("result.queuedTitle"), t("result.queuedBody")],
       running: [t("result.runningLabel"), t("result.runningTitle", { symbol: job.request.symbol }), `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
-      failed: [t("result.failedLabel"), t("result.failedTitle"), job.error ?? t("result.failedBody")],
+      failed: [t("result.failedLabel"), t("result.failedTitle"), stderrDetail ?? job.error ?? t("result.failedBody")],
       succeeded: [t("result.succeededLabel"), t("result.succeededTitle"), t("result.succeededBody")],
     }[job.status];
     return (

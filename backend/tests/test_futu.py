@@ -13,6 +13,8 @@ from stock_strategy.futu import (
     UnsupportedAPIError,
     bar_close,
     bar_custom,
+    current_bar_type,
+    current_session_type,
     ma,
     rsi,
 )
@@ -40,6 +42,27 @@ class FutuApiTest(unittest.TestCase):
             value = rsi(self.symbol, period=14, bar_type=BarType.K_DAY, select=1)
             self.assertGreaterEqual(value, 0)
             self.assertLessEqual(value, 100)
+
+    def test_ma_builds_an_incremental_prefix_without_future_values(self):
+        self.context.current_index = 20
+        with activate_context(self.context):
+            expected = sum(bar.close for bar in self.bars[16:21]) / 5
+            self.assertAlmostEqual(
+                ma(self.symbol, period=5, bar_type=BarType.K_DAY, select=1),
+                expected,
+            )
+            self.assertEqual(len(self.context.series_prefix_sums["close"]), 22)
+
+            self.context.current_index = 21
+            ma(self.symbol, period=5, bar_type=BarType.K_DAY, select=1)
+            self.assertEqual(len(self.context.series_prefix_sums["close"]), 23)
+
+    def test_current_market_data_contract_is_available_to_strategies(self):
+        self.context.bar_type = BarType.K_5M
+        self.context.session_type = THType.RTH
+        with activate_context(self.context):
+            self.assertEqual(current_bar_type(), BarType.K_5M)
+            self.assertEqual(current_session_type(), THType.RTH)
 
     def test_period_and_us_session_mismatch_fail_instead_of_resampling(self):
         with activate_context(self.context):

@@ -1,13 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig, StrategyParameterDefinition } from "../api/types";
+import { I18nContext } from "../i18n/I18nContext";
+import { translate } from "../i18n/core";
 import { ExperimentForm } from "./ExperimentForm";
 
 const definitions: StrategyParameterDefinition[] = [
   {
     name: "fast_period",
     label: "短均线周期",
+    label_i18n: { "en-US": "Fast moving-average period" },
     description: "快速趋势周期",
+    description_i18n: { "en-US": "Fast trend period" },
     type: "int",
     default: 20,
     min: 2,
@@ -64,5 +68,29 @@ describe("ExperimentForm", () => {
         }),
       }),
     );
+  });
+
+  it("localizes candidate labels in English", () => {
+    render(
+      <I18nContext.Provider value={{
+        locale: "en-US",
+        setLocale: vi.fn(),
+        t: (key, values) => translate("en-US", key, values),
+      }}>
+        <ExperimentForm
+          config={config}
+          selectedStrategy="examples/ma_cross.py"
+          parameterDefinitions={definitions}
+          onStrategyChange={() => undefined}
+          onSubmit={vi.fn()}
+          running={false}
+          opendConnected
+        />
+      </I18nContext.Provider>,
+    );
+
+    expect(screen.getByText("Fast moving-average period")).toBeInTheDocument();
+    expect(screen.getByLabelText("Candidate values for Fast moving-average period")).toBeInTheDocument();
+    expect(screen.queryByText("短均线周期")).not.toBeInTheDocument();
   });
 });

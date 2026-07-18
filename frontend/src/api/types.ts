@@ -4,7 +4,9 @@ export type ParameterValue = boolean | number | string;
 export interface StrategyParameterDefinition {
   name: string;
   label: string;
+  label_i18n?: Record<string, string>;
   description: string;
+  description_i18n?: Record<string, string>;
   type: "int" | "float" | "bool" | "string";
   default: ParameterValue;
   min?: number;
