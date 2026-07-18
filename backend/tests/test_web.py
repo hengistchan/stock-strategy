@@ -149,6 +149,45 @@ class WebTest(unittest.TestCase):
         self.assertEqual(unknown_parameter.status_code, 422)
         self.assertEqual(unknown_experiment_parameter.status_code, 422)
 
+    def test_incompatible_strategy_is_blocked_before_a_job_is_created(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "strategies" / "multi.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text(
+                """
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.symbol = declare_trig_symbol()
+        self.fast = BarType.K_1M
+        self.slow = BarType.K_5M
+
+    def handle_data(self):
+        lot_size(self.symbol)
+        bar_close(self.symbol, bar_type=self.fast)
+        bar_close(self.symbol, bar_type=self.slow)
+""",
+                encoding="utf-8",
+            )
+            app = create_app(project_root=root, opend_probe=lambda host, port: True)
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/jobs",
+                    json={
+                        "strategy": "strategies/multi.py",
+                        "symbol": "US.AAPL",
+                        "start": "2025-01-01",
+                        "end": "2025-02-01",
+                        "ktype": "K_1M",
+                    },
+                )
+                jobs = client.get("/api/jobs").json()["jobs"]
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("lot_size", response.json()["detail"])
+        self.assertIn("多个 K 线周期", response.json()["detail"])
+        self.assertEqual(jobs, [])
+
     def test_strategy_paths_stay_inside_allowed_folders(self):
         project_root = Path(__file__).parents[2]
         strategies = list_strategies(project_root)

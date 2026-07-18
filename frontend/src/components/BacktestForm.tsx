@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { AppConfig, BacktestRequest, StrategyParameterDefinition } from "../api/types";
+import type { AppConfig, BacktestRequest, StrategyCompatibility, StrategyParameterDefinition } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { readParameterValues } from "../lib/parameters";
 import { StrategyParameterFields } from "./StrategyParameterFields";
@@ -12,6 +12,7 @@ interface BacktestFormProps {
   running: boolean;
   opendConnected: boolean;
   parameterDefinitions?: StrategyParameterDefinition[];
+  compatibility?: StrategyCompatibility;
 }
 
 export function BacktestForm({
@@ -22,6 +23,7 @@ export function BacktestForm({
   running,
   opendConnected,
   parameterDefinitions = [],
+  compatibility,
 }: BacktestFormProps) {
   const { t } = useI18n();
   const sessionLabels: Record<string, string> = {
@@ -83,6 +85,19 @@ export function BacktestForm({
 
       <StrategyParameterFields definitions={parameterDefinitions} />
 
+      {compatibility && !compatibility.supported ? (
+        <aside className="strategy-compatibility" role="alert">
+          <strong>{t("form.compatibilityBlocked")}</strong>
+          {compatibility.unsupported_names.length > 0 ? (
+            <p>{t("form.unsupportedNames", { names: compatibility.unsupported_names.join(" · ") })}</p>
+          ) : null}
+          {compatibility.bar_types.length > 1 ? (
+            <p>{t("form.multipleBarTypes", { types: compatibility.bar_types.join(" · ") })}</p>
+          ) : null}
+          <small>{t("form.compatibilityHelp")}</small>
+        </aside>
+      ) : null}
+
       <label className="field field-wide">
         <span>{t("form.symbol")}</span>
         <input name="symbol" defaultValue="US.AAPL" placeholder="US.AAPL" required />
@@ -103,7 +118,11 @@ export function BacktestForm({
       <div className="field-pair">
         <label className="field">
           <span>{t("form.ktype")}</span>
-          <select name="ktype" defaultValue="K_DAY">
+          <select
+            key={`ktype-${selectedStrategy}`}
+            name="ktype"
+            defaultValue={compatibility?.bar_types.length === 1 ? compatibility.bar_types[0] : "K_DAY"}
+          >
             {(config?.kline_types ?? ["K_DAY"]).map((value) => (
               <option key={value} value={value}>{value}</option>
             ))}
@@ -146,7 +165,7 @@ export function BacktestForm({
       </details>
 
       <div className="run-action">
-        <button type="submit" disabled={running || !opendConnected || !selectedStrategy}>
+        <button type="submit" disabled={running || !opendConnected || !selectedStrategy || compatibility?.supported === false}>
           <span>{running ? t("form.running") : t("form.run")}</span>
           <span aria-hidden="true">↗</span>
         </button>

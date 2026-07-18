@@ -313,6 +313,20 @@ h1 {
   border-bottom: 1px solid var(--rule-dark);
 }
 
+.strategy-compatibility {
+  margin: 0 0 18px;
+  padding: 13px 14px;
+  border: 1px solid rgba(184, 104, 50, 0.55);
+  border-left: 3px solid #b86832;
+  color: var(--ink);
+  background: rgba(213, 138, 53, 0.08);
+  font: 10px/1.5 var(--mono);
+}
+
+.strategy-compatibility strong { display: block; margin-bottom: 7px; color: #8e4e29; }
+.strategy-compatibility p { margin: 4px 0; overflow-wrap: anywhere; }
+.strategy-compatibility small { display: block; margin-top: 8px; color: var(--muted); }
+
 .parameter-sheet {
   margin: 0 -10px 20px;
   border: 1px solid var(--rule);

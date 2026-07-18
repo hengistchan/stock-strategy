@@ -66,4 +66,27 @@ describe("BacktestForm", () => {
     );
     expect(screen.getByRole("button", { name: /运行 OpenD 回测/ })).toBeDisabled();
   });
+
+  it("explains strategy compatibility blockers before execution", () => {
+    render(
+      <BacktestForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        onStrategyChange={() => undefined}
+        onSubmit={() => undefined}
+        running={false}
+        opendConnected
+        compatibility={{
+          supported: false,
+          issues: ["unsupported_names", "multiple_bar_types"],
+          unsupported_names: ["lot_size", "order_status"],
+          bar_types: ["K_1M", "K_5M"],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("lot_size · order_status");
+    expect(screen.getByRole("alert")).toHaveTextContent("K_1M · K_5M");
+    expect(screen.getByRole("button", { name: /运行 OpenD 回测/ })).toBeDisabled();
+  });
 });

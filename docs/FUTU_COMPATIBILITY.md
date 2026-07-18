@@ -19,7 +19,8 @@
 | 指标 | `ma()`、`ema()`、`rsi()`、`historical_volatility()`、`macd_dif()`、`macd_dea()`、`macd_macd()`、MACD 金叉/死叉 |
 | 订单 | `place_market()`、`place_limit()`、`place_stop()`、`close_positions()`、`cancel_order_all()` |
 | 持仓 | `position_holding_qty()`、`position_side()`、`max_qty_to_buy_on_cash()`、`max_qty_to_sell()` |
-| 常用类型 | `Contract`、`BarType`、`CustomType`、`DataType`、`BarDataType`、`THType`、`TSType`、`OrderSide`、`PositionSide`、`TimeInForce`、`OrdType`、`AlgoStrategyType`、`GlobalType` |
+| 时间 | `device_time()`；历史回测返回当前 K 线时间，支持 `TimeZone` 显式转换与美股夏令时 |
+| 常用类型 | `Contract`、`BarType`、`CustomType`、`DataType`、`BarDataType`、`THType`、`TSType`、`TimeZone`、`OrderSide`、`PositionSide`、`TimeInForce`、`OrdType`、`AlgoStrategyType`、`GlobalType` |
 
 ## 单周期兼容契约
 

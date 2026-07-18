@@ -129,6 +129,7 @@ export function App() {
                 running={runMutation.isPending || job?.status === "queued" || job?.status === "running"}
                 opendConnected={healthQuery.data?.opend.connected === true}
                 parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
+                compatibility={selectedStrategyMetadata?.compatibility}
               />
             ) : (
               <RunHistory

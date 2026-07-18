@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 from stock_strategy.data import generate_sample_bars
-from stock_strategy.models import BarType, THType
+from stock_strategy.models import Bar, BarType, THType
 from stock_strategy.reporting import write_artifacts
 from stock_strategy.runtime import ENGINE_CONTRACT_VERSION, BacktestConfig, run_backtest
 
@@ -100,6 +100,39 @@ class Strategy(StrategyBase):
             )
         self.assertEqual(result.trades[0].entry_date, bars[1].date)
         self.assertEqual(result.trades[0].exit_reason, "end-of-test")
+
+    def test_device_time_uses_historical_bar_and_converts_us_dst(self):
+        with tempfile.TemporaryDirectory() as directory:
+            strategy = Path(directory) / "strategy.py"
+            strategy.write_text(
+                """
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.symbol = declare_trig_symbol()
+        self.sent = False
+
+    def handle_data(self):
+        now = device_time(TimeZone.UTC_PLUS_8)
+        expected_hour = 13 if now.month == 1 else 12
+        if now.hour != expected_hour:
+            raise RuntimeError("unexpected converted hour")
+        if now.hour == expected_hour and not self.sent:
+            place_market(self.symbol, qty=1, side=OrderSide.BUY)
+            self.sent = True
+""",
+                encoding="utf-8",
+            )
+            bars = [
+                Bar("2024-01-02 00:00:00", 100, 101, 99, 100, 1),
+                Bar("2024-01-03 00:00:00", 100, 101, 99, 100, 1),
+                Bar("2024-07-02 00:00:00", 100, 101, 99, 100, 1),
+                Bar("2024-07-03 00:00:00", 100, 101, 99, 100, 1),
+            ]
+            result = run_backtest(
+                BacktestConfig(strategy_path=strategy, liquidate_on_end=True), bars
+            )
+
+        self.assertEqual(result.trades[0].entry_date, "2024-01-03 00:00:00")
 
     def test_open_position_is_preserved_and_marked_to_market_by_default(self):
         with tempfile.TemporaryDirectory() as directory:

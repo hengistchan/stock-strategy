@@ -32,6 +32,7 @@ from .strategy_repository import (
     StrategyRepository,
     StrategyRepositoryError,
     StrategyValidationError,
+    compatibility_error,
 )
 from .strategy_parameters import (
     StrategyParameterError,
@@ -508,7 +509,13 @@ def create_app(
             raise HTTPException(status_code=422, detail="结束日期不能早于开始日期。")
         try:
             strategy_path = strategy_repository.resolve_for_backtest(request.strategy)
-            definitions = strategy_repository.read(request.strategy)["parameters"]
+            strategy_document = strategy_repository.read(request.strategy)
+            definitions = strategy_document["parameters"]
+            incompatibility = compatibility_error(
+                strategy_document["compatibility"], request.ktype
+            )
+            if incompatibility:
+                raise StrategyValidationError(incompatibility)
             request.parameters = resolve_parameter_values(
                 definitions, request.parameters
             )
@@ -570,7 +577,13 @@ def create_app(
             strategy_path = strategy_repository.resolve_for_backtest(
                 request.base.strategy
             )
-            definitions = strategy_repository.read(request.base.strategy)["parameters"]
+            strategy_document = strategy_repository.read(request.base.strategy)
+            definitions = strategy_document["parameters"]
+            incompatibility = compatibility_error(
+                strategy_document["compatibility"], request.base.ktype
+            )
+            if incompatibility:
+                raise StrategyValidationError(incompatibility)
             if not definitions:
                 raise StrategyParameterError(
                     "该策略没有声明 STRATEGY_PARAMETERS，无法创建参数实验"

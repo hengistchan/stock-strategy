@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import math
 import statistics
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .context import get_context
 from .models import (
@@ -18,6 +20,7 @@ from .models import (
     PositionSide,
     THType,
     TSType,
+    TimeZone,
     TimeInForce,
 )
 
@@ -84,6 +87,71 @@ def current_bar_type() -> BarType:
 def current_session_type() -> THType:
     """Return the OpenD session scope driving this backtest."""
     return get_context().session_type
+
+
+def device_time(time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE) -> datetime:
+    """Return the current historical bar time in the requested Futu time zone."""
+    context = get_context()
+    try:
+        requested_zone = TimeZone(time_zone)
+    except (TypeError, ValueError) as error:
+        raise UnsupportedAPIError(f"unsupported time zone: {time_zone}") from error
+    try:
+        current = datetime.fromisoformat(context.current_bar.date.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(
+            f"current OpenD bar has an invalid timestamp: {context.current_bar.date}"
+        ) from error
+    market_zone = _market_time_zone(str(context.symbol))
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=market_zone)
+    return current.astimezone(_time_zone_info(requested_zone, market_zone))
+
+
+def _market_time_zone(symbol: str) -> tzinfo:
+    market = symbol.partition(".")[0]
+    zones = {
+        "US": "America/New_York",
+        "CA": "America/Toronto",
+        "HK": "Asia/Hong_Kong",
+        "SH": "Asia/Shanghai",
+        "SZ": "Asia/Shanghai",
+        "JP": "Asia/Tokyo",
+        "SG": "Asia/Singapore",
+        "AU": "Australia/Sydney",
+        "UK": "Europe/London",
+    }
+    return ZoneInfo(zones.get(market, "UTC"))
+
+
+def _time_zone_info(value: TimeZone, market_zone: tzinfo) -> tzinfo:
+    if value in {TimeZone.DEVICE_TIME_ZONE, TimeZone.MARKET_TIME_ZONE}:
+        return market_zone
+    named_zones = {
+        TimeZone.ET: "America/New_York",
+        TimeZone.CT: "America/Chicago",
+        TimeZone.HST: "Pacific/Honolulu",
+        TimeZone.AKST: "America/Anchorage",
+        TimeZone.PST: "America/Los_Angeles",
+        TimeZone.MST: "America/Denver",
+        TimeZone.CCT: "Asia/Shanghai",
+        TimeZone.GMT: "Europe/London",
+        TimeZone.CET: "Europe/Paris",
+        TimeZone.EET: "Europe/Helsinki",
+        TimeZone.JST: "Asia/Tokyo",
+        TimeZone.KST: "Asia/Seoul",
+        TimeZone.AET: "Australia/Sydney",
+    }
+    if value in named_zones:
+        return ZoneInfo(named_zones[value])
+    if value == TimeZone.UTC:
+        return timezone.utc
+    direction = 1 if value.value.startswith("UTC_PLUS_") else -1
+    try:
+        hours = int(value.value.rsplit("_", 1)[-1])
+    except ValueError as error:  # pragma: no cover - enum exhaustiveness guard
+        raise UnsupportedAPIError(f"unsupported time zone: {value}") from error
+    return timezone(timedelta(hours=direction * hours))
 
 
 def bar_open(
@@ -595,6 +663,7 @@ __all__ = [
     "StrategyBase",
     "THType",
     "TSType",
+    "TimeZone",
     "TimeInForce",
     "UnsupportedAPIError",
     "bar_close",
@@ -610,6 +679,7 @@ __all__ = [
     "current_session_type",
     "declare_strategy_type",
     "declare_trig_symbol",
+    "device_time",
     "ema",
     "historical_volatility",
     "is_macd_death_cross",

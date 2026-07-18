@@ -25,6 +25,14 @@ export interface StrategyMetadata {
   size: number;
   updated_at: string;
   parameters?: StrategyParameterDefinition[];
+  compatibility?: StrategyCompatibility;
+}
+
+export interface StrategyCompatibility {
+  supported: boolean;
+  issues: Array<"unsupported_names" | "multiple_bar_types">;
+  unsupported_names: string[];
+  bar_types: string[];
 }
 
 export interface StrategyDocument extends StrategyMetadata {
