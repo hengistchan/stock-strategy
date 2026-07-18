@@ -42,6 +42,13 @@ def build_parser():
     parser.add_argument("--allow-short", action="store_true")
     parser.add_argument("--no-chart", action="store_true")
     parser.add_argument("--liquidate-on-end", action="store_true")
+    parser.add_argument(
+        "--parameter",
+        action="append",
+        default=[],
+        metavar="NAME=JSON_VALUE",
+        help="Override one declared strategy parameter; may be repeated",
+    )
     parser.add_argument("--json-only", action="store_true")
     return parser
 
@@ -111,7 +118,18 @@ def main(argv=None):
         str(args.warmup_bars),
     ]
     if data:
-        command.extend(["--data", str(data)])
+        command.extend(
+            [
+                "--data",
+                str(data),
+                "--ktype",
+                args.ktype,
+                "--autype",
+                args.autype,
+                "--session",
+                args.session,
+            ]
+        )
     elif args.opend:
         command.extend(
             [
@@ -147,6 +165,8 @@ def main(argv=None):
         command.append("--no-chart")
     if args.liquidate_on_end:
         command.append("--liquidate-on-end")
+    for assignment in args.parameter:
+        command.extend(["--parameter", assignment])
 
     environment = os.environ.copy()
     existing_pythonpath = environment.get("PYTHONPATH")

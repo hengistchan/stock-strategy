@@ -1,6 +1,24 @@
-# V1.6 Capped Stop-Limit Entry + Measured Move + Profit Protection
+# V1.7 Intraday Recovery Filter + Capped Stop-Limit Entry
 # US/HK market-time schedule + 15M context/support + 5M signal + 1M execution
 # Exit: structural stop + 0.6R/1.0R protection + important-low trailing + measured move
+STRATEGY_PARAMETERS = {
+    "min_session_recovery": {
+        "label": "日内修复位置",
+        "label_i18n": {"en-US": "Intraday recovery level"},
+        "description": "第二底信号收盘至少回到当日已形成价格区间的位置；0 表示关闭过滤。",
+        "description_i18n": {
+            "en-US": "Minimum close location within the session range formed so far; 0 disables the filter."
+        },
+        "type": "float",
+        "default": 0.50,
+        "min": 0.0,
+        "max": 0.80,
+        "step": 0.05,
+        "candidates": [0.0, 0.50, 0.67],
+    },
+}
+
+
 class Strategy(StrategyBase):
 
     def initialize(self):
@@ -86,6 +104,8 @@ class Strategy(StrategyBase):
 
         # 默认要求关键支撑。若不在支撑附近，只有强假跌破收回形态才可绕过。
         self.REQUIRE_CONTEXT_SUPPORT = True
+        # 过滤仍停留在当日区间下半部的弱反弹，避免在下跌尚未修复时抄底。
+        self.MIN_SESSION_RECOVERY = strategy_parameter("min_session_recovery")
 
         # ============================================================
         # 仓位、风险及目标
@@ -148,6 +168,7 @@ class Strategy(StrategyBase):
         self.last_5m_key = ""
         self.current_day_key = ""
         self.session_low = 0.0
+        self.session_high = 0.0
         self.mr5 = 0.0
 
         # ============================================================
@@ -268,6 +289,7 @@ class Strategy(StrategyBase):
         self.diag_h1_failure = 0
         self.diag_second_scans = 0
         self.diag_context_pass = 0
+        self.diag_recovery_pass = 0
         self.diag_signal_basic = 0
         self.diag_pa_pass = 0
         self.diag_risk_pass = 0
@@ -307,6 +329,7 @@ class Strategy(StrategyBase):
                     "h1_fail=", self.diag_h1_failure,
                     "second_scan=", self.diag_second_scans,
                     "context=", self.diag_context_pass,
+                    "recovery=", self.diag_recovery_pass,
                     "signal_basic=", self.diag_signal_basic,
                     "pa=", self.diag_pa_pass,
                     "risk=", self.diag_risk_pass,
@@ -321,6 +344,7 @@ class Strategy(StrategyBase):
             self.consecutive_losses = 0
             self.operational_error_today = False
             self.session_low = 0.0
+            self.session_high = 0.0
 
             self.diag_5m_bars = 0
             self.diag_h1_basic = 0
@@ -328,6 +352,7 @@ class Strategy(StrategyBase):
             self.diag_h1_failure = 0
             self.diag_second_scans = 0
             self.diag_context_pass = 0
+            self.diag_recovery_pass = 0
             self.diag_signal_basic = 0
             self.diag_pa_pass = 0
             self.diag_risk_pass = 0
@@ -1996,6 +2021,8 @@ class Strategy(StrategyBase):
 
         if self.session_low <= 0 or low0 < self.session_low:
             self.session_low = low0
+        if high0 > self.session_high:
+            self.session_high = high0
 
         if self.DEBUG_EVERY_5M:
             print(
@@ -2569,6 +2596,18 @@ class Strategy(StrategyBase):
             if background_ok:
                 self.diag_context_pass += 1
 
+            # 反转信号还必须证明价格已经从当日低位恢复。使用截至当前的
+            # session high/low，不读取未来 K 线；自然阈值 0.50 表示收复
+            # 当日区间中点。参数设为 0 可复现 V1.6 行为。
+            session_recovery = 1.0
+            if self.session_high > self.session_low > 0:
+                session_recovery = (
+                    close0 - self.session_low
+                ) / (self.session_high - self.session_low)
+            recovery_ok = session_recovery >= self.MIN_SESSION_RECOVERY
+            if recovery_ok:
+                self.diag_recovery_pass += 1
+
             signal_basic = (
                 near_bottom
                 and low0 >= self.first_bottom_low - max_undercut
@@ -2579,6 +2618,7 @@ class Strategy(StrategyBase):
                 and range0 <= self.SIGNAL_RANGE_MAX_MR * mr5
                 and not second_leg_too_strong
                 and background_ok
+                and recovery_ok
             )
 
             if not signal_basic:

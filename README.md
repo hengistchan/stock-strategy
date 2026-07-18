@@ -213,6 +213,8 @@ make acceptance
 
 2026-07-15 的真实 OpenD 验收记录见 [docs/ACCEPTANCE_RESULT_2026-07-15.md](docs/ACCEPTANCE_RESULT_2026-07-15.md)；前后端工程化重构记录见 [docs/ENGINEERING_REFACTOR_ACCEPTANCE_2026-07-18.md](docs/ENGINEERING_REFACTOR_ACCEPTANCE_2026-07-18.md)；修正周期、时段、DAY 订单与期末持仓语义后的最新结果见 [Futu 兼容契约 v2 验收](docs/FUTU_CONTRACT_V2_ACCEPTANCE_2026-07-18.md)。
 
+Demo V1.7 的日内修复信号过滤、开发样本对照和 2026H1 时间外检查见 [信号质量验收](docs/STRATEGY_SIGNAL_QUALITY_2026-07-19.md)。该结果只证明噪声交易和回撤下降，不代表策略已经获得稳健正收益。
+
 第二阶段参数声明、批量实验、排名对比和共享缓存的真实 OpenD 验收见 [策略迭代能力 v0.3 验收](docs/STRATEGY_ITERATION_ACCEPTANCE_2026-07-18.md)。
 
 这是研究工具，不提供交易建议，也不会向 Futu 或任何券商发送订单。
