@@ -40,6 +40,7 @@ export function ResultView({ job, result, loading }: ResultViewProps) {
   const autype = summary.settings.opend?.autype ?? job.request.autype;
   const session = summary.settings.opend?.session ?? job.request.session ?? "ALL";
   const endingPosition = summary.settings.ending_position;
+  const strategyParameters = summary.settings.strategy_parameters as Record<string, boolean | number | string> | undefined;
   const hasOpenPosition = Math.abs(endingPosition?.quantity ?? 0) > 1e-9;
   const contractVersion = summary.settings.engine_contract?.version;
   const isLegacyResult = contractVersion !== 2;
@@ -58,6 +59,14 @@ export function ResultView({ job, result, loading }: ResultViewProps) {
       </div>
 
       <MetricsGrid metrics={summary.metrics} />
+      {strategyParameters && Object.keys(strategyParameters).length > 0 ? (
+        <aside className="result-parameters" aria-label="本次回测策略参数">
+          <span>PARAMETER SNAPSHOT</span>
+          {Object.entries(strategyParameters).map(([name, value]) => (
+            <code key={name}>{name}=<strong>{String(value)}</strong></code>
+          ))}
+        </aside>
+      ) : null}
       {isLegacyResult ? (
         <aside className="legacy-result-warning" role="status">
           该任务由旧版撮合契约生成，可能包含未校验的周期、时段或期末强平语义。请使用当前配置重新运行后再比较策略效果。

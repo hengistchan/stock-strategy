@@ -3,6 +3,10 @@ import type {
   BacktestJob,
   BacktestRequest,
   BacktestResult,
+  CacheResponse,
+  Experiment,
+  ExperimentRequest,
+  ExperimentsResponse,
   HealthResponse,
   JobsResponse,
   StrategiesResponse,
@@ -75,4 +79,15 @@ export const api = {
         expected_revision: expectedRevision,
       }),
     }),
+  experiments: () => request<ExperimentsResponse>("/api/experiments"),
+  experiment: (experimentId: string) =>
+    request<Experiment>(`/api/experiments/${experimentId}`),
+  runExperiment: (payload: ExperimentRequest) =>
+    request<Experiment>("/api/experiments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  cache: () => request<CacheResponse>("/api/cache"),
+  deleteCache: (cacheId: string) =>
+    request<{ deleted: string }>(`/api/cache/${cacheId}`, { method: "DELETE" }),
 };

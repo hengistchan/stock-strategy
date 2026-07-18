@@ -4,7 +4,7 @@ import inspect
 import math
 import statistics
 import types
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -13,6 +13,7 @@ from . import futu
 from .broker import Broker
 from .context import ExecutionContext, activate_context
 from .models import BacktestResult, Bar, BarType, Contract, EquityPoint, Metrics, THType
+from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
 
 
 class StrategyLoadError(RuntimeError):
@@ -40,6 +41,7 @@ class BacktestConfig:
     session_type: THType | str = THType.ALL
     autype: str = "QFQ"
     liquidate_on_end: bool = False
+    strategy_parameters: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         try:
@@ -54,6 +56,7 @@ class BacktestConfig:
         if normalized_autype not in {"QFQ", "HFQ", "NONE"}:
             raise ValueError(f"unsupported autype: {self.autype}")
         object.__setattr__(self, "autype", normalized_autype)
+        object.__setattr__(self, "strategy_parameters", dict(self.strategy_parameters))
 
 
 def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
@@ -64,6 +67,10 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
     if config.warmup_bars >= len(bars) - 1:
         raise ValueError("warmup_bars must leave at least two executable bars")
 
+    parameter_definitions = load_parameter_definitions(config.strategy_path)
+    strategy_parameters = resolve_parameter_values(
+        parameter_definitions, config.strategy_parameters
+    )
     symbol = Contract(config.symbol)
     broker = Broker(
         initial_cash=config.initial_cash,
@@ -80,6 +87,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         bar_type=config.bar_type,
         session_type=config.session_type,
         autype=config.autype,
+        strategy_parameters=strategy_parameters,
     )
     equity_curve: list[EquityPoint] = []
     exposed_bars = 0
@@ -139,6 +147,8 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         metrics=metrics,
         settings={
             **asdict(config),
+            "strategy_parameters": strategy_parameters,
+            "strategy_parameter_definitions": parameter_definitions,
             "strategy_path": str(path),
             "ending_position": ending_position,
             "engine_contract": {

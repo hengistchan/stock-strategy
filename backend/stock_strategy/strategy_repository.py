@@ -8,10 +8,15 @@ import re
 from typing import Any
 import uuid
 
+from .strategy_parameters import StrategyParameterError, extract_parameter_definitions
+
 
 MAX_STRATEGY_BYTES = 256 * 1024
 STRATEGY_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 DEFAULT_STRATEGY_SOURCE = '''from stock_strategy.futu import *
+
+
+STRATEGY_PARAMETERS = {}
 
 
 class Strategy(StrategyBase):
@@ -162,6 +167,7 @@ class StrategyRepository:
             "updated_at": datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat(
                 timespec="seconds"
             ),
+            "parameters": extract_parameter_definitions(source),
         }
 
     @staticmethod
@@ -190,6 +196,10 @@ def validate_strategy_source(content: str) -> None:
         for node in module.body
     ):
         raise StrategyValidationError("策略必须定义名为 Strategy 的类。")
+    try:
+        extract_parameter_definitions(content)
+    except StrategyParameterError as error:
+        raise StrategyValidationError(f"策略参数声明无效：{error}") from error
 
 
 def _revision(content: str) -> str:

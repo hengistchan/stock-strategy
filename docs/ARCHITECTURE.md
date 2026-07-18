@@ -23,11 +23,12 @@ React + TypeScript (frontend/)
 FastAPI (backend/stock_strategy/web.py)
    ├── StrategyRepository ── examples/ (只读)
    │                      └─ strategies/ (可写、原子保存)
-   └── JobStore ── Python 子进程 ── Backtest Runtime
-                                  │
-                                  ├─ Futu OpenD history API
-                                  ├─ data/opend/web/*.csv
-                                  └─ runs/web/* artifacts
+   ├── ExperimentStore ── 参数组合 / 排名 ── runs/experiments/
+   ├── MarketDataCache ── data/opend/cache/
+   └── JobStore ── 串行 Python 子进程 ── Backtest Runtime
+                                       │
+                                       ├─ Futu OpenD history API
+                                       └─ runs/web/* artifacts
 ```
 
 ## 前端
@@ -36,6 +37,7 @@ FastAPI (backend/stock_strategy/web.py)
 - TanStack Query 管理服务端状态、作业轮询和缓存失效。
 - CodeMirror 6 提供 Python 语法编辑。
 - Canvas 绘制 OpenD OHLC、成交量、MA20/MA60 和进出场标记。
+- 参数实验工作区展示搜索空间、运行进度、排名、三组结果对比和缓存清单。
 - `npm run build` 输出到 `backend/stock_strategy/web_dist/`，由 FastAPI 在单进程生产模式下提供。
 
 ## 后端
@@ -43,8 +45,11 @@ FastAPI (backend/stock_strategy/web.py)
 - Python 项目配置、包源码、测试与验收脚本统一位于 `backend/`；仓库第一层只保留跨端编排和工作区数据。
 - FastAPI 提供健康检查、配置、策略仓库、异步回测作业和结果 API。
 - `StrategyRepository` 只读取 `examples/*.py` 和 `strategies/*.py`；只有后者可以写入。
+- `STRATEGY_PARAMETERS` 只通过 `ast.literal_eval` 读取；参数类型、边界、候选值和运行覆盖均在执行前验证。
 - 保存前用 `ast.parse` 校验 Python 语法和 `Strategy` 类，使用 revision 做乐观并发控制，并通过临时文件原子替换。
 - `JobStore` 将每次回测放到独立 Python 子进程，设置超时，并持久化 `job.json`。
+- `ExperimentStore` 将最多 36 个参数组合顺序交给 `JobStore`，失败候选不会中断其余组合，并按选定指标持久化排名。
+- `MarketDataCache` 用行情请求的六个维度生成稳定 key；同条件实验只由第一组访问 OpenD。
 - 行情命令固定使用 `--opend`；没有网页行情或模拟行情回退。
 - `ktype`、`session` 和 `autype` 会贯穿 OpenD 请求、作业记录、执行上下文与结果；Futu 行情/指标接口对不一致输入 fail-fast。
 - `engine_contract` 为回测语义提供版本边界；缺少版本的历史结果只作为 legacy 工程证据展示。

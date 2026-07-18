@@ -33,6 +33,13 @@
 - `warmup_bars` 默认为 `0`，与手册逐 K 线触发生命周期一致。显式设置为正数时，前 N 根只建立行情历史、不调用 `handle_data()`；这是本项目的可选扩展，不是 Futu 接口语义。
 - 新结果写入 `settings.engine_contract.version = 2`。缺少该版本的历史任务会在 Web 中标记为 `LEGACY RESULT`，需要重新运行后再比较。
 
+## Strategy Lab 参数扩展
+
+- `STRATEGY_PARAMETERS` 和 `strategy_parameter()` 是本项目为策略迭代提供的扩展，不属于 Futu 原生脚本 API。
+- 参数声明必须是顶层字面量字典；编辑保存、Web API、CLI 和运行时会重复验证类型、上下界和可选值。
+- `--parameter NAME=JSON_VALUE` 或 Web 参数表单只覆盖声明过的参数，未知参数会明确失败。
+- 参数实验只改变策略参数，行情、费用、撮合和回测区间保持一致；每组都生成独立结果，排名不是额外回测模型。
+
 ## 撮合约定
 
 - `handle_data()` 在当前 K 线收盘后运行。

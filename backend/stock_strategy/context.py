@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
-from typing import Iterator
+from dataclasses import dataclass, field
+from typing import Any, Iterator
 
 from .broker import Broker
 from .models import Bar, BarType, Contract, THType
@@ -19,6 +19,7 @@ class ExecutionContext:
     bar_type: BarType = BarType.K_DAY
     session_type: THType = THType.ALL
     autype: str = "QFQ"
+    strategy_parameters: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.bar_type = BarType(self.bar_type)

@@ -13,6 +13,12 @@ const StrategyWorkspace = lazy(() =>
   })),
 );
 
+const IterationWorkspace = lazy(() =>
+  import("./components/IterationWorkspace").then((module) => ({
+    default: module.IterationWorkspace,
+  })),
+);
+
 export function App() {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<WorkspaceMode>("backtest");
@@ -73,11 +79,18 @@ export function App() {
 
   const job = jobQuery.data ?? jobsQuery.data?.jobs.find((item) => item.id === resolvedJobId);
   const strategies = strategiesQuery.data?.strategies ?? configQuery.data?.strategies ?? [];
+  const selectedStrategyMetadata = strategies.find((strategy) => strategy.path === resolvedStrategy);
 
   function useStrategyForBacktest(path: string) {
     setSelectedStrategy(path);
     setMode("backtest");
     setToast(`${path} 已设为下一次回测策略。`);
+  }
+
+  function openExperimentRun(jobId: string) {
+    setActiveJobId(jobId);
+    setMode("backtest");
+    setToast(`已打开参数实验中的回测 ${jobId}。`);
   }
 
   return (
@@ -98,6 +111,7 @@ export function App() {
               onSubmit={(request) => runMutation.mutate(request)}
               running={runMutation.isPending || job?.status === "queued" || job?.status === "running"}
               opendConnected={healthQuery.data?.opend.connected === true}
+              parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
             />
             <RunHistory
               jobs={jobsQuery.data?.jobs ?? []}
@@ -114,6 +128,16 @@ export function App() {
             <ResultView job={job} result={resultQuery.data} loading={resultQuery.isLoading} />
           </section>
         </main>
+      ) : mode === "iterate" ? (
+        <Suspense fallback={<div className="workspace-loading">正在载入参数实验台…</div>}>
+          <IterationWorkspace
+            config={configQuery.data}
+            selectedStrategy={resolvedStrategy}
+            onSelectedStrategyChange={setSelectedStrategy}
+            opendConnected={healthQuery.data?.opend.connected === true}
+            onOpenRun={openExperimentRun}
+          />
+        </Suspense>
       ) : (
         <Suspense fallback={<div className="workspace-loading">正在载入 Python 策略编辑器…</div>}>
           <StrategyWorkspace

@@ -1,5 +1,7 @@
 import type { FormEvent } from "react";
-import type { AppConfig, BacktestRequest } from "../api/types";
+import type { AppConfig, BacktestRequest, StrategyParameterDefinition } from "../api/types";
+import { readParameterValues } from "../lib/parameters";
+import { StrategyParameterFields } from "./StrategyParameterFields";
 
 const SESSION_LABELS: Record<string, string> = {
   ALL: "全部时段 · ALL",
@@ -14,6 +16,7 @@ interface BacktestFormProps {
   onSubmit: (request: BacktestRequest) => void;
   running: boolean;
   opendConnected: boolean;
+  parameterDefinitions?: StrategyParameterDefinition[];
 }
 
 export function BacktestForm({
@@ -23,6 +26,7 @@ export function BacktestForm({
   onSubmit,
   running,
   opendConnected,
+  parameterDefinitions = [],
 }: BacktestFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,6 +46,8 @@ export function BacktestForm({
       warmup_bars: Number(data.get("warmup_bars")),
       allow_short: data.get("allow_short") === "on",
       liquidate_on_end: data.get("liquidate_on_end") === "on",
+      parameters: readParameterValues(data, parameterDefinitions),
+      refresh_cache: data.get("refresh_cache") === "on",
     });
   }
 
@@ -73,6 +79,8 @@ export function BacktestForm({
           ))}
         </select>
       </label>
+
+      <StrategyParameterFields definitions={parameterDefinitions} />
 
       <label className="field field-wide">
         <span>标的代码</span>
@@ -132,6 +140,7 @@ export function BacktestForm({
           <label className="field"><span>滑点 · bps</span><input type="number" name="slippage_bps" defaultValue="5" min="0" step="0.1" /></label>
           <label className="check-field"><input type="checkbox" name="allow_short" /><span>允许做空</span></label>
           <label className="check-field"><input type="checkbox" name="liquidate_on_end" /><span>末根 K 线强制平仓</span></label>
+          <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>重新拉取 OpenD 行情</span></label>
         </div>
       </details>
 

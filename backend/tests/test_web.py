@@ -38,6 +38,10 @@ class WebTest(unittest.TestCase):
         example = next(item for item in config.json()["strategies"] if item["path"] == "examples/ma_cross.py")
         self.assertTrue(example["readonly"])
         self.assertEqual(len(example["revision"]), 64)
+        self.assertEqual(
+            [parameter["name"] for parameter in example["parameters"]],
+            ["fast_period", "slow_period", "capital_fraction"],
+        )
         self.assertEqual(config.json()["session_types"], ["ALL", "RTH", "ETH"])
 
     def test_request_rejects_invalid_symbol_and_date_range(self):
@@ -81,10 +85,35 @@ class WebTest(unittest.TestCase):
                     "ktype": "K_MON",
                 },
             )
+            unknown_parameter = client.post(
+                "/api/jobs",
+                json={
+                    "strategy": "examples/ma_cross.py",
+                    "symbol": "US.AAPL",
+                    "start": "2025-01-01",
+                    "end": "2025-02-01",
+                    "parameters": {"not_declared": 10},
+                },
+            )
+            unknown_experiment_parameter = client.post(
+                "/api/experiments",
+                json={
+                    "name": "invalid grid",
+                    "base": {
+                        "strategy": "examples/ma_cross.py",
+                        "symbol": "US.AAPL",
+                        "start": "2025-01-01",
+                        "end": "2025-02-01",
+                    },
+                    "parameter_grid": {"not_declared": [10, 20]},
+                },
+            )
         self.assertEqual(invalid_symbol.status_code, 422)
         self.assertEqual(invalid_range.status_code, 422)
         self.assertEqual(invalid_session.status_code, 422)
         self.assertEqual(unsupported_monthly.status_code, 422)
+        self.assertEqual(unknown_parameter.status_code, 422)
+        self.assertEqual(unknown_experiment_parameter.status_code, 422)
 
     def test_strategy_paths_stay_inside_allowed_folders(self):
         project_root = Path(__file__).parents[2]
@@ -136,6 +165,29 @@ class WebTest(unittest.TestCase):
         self.assertTrue(stored_request["liquidate_on_end"])
         self.assertEqual(legacy_command[legacy_command.index("--session") + 1], "ALL")
         self.assertNotIn("--liquidate-on-end", legacy_command)
+
+    def test_job_command_serializes_parameters_and_shares_market_cache(self):
+        request = BacktestRequest(
+            strategy="examples/strategy.py",
+            symbol="US.AAPL",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+            parameters={"period": 20, "fraction": 0.9},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = JobStore(root)
+            first = store.build_command(store.create_job(request, strategy))
+            second = store.build_command(store.create_job(request, strategy))
+
+        first_cache = first[first.index("--opend-cache") + 1]
+        second_cache = second[second.index("--opend-cache") + 1]
+        self.assertEqual(first_cache, second_cache)
+        self.assertIn("period=20", first)
+        self.assertIn("fraction=0.9", first)
 
     def test_result_returns_sanitized_ohlcv_from_the_job_opend_cache(self):
         request = BacktestRequest(

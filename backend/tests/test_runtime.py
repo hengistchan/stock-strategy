@@ -112,6 +112,39 @@ class Strategy(StrategyBase):
         self.assertEqual(result.settings["ending_position"]["mark_price"], bars[-1].close)
         self.assertNotEqual(result.settings["ending_position"]["side"], "NONE")
 
+    def test_declared_strategy_parameters_are_injected_and_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            strategy = Path(directory) / "strategy.py"
+            strategy.write_text(
+                '''
+STRATEGY_PARAMETERS = {
+    "quantity": {"type": "int", "default": 1, "min": 1, "max": 10}
+}
+
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.symbol = declare_trig_symbol()
+        self.quantity = strategy_parameter("quantity")
+        self.sent = False
+
+    def handle_data(self):
+        if not self.sent:
+            place_market(self.symbol, qty=self.quantity, side=OrderSide.BUY)
+            self.sent = True
+''',
+                encoding="utf-8",
+            )
+            result = run_backtest(
+                BacktestConfig(
+                    strategy_path=strategy,
+                    strategy_parameters={"quantity": 4},
+                ),
+                generate_sample_bars(30),
+            )
+
+        self.assertEqual(result.settings["strategy_parameters"], {"quantity": 4})
+        self.assertEqual(result.settings["ending_position"]["quantity"], 4)
+
     def test_artifacts_include_valid_svg_and_csv(self):
         strategy = Path(__file__).parents[2] / "examples" / "ma_cross.py"
         result = run_backtest(

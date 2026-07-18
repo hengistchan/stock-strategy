@@ -60,6 +60,16 @@ def show_variable(value: Any, variable_type: GlobalType = GlobalType.FLOAT) -> A
     return value
 
 
+def strategy_parameter(name: str, default: Any = None) -> Any:
+    """Return a validated project-level strategy parameter for this run."""
+    parameters = get_context().strategy_parameters
+    if name in parameters:
+        return parameters[name]
+    if default is not None:
+        return default
+    raise KeyError(f"strategy parameter {name!r} is not configured")
+
+
 def current_price(symbol: Contract, price_type: THType = THType.ALL) -> float:
     _validate_symbol(symbol)
     _validate_session(price_type)
@@ -587,4 +597,5 @@ __all__ = [
     "position_side",
     "rsi",
     "show_variable",
+    "strategy_parameter",
 ]

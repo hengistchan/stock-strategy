@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import socket
 import sys
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Mapping
 import uuid
 
 from fastapi import FastAPI, HTTPException
@@ -18,6 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from .experiments import ExperimentStore, expand_parameter_grid
+from .market_cache import MarketDataCache
 
 from .strategy_repository import (
     MAX_STRATEGY_BYTES,
@@ -27,6 +30,10 @@ from .strategy_repository import (
     StrategyRepository,
     StrategyRepositoryError,
     StrategyValidationError,
+)
+from .strategy_parameters import (
+    StrategyParameterError,
+    resolve_parameter_values,
 )
 
 
@@ -94,6 +101,17 @@ class BacktestRequest(BaseModel):
     warmup_bars: int = Field(default=0, ge=0, le=100_000)
     allow_short: bool = False
     liquidate_on_end: bool = False
+    parameters: dict[str, bool | int | float | str] = Field(default_factory=dict)
+    refresh_cache: bool = False
+
+
+class ExperimentRequest(BaseModel):
+    name: str = Field(default="参数实验", min_length=1, max_length=80)
+    base: BacktestRequest
+    parameter_grid: dict[str, list[bool | int | float | str]]
+    objective: Literal[
+        "total_return_pct", "sharpe_ratio", "max_drawdown_pct"
+    ] = "sharpe_ratio"
 
 
 class StrategyCreateRequest(BaseModel):
@@ -121,10 +139,14 @@ class JobStore:
         self.timeout_seconds = timeout_seconds
         self.opend_host = opend_host or os.environ.get("OPEND_HOST", "127.0.0.1")
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
+        self.cache = MarketDataCache(self.project_root)
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._execution_lock = asyncio.Lock()
         self._reconcile_interrupted_jobs()
 
-    def create_job(self, request: BacktestRequest, strategy_path: Path) -> dict[str, Any]:
+    def create_job(
+        self, request: BacktestRequest | Mapping[str, Any], strategy_path: Path
+    ) -> dict[str, Any]:
         job_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         job_dir = self._job_dir(job_id)
         job_dir.mkdir(parents=True, exist_ok=False)
@@ -134,7 +156,11 @@ class JobStore:
             "created_at": _now(),
             "started_at": None,
             "finished_at": None,
-            "request": request.model_dump(mode="json"),
+            "request": (
+                request.model_dump(mode="json")
+                if isinstance(request, BaseModel)
+                else dict(request)
+            ),
             "strategy_path": str(strategy_path.resolve().relative_to(self.project_root)),
             "run_dir": None,
             "stdout": "",
@@ -149,7 +175,14 @@ class JobStore:
         self._tasks[job_id] = task
         task.add_done_callback(lambda _task: self._tasks.pop(job_id, None))
 
+    async def run_job(self, job_id: str) -> None:
+        await self._run_job(job_id)
+
     async def _run_job(self, job_id: str) -> None:
+        async with self._execution_lock:
+            await self._execute_job(job_id)
+
+    async def _execute_job(self, job_id: str) -> None:
         job = self.get_job(job_id)
         job.update(status="running", started_at=_now())
         self._write_job(job)
@@ -190,6 +223,10 @@ class JobStore:
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")
         job.update(stdout=stdout[-12_000:], stderr=stderr[-12_000:], finished_at=_now())
+        try:
+            self.cache.record(job["request"])
+        except (OSError, ValueError, csv.Error):
+            pass
         if process.returncode != 0:
             job.update(status="failed", error=_last_error(stderr, stdout))
             self._write_job(job)
@@ -208,12 +245,7 @@ class JobStore:
         request = job["request"]
         session = request.get("session") or "ALL"
         job_dir = self._job_dir(job["id"])
-        cache_name = (
-            f"{job['id']}-{request['symbol'].replace('.', '_')}-"
-            f"{request['ktype']}-{session}-"
-            f"{request['start']}-{request['end']}.csv"
-        )
-        cache_path = self.project_root / "data" / "opend" / "web" / cache_name
+        cache_path = self.cache.descriptor(request)["path"]
         command = [
             sys.executable,
             "-m",
@@ -252,6 +284,12 @@ class JobStore:
             "--output",
             str(job_dir / "output"),
         ]
+        for name, value in sorted((request.get("parameters") or {}).items()):
+            command.extend(
+                ["--parameter", f"{name}={json.dumps(value, ensure_ascii=False)}"]
+            )
+        if request.get("refresh_cache", False):
+            command.append("--refresh-opend-cache")
         if request["allow_short"]:
             command.append("--allow-short")
         if request.get("liquidate_on_end", False):
@@ -329,21 +367,24 @@ class JobStore:
 def create_app(
     project_root: Path = PROJECT_ROOT,
     job_store: JobStore | None = None,
+    experiment_store: ExperimentStore | None = None,
     opend_probe: Callable[[str, int], bool] | None = None,
     frontend_root: Path | None = None,
 ) -> FastAPI:
     root = project_root.resolve()
     store = job_store or JobStore(root)
+    experiments = experiment_store or ExperimentStore(root, store)
     strategy_repository = StrategyRepository(root)
     web_root = (frontend_root or FRONTEND_ROOT).resolve()
     probe = opend_probe or is_opend_available
     app = FastAPI(title="Strategy Lab", docs_url=None, redoc_url=None)
     app.state.job_store = store
+    app.state.experiment_store = experiments
     app.state.strategy_repository = strategy_repository
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
-        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
 
@@ -427,7 +468,13 @@ def create_app(
             raise HTTPException(status_code=422, detail="结束日期不能早于开始日期。")
         try:
             strategy_path = strategy_repository.resolve_for_backtest(request.strategy)
+            definitions = strategy_repository.read(request.strategy)["parameters"]
+            request.parameters = resolve_parameter_values(
+                definitions, request.parameters
+            )
         except StrategyRepositoryError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except StrategyParameterError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
         job = store.create_job(request, strategy_path)
         store.launch(job["id"])
@@ -457,6 +504,84 @@ def create_app(
             raise HTTPException(status_code=404, detail="找不到这次回测。") from error
         except RuntimeError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get("/api/experiments")
+    async def list_experiments() -> dict[str, Any]:
+        return {"experiments": experiments.list()[:50]}
+
+    @app.post("/api/experiments", status_code=202)
+    async def create_experiment(request: ExperimentRequest) -> dict[str, Any]:
+        if request.base.end < request.base.start:
+            raise HTTPException(status_code=422, detail="结束日期不能早于开始日期。")
+        try:
+            strategy_path = strategy_repository.resolve_for_backtest(
+                request.base.strategy
+            )
+            definitions = strategy_repository.read(request.base.strategy)["parameters"]
+            if not definitions:
+                raise StrategyParameterError(
+                    "该策略没有声明 STRATEGY_PARAMETERS，无法创建参数实验"
+                )
+            known = {definition["name"] for definition in definitions}
+            unknown = sorted(set(request.parameter_grid) - known)
+            if unknown:
+                raise StrategyParameterError(
+                    "unknown strategy parameters: " + ", ".join(unknown)
+                )
+            normalized_base = resolve_parameter_values(
+                definitions, request.base.parameters
+            )
+            normalized_grid: dict[str, list[Any]] = {}
+            for name, candidates in request.parameter_grid.items():
+                normalized_grid[name] = [
+                    resolve_parameter_values(
+                        definitions,
+                        {**normalized_base, name: candidate},
+                    )[name]
+                    for candidate in candidates
+                ]
+            expand_parameter_grid(normalized_grid)
+        except StrategyRepositoryError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except (StrategyParameterError, ValueError) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+        base_payload = request.base.model_dump(mode="json")
+        base_payload["parameters"] = normalized_base
+        experiment = experiments.create(
+            name=request.name,
+            base_request=base_payload,
+            parameter_grid=normalized_grid,
+            strategy_path=strategy_path,
+            objective=request.objective,
+        )
+        experiments.launch(experiment["id"])
+        return experiment
+
+    @app.get("/api/experiments/{experiment_id}")
+    async def get_experiment(experiment_id: str) -> dict[str, Any]:
+        try:
+            return experiments.get(experiment_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="找不到这次参数实验。") from error
+
+    @app.get("/api/cache")
+    async def list_cache() -> dict[str, Any]:
+        entries = store.cache.list()
+        return {
+            "entries": entries,
+            "total_bytes": sum(entry.get("bytes", 0) for entry in entries),
+        }
+
+    @app.delete("/api/cache/{cache_id}")
+    async def delete_cache(cache_id: str) -> dict[str, Any]:
+        try:
+            deleted = store.cache.delete(cache_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="找不到这份 OpenD 缓存。") from error
+        if not deleted:
+            raise HTTPException(status_code=404, detail="找不到这份 OpenD 缓存。")
+        return {"deleted": cache_id}
 
     @app.get("/{frontend_path:path}")
     async def frontend_fallback(frontend_path: str):

@@ -8,8 +8,9 @@
 
 - React + TypeScript + Vite 工程化前端，支持响应式回测工作台。
 - CodeMirror Python 策略编辑器，支持新建、复制示例、语法校验和保存。
+- 声明式策略参数、单次参数覆盖、批量参数矩阵、目标指标排名和三组结果并排比较。
 - Python + FastAPI API，策略在独立子进程中运行并设置超时。
-- OpenD `request_history_kline()` 直连、分页、原始 CSV 缓存和分钟级时间戳。
+- OpenD `request_history_kline()` 直连、分页、确定性共享缓存、缓存清理和分钟级时间戳。
 - OHLC 蜡烛图、成交量、MA20/MA60、策略进出场标记和悬停价格。
 - 回测指标、基准、回撤、成交账簿和可复查的 JSON/CSV/SVG 产物。
 - Python/React 自动化测试、GitHub Actions、Dependabot、Docker 和 MIT License。
@@ -95,10 +96,12 @@ python3.12 -m venv .venv
   --ktype K_DAY \
   --autype QFQ \
   --session ALL \
+  --parameter fast_period=10 \
+  --parameter slow_period=60 \
   --opend-cache data/opend/US.AAPL-K_DAY-2024-2025.csv
 ```
 
-直连模式会遍历 OpenD 返回的全部 `page_req_key`，连接始终在成功或失败后关闭。`--session` 支持 `ALL`、`RTH`、`ETH`，并同时约束 OpenD 历史数据与策略行情接口。它只调用历史行情接口，不读取账户，也不会发送订单。
+直连模式会遍历 OpenD 返回的全部 `page_req_key`，连接始终在成功或失败后关闭。相同缓存文件已存在时会直接复用；传入 `--refresh-opend-cache` 才会重新请求。`--session` 支持 `ALL`、`RTH`、`ETH`，并同时约束 OpenD 历史数据与策略行情接口。它只调用历史行情接口，不读取账户，也不会发送订单。
 
 已适配 OpenD 的 `code`、`time_key`、`open`、`close`、`high`、`low`、`volume` 字段；`name`、`turnover`、`pe_ratio` 等额外字段会安全忽略。也兼容 Pandas 默认写入的索引列。分钟 K 会完整保留 `YYYY-MM-DD HH:MM:SS`，不会按日期去重。
 
@@ -152,6 +155,31 @@ class Strategy(StrategyBase):
 
 完整可运行示例见 [examples/ma_cross.py](examples/ma_cross.py)，当前接口与撮合边界见 [docs/FUTU_COMPATIBILITY.md](docs/FUTU_COMPATIBILITY.md)。
 
+### 策略参数与批量实验
+
+策略可在文件顶层声明可调参数。声明必须是字面量字典，后端只通过 AST 读取，不执行策略代码：
+
+```python
+STRATEGY_PARAMETERS = {
+    "fast_period": {
+        "label": "短均线周期",
+        "type": "int",
+        "default": 20,
+        "min": 2,
+        "max": 120,
+        "candidates": [10, 20, 30],
+    },
+}
+
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.fast_period = strategy_parameter("fast_period")
+```
+
+Web 的“回测实验”可以覆盖单次参数；“参数实验”会展开候选值笛卡尔积，最多顺序运行 36 组，按收益、Sharpe 或最大回撤排名，并允许固定三组结果并排比较。第一组从 OpenD 获取行情，后续组合复用由标的、区间、周期、复权和时段共同确定的缓存。
+
+这套参数注入是 Strategy Lab 的工程扩展，不冒充 Futu 原生 API。最终使用值和参数定义都会写入 `summary.json`，每个候选仍保留完整独立回测产物。
+
 MVP 一次只加载一种 K 线周期和交易时段。策略传给 `ma()`、`bar_close()` 等 API 的 `BarType` / `THType` 必须与回测输入一致，并且手册行情与指标 API 要求 `QFQ`；不一致时会明确终止回测，不会静默按另一种周期计算。
 
 `warmup_bars` 默认为 `0`，因此默认从第一根 K 线触发策略。只有显式设置为正数时，前 N 根才仅作为指标历史而不执行 `handle_data()`。
@@ -178,6 +206,8 @@ make acceptance
 
 2026-07-15 的真实 OpenD 验收记录见 [docs/ACCEPTANCE_RESULT_2026-07-15.md](docs/ACCEPTANCE_RESULT_2026-07-15.md)；前后端工程化重构记录见 [docs/ENGINEERING_REFACTOR_ACCEPTANCE_2026-07-18.md](docs/ENGINEERING_REFACTOR_ACCEPTANCE_2026-07-18.md)；修正周期、时段、DAY 订单与期末持仓语义后的最新结果见 [Futu 兼容契约 v2 验收](docs/FUTU_CONTRACT_V2_ACCEPTANCE_2026-07-18.md)。
 
+第二阶段参数声明、批量实验、排名对比和共享缓存的真实 OpenD 验收见 [策略迭代能力 v0.3 验收](docs/STRATEGY_ITERATION_ACCEPTANCE_2026-07-18.md)。
+
 这是研究工具，不提供交易建议，也不会向 Futu 或任何券商发送订单。
 
 ## 前后端开发
@@ -190,6 +220,12 @@ make dev-web
 ```
 
 前端位于 `frontend/`，Python 后端完整收拢在 `backend/`。Vite 将 `/api` 代理到 FastAPI；生产构建输出到 `backend/stock_strategy/web_dist/`，该目录是生成物，不提交到 Git。
+
+Web 持久化目录：
+
+- `runs/web/`：单次回测作业和产物。
+- `runs/experiments/`：参数实验定义、进度、排名与候选作业引用。
+- `data/opend/cache/`：确定性命名的共享行情 CSV 和元数据；可在参数实验页查看或删除。
 
 策略文件的规则：
 

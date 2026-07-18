@@ -176,6 +176,64 @@ class Strategy(StrategyBase):
         self.assertEqual(summary["settings"]["opend"]["session"], "RTH")
         self.assertFalse(summary["settings"]["opend"]["extended_time"])
 
+    def test_cli_reuses_existing_opend_cache_and_injects_parameters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache_path = root / "history.csv"
+            strategy_path = root / "strategy.py"
+            output_path = root / "runs"
+            with cache_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=["code", "time_key", "open", "close", "high", "low", "volume"],
+                )
+                writer.writeheader()
+                for index in range(40):
+                    writer.writerow(
+                        {
+                            "code": "US.AAPL",
+                            "time_key": (datetime(2025, 1, 2) + timedelta(days=index)).strftime("%Y-%m-%d"),
+                            "open": 100 + index,
+                            "close": 100.5 + index,
+                            "high": 101 + index,
+                            "low": 99 + index,
+                            "volume": 1000,
+                        }
+                    )
+            strategy_path.write_text(
+                '''
+STRATEGY_PARAMETERS = {"quantity": {"type": "int", "default": 1}}
+class Strategy(StrategyBase):
+    def initialize(self):
+        self.symbol = declare_trig_symbol()
+        self.quantity = strategy_parameter("quantity")
+        self.sent = False
+    def handle_data(self):
+        if not self.sent:
+            place_market(self.symbol, qty=self.quantity, side=OrderSide.BUY)
+            self.sent = True
+''',
+                encoding="utf-8",
+            )
+            with patch("stock_strategy.cli.fetch_history_kline") as fetch_history:
+                with redirect_stdout(io.StringIO()):
+                    return_code = main(
+                        [
+                            "--strategy", str(strategy_path),
+                            "--opend", "--symbol", "US.AAPL",
+                            "--start", "2025-01-01", "--end", "2025-12-31",
+                            "--opend-cache", str(cache_path),
+                            "--parameter", "quantity=3",
+                            "--output", str(output_path), "--no-chart",
+                        ]
+                    )
+            summary = json.loads(next(output_path.glob("*/summary.json")).read_text())
+
+        self.assertEqual(return_code, 0)
+        fetch_history.assert_not_called()
+        self.assertTrue(summary["settings"]["opend"]["cache_hit"])
+        self.assertEqual(summary["settings"]["strategy_parameters"], {"quantity": 3})
+
 
 if __name__ == "__main__":
     unittest.main()

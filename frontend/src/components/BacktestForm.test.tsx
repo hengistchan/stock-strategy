@@ -13,6 +13,7 @@ const config: AppConfig = {
       revision: "a".repeat(64),
       size: 100,
       updated_at: "2026-07-18T00:00:00+08:00",
+      parameters: [{ name: "period", label: "均线周期", description: "", type: "int", default: 20, min: 2, max: 120, candidates: [10, 20] }],
     },
   ],
   kline_types: ["K_DAY", "K_5M"],
@@ -31,6 +32,7 @@ describe("BacktestForm", () => {
         onSubmit={onSubmit}
         running={false}
         opendConnected
+        parameterDefinitions={config.strategies[0].parameters}
       />,
     );
     fireEvent.change(screen.getByLabelText(/标的代码/), {
@@ -45,6 +47,8 @@ describe("BacktestForm", () => {
         session: "ALL",
         liquidate_on_end: false,
         initial_cash: 100000,
+        parameters: { period: 20 },
+        refresh_cache: false,
       }),
     );
   });

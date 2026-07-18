@@ -1,6 +1,6 @@
 import type { HealthResponse } from "../api/types";
 
-export type WorkspaceMode = "backtest" | "strategies";
+export type WorkspaceMode = "backtest" | "iterate" | "strategies";
 
 interface HeaderProps {
   health?: HealthResponse;
@@ -28,6 +28,14 @@ export function Header({ health, mode, onModeChange }: HeaderProps) {
         >
           回测实验
           <small>RUN &amp; REVIEW</small>
+        </button>
+        <button
+          type="button"
+          aria-current={mode === "iterate" ? "page" : undefined}
+          onClick={() => onModeChange("iterate")}
+        >
+          参数实验
+          <small>SEARCH &amp; COMPARE</small>
         </button>
         <button
           type="button"

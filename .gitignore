@@ -13,6 +13,7 @@ dist
 runs
 data/opend/*.csv
 data/opend/**/*.csv
+data/opend/cache/
 .DS_Store
 .env
 .env.*
