@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { AppConfig, ExperimentRequest } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 import { CachePanel } from "./CachePanel";
 import { ExperimentBoard } from "./ExperimentBoard";
 import { ExperimentForm } from "./ExperimentForm";
@@ -21,6 +22,7 @@ export function IterationWorkspace({
   opendConnected,
   onOpenRun,
 }: IterationWorkspaceProps) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [activeExperimentId, setActiveExperimentId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function IterationWorkspace({
       setActiveExperimentId(experiment.id);
       queryClient.setQueryData(["experiment", experiment.id], experiment);
       void queryClient.invalidateQueries({ queryKey: ["experiments"] });
-      setNotice(`${experiment.name} 已开始，共 ${experiment.progress.total} 组参数。`);
+      setNotice(t("experiment.started", { name: experiment.name, count: experiment.progress.total }));
     },
     onError: (error) => setNotice(error.message),
   });
@@ -50,7 +52,7 @@ export function IterationWorkspace({
     mutationFn: api.deleteCache,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cache"] });
-      setNotice("OpenD 行情缓存已删除。");
+      setNotice(t("experiment.cacheDeleted"));
     },
     onError: (error) => setNotice(error.message),
   });
@@ -74,7 +76,7 @@ export function IterationWorkspace({
   const definitions = selectedMetadata?.parameters ?? [];
 
   function deleteCache(cacheId: string) {
-    if (window.confirm("删除后，下一次相同条件的回测将重新从 OpenD 拉取行情。继续吗？")) {
+    if (window.confirm(t("experiment.confirmDeleteCache"))) {
       deleteMutation.mutate(cacheId);
     }
   }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api/client";
 import type { BacktestRequest } from "./api/types";
+import { useI18n } from "./i18n/I18nContext";
 import { BacktestForm } from "./components/BacktestForm";
 import { Header, type WorkspaceMode } from "./components/Header";
 import { ResultView } from "./components/ResultView";
@@ -20,6 +21,7 @@ const IterationWorkspace = lazy(() =>
 );
 
 export function App() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<WorkspaceMode>("backtest");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function App() {
       setActiveJobId(job.id);
       queryClient.setQueryData(["job", job.id], job);
       void queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      setToast(`回测 ${job.id} 已进入队列。`);
+      setToast(t("app.backtestQueued", { id: job.id }));
     },
     onError: (error) => setToast(error.message),
   });
@@ -84,13 +86,13 @@ export function App() {
   function useStrategyForBacktest(path: string) {
     setSelectedStrategy(path);
     setMode("backtest");
-    setToast(`${path} 已设为下一次回测策略。`);
+    setToast(t("app.strategySelected", { path }));
   }
 
   function openExperimentRun(jobId: string) {
     setActiveJobId(jobId);
     setMode("backtest");
-    setToast(`已打开参数实验中的回测 ${jobId}。`);
+    setToast(t("app.experimentRunOpened", { id: jobId }));
   }
 
   return (
@@ -99,10 +101,10 @@ export function App() {
 
       {mode === "backtest" ? (
         <main className="backtest-workspace">
-          <aside className="control-rail" aria-label="回测配置">
+          <aside className="control-rail" aria-label={t("app.backtestConfig")}>
             <div className="rail-heading">
-              <div><span className="section-code">INPUT</span><h2>实验条件</h2></div>
-              <button className="source-seal" type="button" onClick={() => setMode("strategies")}>EDIT STRATEGY</button>
+              <div><span className="section-code">INPUT</span><h2>{t("app.experimentConditions")}</h2></div>
+              <button className="source-seal" type="button" onClick={() => setMode("strategies")}>{t("app.editStrategy")}</button>
             </div>
             <BacktestForm
               config={configQuery.data}
@@ -122,14 +124,14 @@ export function App() {
           </aside>
           <section className="result-desk" aria-live="polite">
             <div className="desk-intro">
-              <div><span className="section-code">OUTPUT</span><p>{job ? `${job.request.symbol} · ${job.status}` : "等待实验条件"}</p></div>
-              <p className="desk-note">NEXT-BAR EXECUTION / COSTS INCLUDED</p>
+              <div><span className="section-code">OUTPUT</span><p>{job ? `${job.request.symbol} · ${t(`status.${job.status}`)}` : t("app.waitingConditions")}</p></div>
+              <p className="desk-note">{t("app.executionNote")}</p>
             </div>
             <ResultView job={job} result={resultQuery.data} loading={resultQuery.isLoading} />
           </section>
         </main>
       ) : mode === "iterate" ? (
-        <Suspense fallback={<div className="workspace-loading">正在载入参数实验台…</div>}>
+        <Suspense fallback={<div className="workspace-loading">{t("app.loadingExperiments")}</div>}>
           <IterationWorkspace
             config={configQuery.data}
             selectedStrategy={resolvedStrategy}
@@ -139,7 +141,7 @@ export function App() {
           />
         </Suspense>
       ) : (
-        <Suspense fallback={<div className="workspace-loading">正在载入 Python 策略编辑器…</div>}>
+        <Suspense fallback={<div className="workspace-loading">{t("app.loadingEditor")}</div>}>
           <StrategyWorkspace
             strategies={strategies}
             selectedPath={resolvedStrategy}

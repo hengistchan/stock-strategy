@@ -1,13 +1,8 @@
 import type { FormEvent } from "react";
 import type { AppConfig, BacktestRequest, StrategyParameterDefinition } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 import { readParameterValues } from "../lib/parameters";
 import { StrategyParameterFields } from "./StrategyParameterFields";
-
-const SESSION_LABELS: Record<string, string> = {
-  ALL: "全部时段 · ALL",
-  RTH: "常规时段 · RTH",
-  ETH: "扩展时段 · ETH",
-};
 
 interface BacktestFormProps {
   config?: AppConfig;
@@ -28,6 +23,12 @@ export function BacktestForm({
   opendConnected,
   parameterDefinitions = [],
 }: BacktestFormProps) {
+  const { t } = useI18n();
+  const sessionLabels: Record<string, string> = {
+    ALL: t("form.sessionAll"),
+    RTH: t("form.sessionRth"),
+    ETH: t("form.sessionEth"),
+  };
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -61,7 +62,7 @@ export function BacktestForm({
   return (
     <form className="backtest-form" onSubmit={handleSubmit}>
       <label className="field field-wide">
-        <span>策略脚本</span>
+        <span>{t("form.strategy")}</span>
         <select
           name="strategy"
           required
@@ -69,7 +70,7 @@ export function BacktestForm({
           onChange={(event) => onStrategyChange(event.target.value)}
         >
           {[...groupedStrategies].map(([group, strategies]) => (
-            <optgroup key={group} label={group}>
+            <optgroup key={group} label={group === "示例策略" ? t("strategy.groupExamples") : group === "我的策略" ? t("strategy.groupMine") : group}>
               {strategies.map((strategy) => (
                 <option key={strategy.path} value={strategy.path}>
                   {strategy.name} · {strategy.path}
@@ -83,25 +84,25 @@ export function BacktestForm({
       <StrategyParameterFields definitions={parameterDefinitions} />
 
       <label className="field field-wide">
-        <span>标的代码</span>
+        <span>{t("form.symbol")}</span>
         <input name="symbol" defaultValue="US.AAPL" placeholder="US.AAPL" required />
-        <small>Futu 代码格式，例如 US.AAPL、HK.00700</small>
+        <small>{t("form.symbolHelp")}</small>
       </label>
 
       <div className="field-pair">
         <label className="field">
-          <span>开始日期</span>
+          <span>{t("form.start")}</span>
           <input type="date" name="start" defaultValue="2024-01-01" required />
         </label>
         <label className="field">
-          <span>结束日期</span>
+          <span>{t("form.end")}</span>
           <input type="date" name="end" defaultValue="2025-12-31" required />
         </label>
       </div>
 
       <div className="field-pair">
         <label className="field">
-          <span>K 线周期</span>
+          <span>{t("form.ktype")}</span>
           <select name="ktype" defaultValue="K_DAY">
             {(config?.kline_types ?? ["K_DAY"]).map((value) => (
               <option key={value} value={value}>{value}</option>
@@ -109,47 +110,47 @@ export function BacktestForm({
           </select>
         </label>
         <label className="field">
-          <span>复权方式</span>
+          <span>{t("form.autype")}</span>
           <select name="autype" defaultValue="QFQ">
-            <option value="QFQ">前复权 · QFQ</option>
-            <option value="HFQ">后复权 · HFQ</option>
-            <option value="NONE">不复权 · NONE</option>
+            <option value="QFQ">{t("form.autypeQfq")}</option>
+            <option value="HFQ">{t("form.autypeHfq")}</option>
+            <option value="NONE">{t("form.autypeNone")}</option>
           </select>
         </label>
       </div>
 
       <label className="field field-wide session-field">
-        <span>交易时段</span>
+        <span>{t("form.session")}</span>
         <select name="session" defaultValue="ALL">
           {(config?.session_types ?? ["ALL", "RTH", "ETH"]).map((value) => (
             <option key={value} value={value}>
-              {SESSION_LABELS[value] ?? value}
+              {sessionLabels[value] ?? value}
             </option>
           ))}
         </select>
-        <small>同时约束 OpenD 历史行情和策略指标，避免时段口径不一致。</small>
+        <small>{t("form.sessionHelp")}</small>
       </label>
 
       <details className="execution-sheet">
-        <summary>撮合与资金参数</summary>
+        <summary>{t("form.execution")}</summary>
         <div className="execution-grid">
-          <label className="field"><span>初始资金</span><input type="number" name="initial_cash" defaultValue="100000" min="1" /></label>
-          <label className="field" title="前 N 根 K 线只用于建立历史，不触发 handle_data；0 与 Futu 默认生命周期一致"><span>信号预热 K 线</span><input type="number" name="warmup_bars" defaultValue="0" min="0" /></label>
-          <label className="field"><span>佣金 · bps</span><input type="number" name="commission_bps" defaultValue="3" min="0" step="0.1" /></label>
-          <label className="field"><span>最低佣金</span><input type="number" name="min_commission" defaultValue="1" min="0" step="0.1" /></label>
-          <label className="field"><span>滑点 · bps</span><input type="number" name="slippage_bps" defaultValue="5" min="0" step="0.1" /></label>
-          <label className="check-field"><input type="checkbox" name="allow_short" /><span>允许做空</span></label>
-          <label className="check-field"><input type="checkbox" name="liquidate_on_end" /><span>末根 K 线强制平仓</span></label>
-          <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>重新拉取 OpenD 行情</span></label>
+          <label className="field"><span>{t("form.initialCash")}</span><input type="number" name="initial_cash" defaultValue="100000" min="1" /></label>
+          <label className="field" title={t("form.warmupHelp")}><span>{t("form.warmup")}</span><input type="number" name="warmup_bars" defaultValue="0" min="0" /></label>
+          <label className="field"><span>{t("form.commission")}</span><input type="number" name="commission_bps" defaultValue="3" min="0" step="0.1" /></label>
+          <label className="field"><span>{t("form.minCommission")}</span><input type="number" name="min_commission" defaultValue="1" min="0" step="0.1" /></label>
+          <label className="field"><span>{t("form.slippage")}</span><input type="number" name="slippage_bps" defaultValue="5" min="0" step="0.1" /></label>
+          <label className="check-field"><input type="checkbox" name="allow_short" /><span>{t("form.allowShort")}</span></label>
+          <label className="check-field"><input type="checkbox" name="liquidate_on_end" /><span>{t("form.liquidate")}</span></label>
+          <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>{t("form.refreshCache")}</span></label>
         </div>
       </details>
 
       <div className="run-action">
         <button type="submit" disabled={running || !opendConnected || !selectedStrategy}>
-          <span>{running ? "OpenD 回测运行中" : "运行 OpenD 回测"}</span>
+          <span>{running ? t("form.running") : t("form.run")}</span>
           <span aria-hidden="true">↗</span>
         </button>
-        <p>只读取历史行情。策略在独立进程中执行，不连接交易账户。</p>
+        <p>{t("form.safety")}</p>
       </div>
     </form>
   );

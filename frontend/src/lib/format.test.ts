@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMarketTimestamp, isIntradayKline, marketTimeKey } from "./format";
+import { formatDateTime, formatMarketTimestamp, formatNumber, isIntradayKline, marketTimeKey } from "./format";
 
 describe("market time formatting", () => {
   it("keeps minute precision for intraday OpenD bars", () => {
@@ -28,5 +28,11 @@ describe("market time formatting", () => {
     expect(formatMarketTimestamp("2025-12-31 13:45:00", "K_240M")).toBe(
       "2025-12-31 13:45",
     );
+  });
+
+  it("formats numbers and timestamps with the selected locale", () => {
+    expect(formatNumber(1234.5, 1, "en-US")).toBe("1,234.5");
+    expect(formatNumber(1234.5, 1, "zh-CN")).toBe("1,234.5");
+    expect(formatDateTime("2025-12-31T14:15:00Z", "en-US")).not.toContain("年");
   });
 });

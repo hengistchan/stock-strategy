@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { StrategyMetadata } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime } from "../lib/format";
 import { StrategyEditor } from "./StrategyEditor";
 
@@ -18,6 +19,7 @@ export function StrategyWorkspace({
   onSelectedPathChange,
   onUseForBacktest,
 }: StrategyWorkspaceProps) {
+  const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function StrategyWorkspace({
       onSelectedPathChange(created.path);
       setEditorDirty(false);
       setNewName("");
-      setNotice(`已创建 ${created.path}`);
+      setNotice(t("strategy.created", { path: created.path }));
     },
     onError: (error) => setNotice(error.message),
   });
@@ -55,7 +57,7 @@ export function StrategyWorkspace({
   }, [strategies]);
 
   function selectStrategy(path: string) {
-    if (editorDirty && !window.confirm("当前策略尚未保存，确定切换吗？")) return;
+    if (editorDirty && !window.confirm(t("strategy.unsavedConfirm"))) return;
     setNotice(null);
     setEditorDirty(false);
     onSelectedPathChange(path);
@@ -67,20 +69,20 @@ export function StrategyWorkspace({
       <aside className="strategy-browser">
         <div className="strategy-browser-heading">
           <span className="section-code">REPOSITORY</span>
-          <h2>策略仓库</h2>
-          <p>示例只读；你的策略保存在项目的 strategies/。</p>
+          <h2>{t("strategy.repository")}</h2>
+          <p>{t("strategy.repositoryHelp")}</p>
         </div>
         <div className="strategy-create">
-          <label htmlFor="strategyName">新策略名称</label>
+          <label htmlFor="strategyName">{t("strategy.newName")}</label>
           <div>
             <input id="strategyName" value={newName} placeholder="my_strategy" onChange={(event) => setNewName(event.target.value)} />
-            <button type="button" disabled={!canCreate || createMutation.isPending} onClick={() => createMutation.mutate(undefined)}>新建</button>
+            <button type="button" disabled={!canCreate || createMutation.isPending} onClick={() => createMutation.mutate(undefined)}>{t("strategy.create")}</button>
           </div>
         </div>
         <div className="strategy-list">
           {[...grouped].map(([group, items]) => (
             <section key={group}>
-              <h3>{group}</h3>
+              <h3>{group === "示例策略" ? t("strategy.groupExamples") : group === "我的策略" ? t("strategy.groupMine") : group}</h3>
               {items.map((strategy) => (
                 <button
                   key={strategy.path}
@@ -89,7 +91,7 @@ export function StrategyWorkspace({
                   onClick={() => selectStrategy(strategy.path)}
                 >
                   <span>{strategy.name}</span>
-                  <small>{strategy.readonly ? "READ ONLY" : formatDateTime(strategy.updated_at)}</small>
+                  <small>{strategy.readonly ? "READ ONLY" : formatDateTime(strategy.updated_at, locale)}</small>
                 </button>
               ))}
             </section>
@@ -99,8 +101,8 @@ export function StrategyWorkspace({
 
       <section className="editor-desk">
         {documentQuery.isError ? <div className="editor-message">{documentQuery.error.message}</div> : null}
-        {documentQuery.isLoading ? <div className="editor-message">正在读取策略文件…</div> : null}
-        {!selectedPath ? <div className="editor-message">从左侧选择策略，或创建一个新文件。</div> : null}
+        {documentQuery.isLoading ? <div className="editor-message">{t("strategy.loading")}</div> : null}
+        {!selectedPath ? <div className="editor-message">{t("strategy.empty")}</div> : null}
         {document ? (
           <StrategyEditor
             key={document.path}

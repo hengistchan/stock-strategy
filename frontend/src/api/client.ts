@@ -12,6 +12,7 @@ import type {
   StrategiesResponse,
   StrategyDocument,
 } from "./types";
+import { translations } from "../i18n/translations";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -36,7 +37,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ? await response.json()
     : null;
   if (!response.ok) {
-    let message = `请求失败（${response.status}）`;
+    const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
+    let message = translations[locale]["common.requestFailed"].replace("{{status}}", String(response.status));
     if (payload && typeof payload === "object" && "detail" in payload) {
       const detail = (payload as { detail: unknown }).detail;
       message = Array.isArray(detail)

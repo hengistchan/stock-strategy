@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { PricePoint, Trade } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
+import type { Locale } from "../i18n/core";
 import {
   formatCompactVolume,
   formatMarketTimestamp,
@@ -47,9 +49,12 @@ interface DrawOptions {
   range: ChartRange;
   hoverIndex: number | null;
   ktype: string;
+  locale: Locale;
+  noDataText: string;
 }
 
 export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChartProps) {
+  const { locale, t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const geometryRef = useRef<ChartGeometry | null>(null);
@@ -62,8 +67,8 @@ export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChart
   const displayIndex = hover ? hover.index : points.length - 1;
   const change = displayPoint ? pointChange(points, displayIndex) : 0;
   const ranges: Array<{ value: ChartRange; label: string }> = isIntradayKline(ktype)
-    ? [{ value: 63, label: "63根" }, { value: 126, label: "126根" }, { value: 252, label: "252根" }, { value: "all", label: "全部" }]
-    : [{ value: 63, label: "3M" }, { value: 126, label: "6M" }, { value: 252, label: "1Y" }, { value: "all", label: "ALL" }];
+    ? [{ value: 63, label: t("result.bars", { count: 63 }) }, { value: 126, label: t("result.bars", { count: 126 }) }, { value: 252, label: t("result.bars", { count: 252 }) }, { value: "all", label: t("chart.all") }]
+    : [{ value: 63, label: "3M" }, { value: 126, label: "6M" }, { value: 252, label: "1Y" }, { value: "all", label: t("chart.all") }];
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -99,8 +104,10 @@ export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChart
       range,
       hoverIndex: hover?.index ?? null,
       ktype,
+      locale,
+      noDataText: t("chart.noData"),
     });
-  }, [chartSize, hover?.index, ktype, ma20, ma60, points, range, trades]);
+  }, [chartSize, hover?.index, ktype, locale, ma20, ma60, points, range, t, trades]);
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
     const geometry = geometryRef.current;
@@ -126,18 +133,18 @@ export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChart
   const visibleStart = points.length - visibleCount;
   const visible = points.slice(visibleStart);
   const ariaLabel = visible.length
-    ? `${formatMarketTimestamp(visible[0].date, ktype)} 至 ${formatMarketTimestamp(visible.at(-1)!.date, ktype)} 的 ${symbol} OpenD OHLC 蜡烛图，共 ${visible.length} 根。`
-    : `${symbol} 暂无可绘制的 OpenD OHLC 数据。`;
+    ? t("chart.aria", { start: formatMarketTimestamp(visible[0].date, ktype), end: formatMarketTimestamp(visible.at(-1)!.date, ktype), symbol, count: visible.length })
+    : t("chart.emptyAria", { symbol });
 
   return (
     <section className="price-section" aria-labelledby="priceChartTitle">
       <div className="price-heading">
         <div>
           <span className="section-code">MARKET TAPE</span>
-          <h3 id="priceChartTitle">价格与成交位置</h3>
-          <p>OpenD · {ktype} · {autype} · {formatNumber(points.length, 0)} 根 K 线</p>
+          <h3 id="priceChartTitle">{t("chart.title")}</h3>
+          <p>OpenD · {ktype} · {autype} · {t("chart.bars", { count: formatNumber(points.length, 0, locale) })}</p>
         </div>
-        <div className="range-switch" aria-label="价格图区间">
+        <div className="range-switch" aria-label={t("chart.range")}>
           {ranges.map((item) => (
             <button
               key={item.value}
@@ -152,21 +159,21 @@ export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChart
       </div>
 
       <div className="price-readout" aria-live="polite">
-        <Readout label="DATE" value={displayPoint ? formatMarketTimestamp(displayPoint.date, ktype) : "—"} />
-        <Readout label="OPEN" value={displayPoint ? formatPrice(displayPoint.open) : "—"} />
-        <Readout label="HIGH" value={displayPoint ? formatPrice(displayPoint.high) : "—"} />
-        <Readout label="LOW" value={displayPoint ? formatPrice(displayPoint.low) : "—"} />
-        <Readout label="CLOSE" value={displayPoint ? formatPrice(displayPoint.close) : "—"} />
-        <Readout label="CHANGE" value={displayPoint ? formatSignedPercent(change) : "—"} tone={change >= 0 ? "positive" : "negative"} />
-        <Readout label="VOLUME" value={displayPoint ? formatCompactVolume(displayPoint.volume) : "—"} />
+        <Readout label={t("chart.date")} value={displayPoint ? formatMarketTimestamp(displayPoint.date, ktype) : "—"} />
+        <Readout label={t("chart.open")} value={displayPoint ? formatPrice(displayPoint.open, locale) : "—"} />
+        <Readout label={t("chart.high")} value={displayPoint ? formatPrice(displayPoint.high, locale) : "—"} />
+        <Readout label={t("chart.low")} value={displayPoint ? formatPrice(displayPoint.low, locale) : "—"} />
+        <Readout label={t("chart.close")} value={displayPoint ? formatPrice(displayPoint.close, locale) : "—"} />
+        <Readout label={t("chart.change")} value={displayPoint ? formatSignedPercent(change, locale) : "—"} tone={change >= 0 ? "positive" : "negative"} />
+        <Readout label={t("chart.volume")} value={displayPoint ? formatCompactVolume(displayPoint.volume, locale) : "—"} />
       </div>
 
-      <div className="chart-legend" aria-label="图例">
+      <div className="chart-legend" aria-label={t("chart.legend")}>
         <span><i className="legend-candle" />OHLC</span>
         <span><i className="legend-ma20" />MA20</span>
         <span><i className="legend-ma60" />MA60</span>
-        <span><i className="legend-entry">▲</i>入场</span>
-        <span><i className="legend-exit">▼</i>出场</span>
+        <span><i className="legend-entry">▲</i>{t("chart.entry")}</span>
+        <span><i className="legend-exit">▼</i>{t("chart.exit")}</span>
       </div>
 
       <div className="price-chart-shell" ref={shellRef}>
@@ -179,16 +186,16 @@ export function PriceChart({ points, trades, symbol, ktype, autype }: PriceChart
         {hover && displayPoint ? (
           <div className="price-tooltip" style={tooltipPosition(hover, chartSize)}>
             <strong>{formatMarketTimestamp(displayPoint.date, ktype)}</strong>
-            <span><em>开</em><b>{formatPrice(displayPoint.open)}</b></span>
-            <span><em>高</em><b>{formatPrice(displayPoint.high)}</b></span>
-            <span><em>低</em><b>{formatPrice(displayPoint.low)}</b></span>
-            <span><em>收</em><b>{formatPrice(displayPoint.close)}</b></span>
-            <span><em>涨跌</em><b>{formatSignedPercent(change)}</b></span>
-            <span><em>成交量</em><b>{formatNumber(displayPoint.volume, 0)}</b></span>
+            <span><em>{t("chart.open")}</em><b>{formatPrice(displayPoint.open, locale)}</b></span>
+            <span><em>{t("chart.high")}</em><b>{formatPrice(displayPoint.high, locale)}</b></span>
+            <span><em>{t("chart.low")}</em><b>{formatPrice(displayPoint.low, locale)}</b></span>
+            <span><em>{t("chart.close")}</em><b>{formatPrice(displayPoint.close, locale)}</b></span>
+            <span><em>{t("chart.change")}</em><b>{formatSignedPercent(change, locale)}</b></span>
+            <span><em>{t("chart.volume")}</em><b>{formatNumber(displayPoint.volume, 0, locale)}</b></span>
           </div>
         ) : null}
       </div>
-      <p className="chart-method">价格轴按当前可见区间缩放；成交量从零起算。移动光标查看每根 K 线的准确价格。</p>
+      <p className="chart-method">{t("chart.method")}</p>
     </section>
   );
 }
@@ -231,11 +238,11 @@ function tooltipPosition(hover: HoverState, size: { width: number; height: numbe
 }
 
 function drawChart(options: DrawOptions): ChartGeometry | null {
-  const { context, width, height, points, trades, ma20, ma60, range, hoverIndex, ktype } = options;
+  const { context, width, height, points, trades, ma20, ma60, range, hoverIndex, ktype, locale, noDataText } = options;
   if (points.length === 0) {
     context.fillStyle = "#667c7d";
     context.font = '11px "SFMono-Regular", Menlo, monospace';
-    context.fillText("本次回测未返回可绘制的 OpenD OHLCV 数据。", 18, 34);
+    context.fillText(noDataText, 18, 34);
     return null;
   }
 
@@ -261,7 +268,7 @@ function drawChart(options: DrawOptions): ChartGeometry | null {
   const yForPrice = (price: number) => priceTop + ((priceMax - price) / (priceMax - priceMin)) * (priceBottom - priceTop);
   const yForVolume = (volume: number) => volumeBottom - (volume / volumeMax) * (volumeBottom - volumeTop);
 
-  drawGrid(context, { width, height, plotLeft, plotRight, priceTop, priceBottom, volumeTop, volumeBottom, priceMin, priceMax, visible, xForLocal, ktype });
+  drawGrid(context, { width, height, plotLeft, plotRight, priceTop, priceBottom, volumeTop, volumeBottom, priceMin, priceMax, visible, xForLocal, ktype, locale });
   drawVolumes(context, visible, xForLocal, yForVolume, candleWidth, volumeBottom);
   drawAverage(context, ma20, startIndex, visible.length, xForLocal, yForPrice, "#278779", []);
   drawAverage(context, ma60, startIndex, visible.length, xForLocal, yForPrice, "#d58a35", [5, 4]);
@@ -300,10 +307,11 @@ interface GridOptions {
   visible: PricePoint[];
   xForLocal: (index: number) => number;
   ktype: string;
+  locale: Locale;
 }
 
 function drawGrid(context: CanvasRenderingContext2D, options: GridOptions) {
-  const { width, height, plotLeft, plotRight, priceTop, priceBottom, volumeTop, volumeBottom, priceMin, priceMax, visible, xForLocal, ktype } = options;
+  const { width, height, plotLeft, plotRight, priceTop, priceBottom, volumeTop, volumeBottom, priceMin, priceMax, visible, xForLocal, ktype, locale } = options;
   context.save();
   context.font = '9px "SFMono-Regular", Menlo, monospace';
   context.fillStyle = "#667c7d";
@@ -316,7 +324,7 @@ function drawGrid(context: CanvasRenderingContext2D, options: GridOptions) {
     context.moveTo(plotLeft, Math.round(y) + 0.5);
     context.lineTo(plotRight, Math.round(y) + 0.5);
     context.stroke();
-    context.fillText(formatPrice(price), plotRight + 7, y + 3);
+    context.fillText(formatPrice(price, locale), plotRight + 7, y + 3);
   }
   context.beginPath();
   context.moveTo(plotLeft, volumeTop - 9.5);

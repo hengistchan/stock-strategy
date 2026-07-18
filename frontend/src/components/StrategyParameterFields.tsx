@@ -1,4 +1,5 @@
 import type { StrategyParameterDefinition } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 
 interface StrategyParameterFieldsProps {
   definitions: StrategyParameterDefinition[];
@@ -9,6 +10,7 @@ export function StrategyParameterFields({
   definitions,
   namePrefix = "parameter",
 }: StrategyParameterFieldsProps) {
+  const { t } = useI18n();
   if (definitions.length === 0) return null;
 
   return (
@@ -16,9 +18,9 @@ export function StrategyParameterFields({
       <div className="parameter-sheet-heading">
         <div>
           <span className="section-code">PARAMETERS</span>
-          <h3 id={`${namePrefix}-parameter-title`}>策略参数</h3>
+          <h3 id={`${namePrefix}-parameter-title`}>{t("parameters.title")}</h3>
         </div>
-        <span>{definitions.length} 项</span>
+        <span>{t("parameters.count", { count: definitions.length })}</span>
       </div>
       <div className="parameter-field-grid">
         {definitions.map((definition) => (

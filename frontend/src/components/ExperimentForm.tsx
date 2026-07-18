@@ -6,12 +6,7 @@ import type {
   ParameterValue,
   StrategyParameterDefinition,
 } from "../api/types";
-
-const OBJECTIVES: Array<{ value: ExperimentObjective; label: string }> = [
-  { value: "sharpe_ratio", label: "Sharpe 最高" },
-  { value: "total_return_pct", label: "策略收益最高" },
-  { value: "max_drawdown_pct", label: "最大回撤最小" },
-];
+import { useI18n } from "../i18n/I18nContext";
 
 interface ExperimentFormProps {
   config?: AppConfig;
@@ -32,6 +27,12 @@ export function ExperimentForm({
   running,
   opendConnected,
 }: ExperimentFormProps) {
+  const { t } = useI18n();
+  const objectives: Array<{ value: ExperimentObjective; label: string }> = [
+    { value: "sharpe_ratio", label: t("experiment.objectiveSharpe") },
+    { value: "total_return_pct", label: t("experiment.objectiveReturn") },
+    { value: "max_drawdown_pct", label: t("experiment.objectiveDrawdown") },
+  ];
   const [gridText, setGridText] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       parameterDefinitions.map((definition) => [
@@ -94,16 +95,16 @@ export function ExperimentForm({
     <form className="experiment-form" onSubmit={handleSubmit}>
       <div className="experiment-form-intro">
         <span className="section-code">SEARCH SPACE</span>
-        <h2>参数矩阵</h2>
-        <p>每组参数使用同一份 OpenD 行情和撮合规则，按目标指标自动排名。</p>
+        <h2>{t("experiment.matrix")}</h2>
+        <p>{t("experiment.intro")}</p>
       </div>
 
       <label className="field">
-        <span>实验名称</span>
-        <input name="name" defaultValue="MA 参数矩阵" maxLength={80} required />
+        <span>{t("experiment.name")}</span>
+        <input name="name" defaultValue={t("experiment.defaultName")} maxLength={80} required />
       </label>
       <label className="field">
-        <span>策略脚本</span>
+        <span>{t("form.strategy")}</span>
         <select value={selectedStrategy} onChange={(event) => onStrategyChange(event.target.value)}>
           {(config?.strategies ?? []).map((strategy) => (
             <option key={strategy.path} value={strategy.path}>{strategy.name} · {strategy.path}</option>
@@ -112,54 +113,54 @@ export function ExperimentForm({
       </label>
 
       <div className="field-pair">
-        <label className="field"><span>标的代码</span><input name="symbol" defaultValue="US.AAPL" required /></label>
-        <label className="field"><span>排名目标</span><select name="objective" defaultValue="sharpe_ratio">{OBJECTIVES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+        <label className="field"><span>{t("form.symbol")}</span><input name="symbol" defaultValue="US.AAPL" required /></label>
+        <label className="field"><span>{t("experiment.objective")}</span><select name="objective" defaultValue="sharpe_ratio">{objectives.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
       </div>
       <div className="field-pair">
-        <label className="field"><span>开始日期</span><input type="date" name="start" defaultValue="2024-01-01" required /></label>
-        <label className="field"><span>结束日期</span><input type="date" name="end" defaultValue="2025-12-31" required /></label>
+        <label className="field"><span>{t("form.start")}</span><input type="date" name="start" defaultValue="2024-01-01" required /></label>
+        <label className="field"><span>{t("form.end")}</span><input type="date" name="end" defaultValue="2025-12-31" required /></label>
       </div>
       <div className="field-pair">
-        <label className="field"><span>K 线周期</span><select name="ktype" defaultValue="K_DAY">{(config?.kline_types ?? ["K_DAY"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label className="field"><span>交易时段</span><select name="session" defaultValue="ALL">{(config?.session_types ?? ["ALL"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label className="field"><span>{t("form.ktype")}</span><select name="ktype" defaultValue="K_DAY">{(config?.kline_types ?? ["K_DAY"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label className="field"><span>{t("form.session")}</span><select name="session" defaultValue="ALL">{(config?.session_types ?? ["ALL"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div>
 
       <section className="grid-editor" aria-labelledby="gridEditorTitle">
         <div className="grid-editor-heading">
-          <h3 id="gridEditorTitle">候选值</h3>
-          <span className={combinationCount > 36 ? "negative" : ""}>{combinationCount} 组组合</span>
+          <h3 id="gridEditorTitle">{t("experiment.candidates")}</h3>
+          <span className={combinationCount > 36 ? "negative" : ""}>{t("experiment.combinations", { count: combinationCount })}</span>
         </div>
         {parameterDefinitions.length === 0 ? (
-          <p className="quiet-state">策略需要声明 STRATEGY_PARAMETERS 才能创建实验。</p>
+          <p className="quiet-state">{t("experiment.parametersRequired")}</p>
         ) : null}
         {parameterDefinitions.map((definition) => (
           <label className="grid-value-field" key={definition.name}>
             <span><strong>{definition.label}</strong><small>{definition.name} · {definition.type}</small></span>
             <input
-              aria-label={`${definition.label}候选值`}
+              aria-label={t("experiment.candidateLabel", { label: definition.label })}
               value={gridText[definition.name] ?? ""}
               onChange={(event) => setGridText((current) => ({ ...current, [definition.name]: event.target.value }))}
               placeholder={String(definition.default)}
               required
             />
-            <small>逗号分隔；范围 {formatRange(definition)}</small>
+            <small>{t("experiment.range", { range: formatRange(definition, t("experiment.freeValue")) })}</small>
           </label>
         ))}
       </section>
 
       <details className="execution-sheet">
-        <summary>实验执行选项</summary>
+        <summary>{t("experiment.options")}</summary>
         <div className="execution-grid">
-          <label className="field"><span>初始资金</span><input type="number" name="initial_cash" defaultValue="100000" min="1" /></label>
-          <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>首组重新拉取 OpenD 行情</span></label>
+          <label className="field"><span>{t("form.initialCash")}</span><input type="number" name="initial_cash" defaultValue="100000" min="1" /></label>
+          <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>{t("experiment.refreshCache")}</span></label>
         </div>
       </details>
 
       <button className="experiment-run-button" type="submit" disabled={disabled}>
-        <span>{running ? "参数实验运行中" : `运行 ${combinationCount} 组参数`}</span>
+        <span>{running ? t("experiment.running") : t("experiment.run", { count: combinationCount })}</span>
         <span aria-hidden="true">→</span>
       </button>
-      <p className="experiment-safety">最多 36 组，顺序执行；首组之后自动复用行情缓存。</p>
+      <p className="experiment-safety">{t("experiment.safety")}</p>
     </form>
   );
 }
@@ -177,10 +178,10 @@ function parseGridValues(
   }).filter((value, index, values) => values.indexOf(value) === index);
 }
 
-function formatRange(definition: StrategyParameterDefinition): string {
+function formatRange(definition: StrategyParameterDefinition, freeValue: string): string {
   if (definition.choices) return definition.choices.join(" / ");
   if (definition.min !== undefined || definition.max !== undefined) {
     return `${definition.min ?? "−∞"} — ${definition.max ?? "+∞"}`;
   }
-  return "自由值";
+  return freeValue;
 }

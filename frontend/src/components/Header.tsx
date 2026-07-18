@@ -1,4 +1,5 @@
 import type { HealthResponse } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 
 export type WorkspaceMode = "backtest" | "iterate" | "strategies";
 
@@ -9,48 +10,60 @@ interface HeaderProps {
 }
 
 export function Header({ health, mode, onModeChange }: HeaderProps) {
+  const { locale, setLocale, t } = useI18n();
   const connected = health?.opend.connected === true;
   return (
     <header className="app-header">
       <div className="brand-lockup">
-        <div className="brand-index" aria-hidden="true">SL/02</div>
+        <div className="brand-index" aria-hidden="true">SL/03</div>
         <div>
-          <p className="eyebrow">OpenD quantitative workbench</p>
+          <p className="eyebrow">{t("header.eyebrow")}</p>
           <h1>Strategy Lab</h1>
         </div>
       </div>
 
-      <nav className="workspace-tabs" aria-label="工作区">
+      <nav className="workspace-tabs" aria-label={t("header.workspace")}>
         <button
           type="button"
           aria-current={mode === "backtest" ? "page" : undefined}
           onClick={() => onModeChange("backtest")}
         >
-          回测实验
-          <small>RUN &amp; REVIEW</small>
+          {t("header.backtest")}
+          <small>{t("header.backtestHint")}</small>
         </button>
         <button
           type="button"
           aria-current={mode === "iterate" ? "page" : undefined}
           onClick={() => onModeChange("iterate")}
         >
-          参数实验
-          <small>SEARCH &amp; COMPARE</small>
+          {t("header.iterate")}
+          <small>{t("header.iterateHint")}</small>
         </button>
         <button
           type="button"
           aria-current={mode === "strategies" ? "page" : undefined}
           onClick={() => onModeChange("strategies")}
         >
-          策略文件
-          <small>EDIT &amp; SAVE</small>
+          {t("header.strategies")}
+          <small>{t("header.strategiesHint")}</small>
         </button>
       </nav>
 
-      <div className="connection-badge" data-state={connected ? "connected" : "offline"}>
-        <span className="status-dot" aria-hidden="true" />
-        <span>{connected ? "OpenD 已连接" : "OpenD 未连接"}</span>
-        <small>{health ? `${health.opend.host}:${health.opend.port}` : "正在检查服务"}</small>
+      <div className="header-actions">
+        <button
+          className="language-switch"
+          type="button"
+          aria-label={t("header.switchLanguage")}
+          onClick={() => setLocale(locale === "zh-CN" ? "en-US" : "zh-CN")}
+        >
+          <span aria-hidden="true">文/A</span>
+          <strong>{t("header.languageName")}</strong>
+        </button>
+        <div className="connection-badge" data-state={connected ? "connected" : "offline"}>
+          <span className="status-dot" aria-hidden="true" />
+          <span>{connected ? t("header.connected") : t("header.offline")}</span>
+          <small>{health ? `${health.opend.host}:${health.opend.port}` : t("header.checking")}</small>
+        </div>
       </div>
     </header>
   );

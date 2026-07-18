@@ -1,4 +1,5 @@
 import type { BacktestJob, BacktestResult } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime, formatNumber, formatSignedCurrency, shortDate } from "../lib/format";
 import { MetricsGrid } from "./MetricsGrid";
 import { PriceChart } from "./PriceChart";
@@ -11,21 +12,22 @@ interface ResultViewProps {
 }
 
 export function ResultView({ job, result, loading }: ResultViewProps) {
+  const { locale, t } = useI18n();
   if (!job) {
     return (
       <section className="result-empty">
         <div className="empty-plot" aria-hidden="true"><span /><span /><span /><span /><span /><i /></div>
-        <div><p className="eyebrow">No run selected</p><h2>把一段策略变成一条可复查的证据链。</h2><p>选择策略、标的和区间后运行。这里会展示 OpenD 行情、价格、资金曲线、回撤、成交与费用。</p></div>
+        <div><p className="eyebrow">{t("result.noRun")}</p><h2>{t("result.emptyTitle")}</h2><p>{t("result.emptyBody")}</p></div>
       </section>
     );
   }
 
   if (job.status !== "succeeded" || loading || !result) {
     const copy = {
-      queued: ["任务已入队", "正在准备回测进程", "配置已保存，等待启动。"],
-      running: ["OpenD 数据流", `正在回测 ${job.request.symbol}`, `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
-      failed: ["运行未通过", "这次回测没有完成", job.error ?? "查看运行日志以定位问题。"],
-      succeeded: ["正在读取结果", "回测已经完成", "正在加载指标和 OpenD 行情。"],
+      queued: [t("result.queuedLabel"), t("result.queuedTitle"), t("result.queuedBody")],
+      running: [t("result.runningLabel"), t("result.runningTitle", { symbol: job.request.symbol }), `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
+      failed: [t("result.failedLabel"), t("result.failedTitle"), job.error ?? t("result.failedBody")],
+      succeeded: [t("result.succeededLabel"), t("result.succeededTitle"), t("result.succeededBody")],
     }[job.status];
     return (
       <section className="job-state" data-status={job.status}>
@@ -50,17 +52,17 @@ export function ResultView({ job, result, loading }: ResultViewProps) {
         <div>
           <p className="eyebrow">{summary.strategy.toUpperCase().replaceAll("_", " ")}</p>
           <h2>{summary.symbol} <small>{shortDate(summary.period.start)} → {shortDate(summary.period.end)}</small></h2>
-          <p className="completion-time">完成于 {formatDateTime(job.finished_at)}</p>
+          <p className="completion-time">{t("result.completedAt", { time: formatDateTime(job.finished_at, locale) })}</p>
         </div>
         <div className="evidence-stamp" data-legacy={isLegacyResult}>
           <span>{isLegacyResult ? "LEGACY RESULT" : `OPEND CONTRACT V${contractVersion}`}</span>
-          <small>{summary.period.bars} bars · {autype} · {session}</small>
+          <small>{t("result.bars", { count: formatNumber(summary.period.bars, 0, locale) })} · {autype} · {session}</small>
         </div>
       </div>
 
       <MetricsGrid metrics={summary.metrics} />
       {strategyParameters && Object.keys(strategyParameters).length > 0 ? (
-        <aside className="result-parameters" aria-label="本次回测策略参数">
+        <aside className="result-parameters" aria-label={t("result.parameterSnapshot")}>
           <span>PARAMETER SNAPSHOT</span>
           {Object.entries(strategyParameters).map(([name, value]) => (
             <code key={name}>{name}=<strong>{String(value)}</strong></code>
@@ -69,29 +71,29 @@ export function ResultView({ job, result, loading }: ResultViewProps) {
       ) : null}
       {isLegacyResult ? (
         <aside className="legacy-result-warning" role="status">
-          该任务由旧版撮合契约生成，可能包含未校验的周期、时段或期末强平语义。请使用当前配置重新运行后再比较策略效果。
+          {t("result.legacyWarning")}
         </aside>
       ) : null}
       {hasOpenPosition && endingPosition ? (
-        <aside className="ending-position" aria-label="期末未平仓持仓">
-          <div><span>OPEN POSITION</span><strong>期末持仓未强平</strong></div>
+        <aside className="ending-position" aria-label={t("result.openPosition")}>
+          <div><span>OPEN POSITION</span><strong>{t("result.openPositionTitle")}</strong></div>
           <dl>
-            <div><dt>方向 / 数量</dt><dd>{endingPosition.side} · {formatNumber(Math.abs(endingPosition.quantity), 0)}</dd></div>
-            <div><dt>持仓均价</dt><dd>{formatNumber(endingPosition.average_price, 2)}</dd></div>
-            <div><dt>期末标记价</dt><dd>{formatNumber(endingPosition.mark_price, 2)}</dd></div>
-            <div><dt>未实现盈亏</dt><dd className={endingPosition.unrealized_pnl >= 0 ? "positive" : "negative"}>{formatSignedCurrency(endingPosition.unrealized_pnl)}</dd></div>
+            <div><dt>{t("result.sideQuantity")}</dt><dd>{endingPosition.side} · {formatNumber(Math.abs(endingPosition.quantity), 0, locale)}</dd></div>
+            <div><dt>{t("result.averagePrice")}</dt><dd>{formatNumber(endingPosition.average_price, 2, locale)}</dd></div>
+            <div><dt>{t("result.markPrice")}</dt><dd>{formatNumber(endingPosition.mark_price, 2, locale)}</dd></div>
+            <div><dt>{t("result.unrealizedPnl")}</dt><dd className={endingPosition.unrealized_pnl >= 0 ? "positive" : "negative"}>{formatSignedCurrency(endingPosition.unrealized_pnl, locale)}</dd></div>
           </dl>
         </aside>
       ) : null}
       <PriceChart points={priceSeries} trades={trades} symbol={summary.symbol} ktype={ktype} autype={autype} />
 
       <figure className="report-frame">
-        <figcaption><span>资金曲线 / 回撤 / 逐笔盈亏</span><span>RUN {job.id}</span></figcaption>
-        <img src={`${result.report_url}?v=${encodeURIComponent(job.finished_at ?? "")}`} alt="回测资金曲线、基准、回撤和逐笔盈亏图" />
+        <figcaption><span>{t("result.reportCaption")}</span><span>RUN {job.id}</span></figcaption>
+        <img src={`${result.report_url}?v=${encodeURIComponent(job.finished_at ?? "")}`} alt={t("result.reportAlt")} />
       </figure>
 
       <TradeTable trades={trades} ktype={ktype} exposure={summary.metrics.exposure_pct} />
-      <p className="research-note">历史回测用于研究与机制验证，不构成买卖建议。少量交易不足以证明策略稳健。</p>
+      <p className="research-note">{t("result.researchNote")}</p>
     </section>
   );
 }

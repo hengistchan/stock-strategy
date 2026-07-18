@@ -4,6 +4,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { api } from "../api/client";
 import type { StrategyDocument } from "../api/types";
+import { useI18n } from "../i18n/I18nContext";
 import { formatNumber } from "../lib/format";
 
 interface StrategyEditorProps {
@@ -25,6 +26,7 @@ export function StrategyEditor({
   onUseForBacktest,
   onDirtyChange,
 }: StrategyEditorProps) {
+  const { locale, t } = useI18n();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(document.content);
   const [notice, setNotice] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export function StrategyEditor({
       void queryClient.invalidateQueries({ queryKey: ["config"] });
       setDraft(saved.content);
       onDirtyChange(false);
-      setNotice("策略已保存并通过 Python 语法校验。");
+      setNotice(t("strategy.savedNotice"));
     },
     onError: (error) => setNotice(error.message),
   });
@@ -61,21 +63,21 @@ export function StrategyEditor({
         <div>
           <span className="section-code">PYTHON STRATEGY</span>
           <h2>{document.path}</h2>
-          <p>{formatNumber(document.size, 0)} bytes · revision {document.revision.slice(0, 8)}</p>
+          <p>{formatNumber(document.size, 0, locale)} bytes · revision {document.revision.slice(0, 8)}</p>
         </div>
         <div className="editor-actions">
           {document.readonly ? (
-            <button type="button" className="secondary-action" disabled={!canCopy || copyPending} onClick={onCopy}>复制为新策略</button>
+            <button type="button" className="secondary-action" disabled={!canCopy || copyPending} onClick={onCopy}>{t("strategy.copy")}</button>
           ) : null}
-          <button type="button" className="secondary-action" onClick={() => onUseForBacktest(document.path)}>用此策略回测</button>
+          <button type="button" className="secondary-action" onClick={() => onUseForBacktest(document.path)}>{t("strategy.useBacktest")}</button>
           <button type="button" className="primary-action" disabled={!dirty || document.readonly || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-            {saveMutation.isPending ? "保存中" : dirty ? "保存策略" : "已保存"}
+            {saveMutation.isPending ? t("strategy.saving") : dirty ? t("strategy.save") : t("strategy.saved")}
           </button>
         </div>
       </header>
       <div className="editor-status" data-dirty={dirty}>
-        <span>{document.readonly ? "示例策略只读" : dirty ? "有未保存修改" : "文件与磁盘一致"}</span>
-        <span>⌘/Ctrl + S 保存 · 保存前执行 AST 语法校验</span>
+        <span>{document.readonly ? t("strategy.readonly") : dirty ? t("strategy.unsaved") : t("strategy.synced")}</span>
+        <span>{t("strategy.saveHelp")}</span>
       </div>
       <div className="code-editor">
         <CodeMirror

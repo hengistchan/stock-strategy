@@ -31,6 +31,7 @@ class WebTest(unittest.TestCase):
                 health = client.get("/api/health")
                 config = client.get("/api/config")
         self.assertEqual(home.status_code, 200)
+        self.assertEqual(home.headers["cache-control"], "no-cache")
         self.assertIn("Strategy Lab", home.text)
         self.assertIn('id="root"', home.text)
         self.assertTrue(health.json()["opend"]["connected"])

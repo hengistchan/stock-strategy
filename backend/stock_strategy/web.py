@@ -396,7 +396,7 @@ def create_app(
     async def index():
         index_path = web_root / "index.html"
         if index_path.is_file():
-            return FileResponse(index_path)
+            return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
         return HTMLResponse(
             "<h1>Strategy Lab frontend is not built</h1>"
             "<p>Run <code>cd frontend &amp;&amp; npm install &amp;&amp; npm run build</code>.</p>",
