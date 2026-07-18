@@ -19,6 +19,21 @@ from .models import (
 )
 
 
+_PRICE_ABS_TOLERANCE = 1e-8
+
+
+def _price_le(left: float, right: float) -> bool:
+    return left < right or math.isclose(
+        left, right, rel_tol=1e-12, abs_tol=_PRICE_ABS_TOLERANCE
+    )
+
+
+def _price_ge(left: float, right: float) -> bool:
+    return left > right or math.isclose(
+        left, right, rel_tol=1e-12, abs_tol=_PRICE_ABS_TOLERANCE
+    )
+
+
 @dataclass(slots=True)
 class Fill:
     execution_id: str
@@ -442,34 +457,34 @@ class Broker:
     def _limit_base_price(order: Order, bar: Bar) -> float | None:
         assert order.limit_price is not None
         if order.side in (OrderSide.BUY, OrderSide.BUY_BACK):
-            if bar.open <= order.limit_price:
+            if _price_le(bar.open, order.limit_price):
                 return bar.open
-            return order.limit_price if bar.low <= order.limit_price else None
-        if bar.open >= order.limit_price:
+            return order.limit_price if _price_le(bar.low, order.limit_price) else None
+        if _price_ge(bar.open, order.limit_price):
             return bar.open
-        return order.limit_price if bar.high >= order.limit_price else None
+        return order.limit_price if _price_ge(bar.high, order.limit_price) else None
 
     @staticmethod
     def _stop_base_price(order: Order, bar: Bar) -> float | None:
         assert order.stop_price is not None
         if order.side in (OrderSide.BUY, OrderSide.BUY_BACK):
-            if bar.open >= order.stop_price:
+            if _price_ge(bar.open, order.stop_price):
                 return bar.open
-            return order.stop_price if bar.high >= order.stop_price else None
-        if bar.open <= order.stop_price:
+            return order.stop_price if _price_ge(bar.high, order.stop_price) else None
+        if _price_le(bar.open, order.stop_price):
             return bar.open
-        return order.stop_price if bar.low <= order.stop_price else None
+        return order.stop_price if _price_le(bar.low, order.stop_price) else None
 
     @staticmethod
     def _touch_base_price(order: Order, bar: Bar) -> float | None:
         assert order.stop_price is not None
         if order.side in (OrderSide.BUY, OrderSide.BUY_BACK):
-            if bar.open <= order.stop_price:
+            if _price_le(bar.open, order.stop_price):
                 return bar.open
-            return order.stop_price if bar.low <= order.stop_price else None
-        if bar.open >= order.stop_price:
+            return order.stop_price if _price_le(bar.low, order.stop_price) else None
+        if _price_ge(bar.open, order.stop_price):
             return bar.open
-        return order.stop_price if bar.high >= order.stop_price else None
+        return order.stop_price if _price_ge(bar.high, order.stop_price) else None
 
     @staticmethod
     def _trailing_stop_price(order: Order, bar: Bar) -> float | None:

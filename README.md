@@ -157,7 +157,7 @@ class Strategy(StrategyBase):
             close_positions(self.symbol)
 ```
 
-完整可运行示例见 [examples/ma_cross.py](examples/ma_cross.py)，当前接口与撮合边界见 [docs/FUTU_COMPATIBILITY.md](docs/FUTU_COMPATIBILITY.md)。
+完整可运行示例见 [examples/ma_cross.py](examples/ma_cross.py)；可编辑的 US/HK 多周期价格行为策略见 [strategies/demo.py](strategies/demo.py)。后者用于验证复杂策略生命周期，不代表已经得到稳健收益。当前接口与撮合边界见 [docs/FUTU_COMPATIBILITY.md](docs/FUTU_COMPATIBILITY.md)。
 
 ### 策略参数与批量实验
 

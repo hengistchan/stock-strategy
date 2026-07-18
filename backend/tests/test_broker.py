@@ -27,6 +27,42 @@ class BrokerTest(unittest.TestCase):
         self.assertEqual(broker.position.average_price, 105)
         self.assertEqual(broker.cash, 8_950)
 
+    def test_stop_order_treats_serialization_noise_as_the_same_price(self):
+        broker = Broker(
+            100_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            bar_type=BarType.K_1M,
+        )
+        symbol = Contract("HK.09988")
+        broker.submit(
+            symbol=symbol,
+            side=OrderSide.BUY,
+            quantity=100,
+            order_type="STOP",
+            current_index=0,
+            current_date="2024-01-19 11:05:00",
+            stop_price=61.500530000000005,
+            current_price=61.40053,
+        )
+
+        broker.process_bar(
+            Bar(
+                "2024-01-19 11:06:00",
+                61.40053,
+                61.500529999,
+                61.40053,
+                61.500529999,
+                1_000,
+            ),
+            1,
+        )
+
+        self.assertEqual(broker.position.quantity, 100)
+        self.assertEqual(len(broker.pending_orders), 0)
+
     def test_sell_closes_position_and_records_net_trade(self):
         broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
         symbol = Contract("US.TEST")
