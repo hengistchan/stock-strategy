@@ -49,7 +49,12 @@ export function Header({ health, mode, onModeChange }: HeaderProps) {
         </button>
       </nav>
 
-      <div className="header-actions">
+      <div className="system-status-cell" data-state={connected ? "connected" : "offline"}>
+        <span className="status-dot" aria-hidden="true" />
+        <span className="connection-copy">
+          <strong>{connected ? t("header.connected") : t("header.offline")}</strong>
+          <small>{health ? `${health.opend.host}:${health.opend.port}` : t("header.checking")}</small>
+        </span>
         <button
           className="language-switch"
           type="button"
@@ -59,11 +64,6 @@ export function Header({ health, mode, onModeChange }: HeaderProps) {
           <span aria-hidden="true">文/A</span>
           <strong>{t("header.languageName")}</strong>
         </button>
-        <div className="connection-badge" data-state={connected ? "connected" : "offline"}>
-          <span className="status-dot" aria-hidden="true" />
-          <span>{connected ? t("header.connected") : t("header.offline")}</span>
-          <small>{health ? `${health.opend.host}:${health.opend.port}` : t("header.checking")}</small>
-        </div>
       </div>
     </header>
   );
