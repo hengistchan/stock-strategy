@@ -1,6 +1,7 @@
 import type { CacheResponse } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime } from "../lib/format";
+import { formatSymbolLabel, type SymbolNameMap } from "../lib/symbols";
 
 interface CachePanelProps {
   cache?: CacheResponse;
@@ -8,9 +9,10 @@ interface CachePanelProps {
   deletingId: string | null;
   onDelete: (id: string) => void;
   onRefresh: () => void;
+  symbolNames?: SymbolNameMap;
 }
 
-export function CachePanel({ cache, loading, deletingId, onDelete, onRefresh }: CachePanelProps) {
+export function CachePanel({ cache, loading, deletingId, onDelete, onRefresh, symbolNames = {} }: CachePanelProps) {
   const { locale, t } = useI18n();
   return (
     <section className="cache-panel" aria-labelledby="cachePanelTitle">
@@ -23,7 +25,7 @@ export function CachePanel({ cache, loading, deletingId, onDelete, onRefresh }: 
       <div className="cache-list">
         {cache?.entries.map((entry) => (
           <article key={entry.id}>
-            <div><strong>{entry.symbol}</strong><span>{entry.ktype} · {entry.autype} · {entry.session}</span></div>
+            <div><strong>{formatSymbolLabel(entry.symbol, symbolNames)}</strong><span>{entry.ktype} · {entry.autype} · {entry.session}</span></div>
             <dl>
               <div><dt>{t("cache.requestRange")}</dt><dd>{entry.start} → {entry.end}</dd></div>
               <div><dt>{t("cache.actualData")}</dt><dd>{t("result.bars", { count: entry.rows })} · {formatBytes(entry.bytes)}</dd></div>

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
+import re
+from threading import Lock
+from time import monotonic
 from typing import Any, Callable
 
 
@@ -22,6 +26,170 @@ class OpenDHistory:
     records: list[dict[str, Any]]
     fieldnames: tuple[str, ...]
     pages: int
+
+
+@dataclass(frozen=True, slots=True)
+class OpenDSymbol:
+    code: str
+    name: str
+    market: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"code": self.code, "name": self.name, "market": self.market}
+
+
+class OpenDSymbolDirectory:
+    """Cache and search the US/HK stock directory exposed by OpenD."""
+
+    def __init__(
+        self,
+        *,
+        host: str = "127.0.0.1",
+        port: int = 11111,
+        ttl_seconds: float = 300,
+        loader: Callable[[], list[OpenDSymbol]] | None = None,
+    ) -> None:
+        self._ttl_seconds = ttl_seconds
+        self._loader = loader or (
+            lambda: fetch_stock_directory(host=host, port=port)
+        )
+        self._symbols: list[OpenDSymbol] = []
+        self._loaded_at = 0.0
+        self._lock = Lock()
+
+    def search(self, query: str, limit: int = 8) -> list[dict[str, str]]:
+        normalized = query.strip()
+        if not normalized:
+            return []
+        symbols = self._load()
+        return [item.to_dict() for item in match_stock_symbols(symbols, normalized, limit)]
+
+    def resolve(self, codes: list[str]) -> list[dict[str, str]]:
+        """Resolve exact Futu codes while preserving the requested order."""
+        requested = list(dict.fromkeys(code.strip().upper() for code in codes if code.strip()))
+        inventory = {symbol.code: symbol for symbol in self._load()}
+        return [inventory[code].to_dict() for code in requested if code in inventory]
+
+    def _load(self) -> list[OpenDSymbol]:
+        now = monotonic()
+        if self._symbols and now - self._loaded_at < self._ttl_seconds:
+            return self._symbols
+        with self._lock:
+            now = monotonic()
+            if self._symbols and now - self._loaded_at < self._ttl_seconds:
+                return self._symbols
+            loaded = self._loader()
+            self._symbols = loaded
+            self._loaded_at = now
+            return loaded
+
+
+def fetch_stock_directory(
+    *,
+    markets: tuple[str, ...] = ("US", "HK"),
+    host: str = "127.0.0.1",
+    port: int = 11111,
+    context_factory: Callable[..., Any] | None = None,
+    success_code: int = 0,
+) -> list[OpenDSymbol]:
+    """Read stock codes and localized names from OpenD basic information."""
+    stock_type: Any = "STOCK"
+    if context_factory is None:
+        try:
+            from futu import OpenQuoteContext, RET_OK, SecurityType
+        except ImportError as error:
+            raise OpenDUnavailableError(
+                "Futu SDK is not installed; install the project with the opend extra"
+            ) from error
+        context_factory = OpenQuoteContext
+        success_code = RET_OK
+        stock_type = SecurityType.STOCK
+
+    context = context_factory(host=host, port=port)
+    symbols: dict[str, OpenDSymbol] = {}
+    try:
+        for market in markets:
+            ret, frame = context.get_stock_basicinfo(
+                market, stock_type=stock_type
+            )
+            if ret != success_code:
+                raise OpenDRequestError(
+                    f"OpenD get_stock_basicinfo failed for {market}: {frame}"
+                )
+            if not hasattr(frame, "to_dict"):
+                raise OpenDRequestError(
+                    "OpenD returned an unexpected stock directory payload"
+                )
+            for raw in frame.to_dict("records"):
+                code = str(raw.get("code") or "").strip().upper()
+                name = str(raw.get("name") or "").strip()
+                if not code or not name or bool(raw.get("delisting", False)):
+                    continue
+                normalized_market = code.split(".", 1)[0]
+                symbols[code] = OpenDSymbol(
+                    code=code,
+                    name=name,
+                    market=normalized_market,
+                )
+    finally:
+        context.close()
+    return sorted(symbols.values(), key=lambda item: item.code)
+
+
+def match_stock_symbols(
+    symbols: list[OpenDSymbol], query: str, limit: int = 8
+) -> list[OpenDSymbol]:
+    """Rank exact, prefix, substring and typo-tolerant code/name matches."""
+    normalized_query = _search_text(query)
+    compact_query = _compact_search_text(query)
+    ranked: list[tuple[tuple[float, int, str], OpenDSymbol]] = []
+    for symbol in symbols:
+        code = _search_text(symbol.code)
+        local_code = code.split(".", 1)[-1]
+        name = _search_text(symbol.name)
+        compact_code = _compact_search_text(symbol.code)
+        compact_name = _compact_search_text(symbol.name)
+
+        if normalized_query == code or normalized_query == local_code:
+            score = (0.0, len(code), code)
+        elif code.startswith(normalized_query) or local_code.startswith(normalized_query):
+            score = (1.0, len(code), code)
+        elif normalized_query == name:
+            score = (2.0, len(name), code)
+        elif name.startswith(normalized_query):
+            score = (3.0, len(name), code)
+        elif normalized_query in code or normalized_query in local_code:
+            score = (4.0, len(code), code)
+        elif normalized_query in name:
+            score = (5.0, len(name), code)
+        else:
+            compact_local_code = _compact_search_text(local_code)
+            code_similarity = SequenceMatcher(
+                None, compact_query, compact_local_code
+            ).ratio()
+            if len(compact_query) == len(compact_local_code):
+                code_similarity += 0.12
+            elif abs(len(compact_query) - len(compact_local_code)) == 1:
+                code_similarity -= 0.08
+            similarity = max(
+                code_similarity,
+                SequenceMatcher(None, compact_query, compact_code).ratio(),
+                SequenceMatcher(None, compact_query, compact_name).ratio(),
+            )
+            if len(compact_query) < 2 or similarity < 0.58:
+                continue
+            score = (6.0 - similarity, len(code), code)
+        ranked.append((score, symbol))
+    ranked.sort(key=lambda item: item[0])
+    return [item[1] for item in ranked[: max(1, limit)]]
+
+
+def _search_text(value: str) -> str:
+    return " ".join(value.strip().casefold().split())
+
+
+def _compact_search_text(value: str) -> str:
+    return re.sub(r"[\s._-]+", "", _search_text(value))
 
 
 def fetch_stock_metadata(

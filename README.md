@@ -7,10 +7,12 @@
 ## 功能
 
 - React + TypeScript + Vite 工程化前端，支持响应式回测工作台。
+- 三个工作区使用固定路径：`/backtests`、`/experiments`、`/strategies`，支持深链接、刷新和浏览器前进后退。
 - 简体中文 / English 双语界面，自动检测浏览器语言、持久化选择，并本地化日期和数字。
 - CodeMirror Python 策略编辑器，支持新建、复制示例、语法校验和保存。
 - 声明式策略参数、单次参数覆盖、批量参数矩阵、目标指标排名和三组结果并排比较。
 - 回测档案按“标的 → 策略 → 回测批次”分层浏览，新建配置与历史结果互不堆叠。
+- 新建回测可按代码、中文名或英文名模糊搜索 OpenD 的美股 / 港股目录，并以“标准代码 · 名称”确认标的。
 - Python + FastAPI API，策略在独立子进程中运行并设置超时。
 - OpenD `request_history_kline()` 直连、分页、确定性共享缓存、缓存清理和分钟级时间戳。
 - OHLC 蜡烛图、成交量、MA20/MA60、策略进出场标记和悬停价格。
@@ -26,7 +28,7 @@ make install
 make serve
 ```
 
-浏览器打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。`make serve` 会先构建 React，再由 FastAPI 提供前端和 API。
+浏览器打开 [http://127.0.0.1:8000/backtests](http://127.0.0.1:8000/backtests)。`make serve` 会先构建 React，再由 FastAPI 提供前端和 API；根路径会自动进入回测实验。
 
 右上角的 `文/A` 可随时切换简体中文和 English。选择保存在浏览器本地；翻译资源和新增语言说明见 [docs/I18N.md](docs/I18N.md)。策略脚本定义的参数标签、说明以及后端返回的原始错误会保持作者原文。
 
@@ -230,6 +232,8 @@ make dev-web
 
 前端位于 `frontend/`，Python 后端完整收拢在 `backend/`。Vite 将 `/api` 代理到 FastAPI；生产构建输出到 `backend/stock_strategy/web_dist/`，该目录是生成物，不提交到 Git。
 
+标的搜索由 `GET /api/symbols?q=...&limit=8` 提供，历史回测和参数实验通过 `GET /api/symbols/resolve?codes=...` 批量补齐名称。数据直接来自 OpenD `get_stock_basicinfo()` 的 `US` / `HK` 股票目录。后端只做五分钟内存缓存，不使用第三方行情或名称数据源；回测提交时仍只保存标准 Futu 代码。
+
 Web 持久化目录：
 
 - `runs/web/`：单次回测作业和产物。
@@ -264,7 +268,7 @@ docs/                             架构、兼容性和验收记录
 .github/                          CI 与依赖更新配置
 ```
 
-详细边界见 [架构说明](docs/ARCHITECTURE.md)、[Futu 兼容性](docs/FUTU_COMPATIBILITY.md) 和 [MVP 验收门槛](docs/MVP_ACCEPTANCE.md)。
+详细边界见 [架构说明](docs/ARCHITECTURE.md)、[2026-07-19 架构审计](docs/ARCHITECTURE_REVIEW_2026-07-19.md)、[Futu 兼容性](docs/FUTU_COMPATIBILITY.md) 和 [MVP 验收门槛](docs/MVP_ACCEPTANCE.md)。
 
 ## 开源协作与安全
 

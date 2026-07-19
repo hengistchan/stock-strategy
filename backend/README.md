@@ -27,6 +27,10 @@ cd ..
 
 如果只安装 Python 后端而未执行前端构建，API 仍可启动，但首页会返回 `503` 并提示构建前端。
 
+生产服务会为 `/backtests`、`/experiments` 和 `/strategies` 返回同一份 SPA 入口，使各工作区可以直接访问和刷新；未知 `/api/*` 路径仍返回 JSON `404`，不会误返回前端 HTML。
+
+`GET /api/symbols?q=腾讯&limit=8` 会从 OpenD `get_stock_basicinfo()` 读取美股和港股股票代码及名称，并在五分钟缓存内完成后续模糊查询；`GET /api/symbols/resolve?codes=US.AAPL` 用于批量补齐已有回测记录的名称。这些接口只读，不访问交易账户。
+
 构建包含当前 React 生产资源的 wheel，并检查不存在陈旧哈希文件：
 
 ```bash

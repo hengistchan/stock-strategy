@@ -8,6 +8,7 @@ import type {
 } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { localizeParameter } from "../lib/parameterLocalization";
+import { SymbolSearchField } from "./SymbolSearchField";
 
 interface ExperimentFormProps {
   config?: AppConfig;
@@ -113,8 +114,8 @@ export function ExperimentForm({
         </select>
       </label>
 
-      <div className="field-pair">
-        <label className="field"><span>{t("form.symbol")}</span><input name="symbol" defaultValue="US.AAPL" required /></label>
+      <div className="field-pair experiment-symbol-row">
+        <SymbolSearchField searchEnabled={opendConnected} />
         <label className="field"><span>{t("experiment.objective")}</span><select name="objective" defaultValue="sharpe_ratio">{objectives.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
       </div>
       <div className="field-pair">

@@ -11,9 +11,10 @@ interface ResultViewProps {
   result?: BacktestResult;
   loading: boolean;
   emptyContext?: "archive" | "create";
+  symbolName?: string;
 }
 
-export function ResultView({ job, result, loading, emptyContext = "archive" }: ResultViewProps) {
+export function ResultView({ job, result, loading, emptyContext = "archive", symbolName }: ResultViewProps) {
   const { locale, t } = useI18n();
   if (!job) {
     const isCreating = emptyContext === "create";
@@ -33,7 +34,7 @@ export function ResultView({ job, result, loading, emptyContext = "archive" }: R
     const stderrDetail = job.stderr.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).at(-1);
     const copy = {
       queued: [t("result.queuedLabel"), t("result.queuedTitle"), t("result.queuedBody")],
-      running: [t("result.runningLabel"), t("result.runningTitle", { symbol: job.request.symbol }), `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
+      running: [t("result.runningLabel"), t("result.runningTitle", { symbol: symbolName ? `${job.request.symbol} · ${symbolName}` : job.request.symbol }), `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
       failed: [t("result.failedLabel"), t("result.failedTitle"), stderrDetail ?? job.error ?? t("result.failedBody")],
       succeeded: [t("result.succeededLabel"), t("result.succeededTitle"), t("result.succeededBody")],
     }[job.status];
@@ -54,12 +55,17 @@ export function ResultView({ job, result, loading, emptyContext = "archive" }: R
   const hasOpenPosition = Math.abs(endingPosition?.quantity ?? 0) > 1e-9;
   const contractVersion = summary.settings.engine_contract?.version;
   const isLegacyResult = contractVersion !== 2;
+  const resolvedSymbolName = symbolName ?? summary.settings.market_metadata?.name;
   return (
     <section className="result-sheet">
       <div className="result-title-row">
         <div>
           <p className="eyebrow">{summary.strategy.toUpperCase().replaceAll("_", " ")}</p>
-          <h2>{summary.symbol} <small>{shortDate(summary.period.start)} → {shortDate(summary.period.end)}</small></h2>
+          <h2>
+            {summary.symbol}
+            {resolvedSymbolName ? <span className="result-symbol-name">· {resolvedSymbolName}</span> : null}
+            <small>{shortDate(summary.period.start)} → {shortDate(summary.period.end)}</small>
+          </h2>
           <p className="completion-time">{t("result.completedAt", { time: formatDateTime(job.finished_at, locale) })}</p>
         </div>
         <div className="evidence-stamp" data-legacy={isLegacyResult}>

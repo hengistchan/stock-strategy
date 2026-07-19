@@ -6,7 +6,7 @@ from itertools import product
 import json
 from pathlib import Path
 import re
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 import uuid
 
 
@@ -15,6 +15,18 @@ MAX_EXPERIMENT_RUNS = 36
 EXPERIMENT_OBJECTIVES = frozenset(
     {"total_return_pct", "sharpe_ratio", "max_drawdown_pct"}
 )
+
+
+class JobStoreProtocol(Protocol):
+    def create_job(
+        self, request: Mapping[str, Any], strategy_path: Path
+    ) -> dict[str, Any]: ...
+
+    async def run_job(self, job_id: str) -> None: ...
+
+    def get_job(self, job_id: str) -> dict[str, Any]: ...
+
+    def load_result(self, job_id: str) -> dict[str, Any]: ...
 
 
 def expand_parameter_grid(
@@ -42,7 +54,7 @@ def expand_parameter_grid(
 
 
 class ExperimentStore:
-    def __init__(self, project_root: Path, job_store: Any):
+    def __init__(self, project_root: Path, job_store: JobStoreProtocol):
         self.project_root = project_root.resolve()
         self.root = (self.project_root / "runs" / "experiments").resolve()
         self.root.mkdir(parents=True, exist_ok=True)

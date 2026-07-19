@@ -35,7 +35,7 @@ describe("BacktestForm", () => {
         parameterDefinitions={config.strategies[0].parameters}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/标的代码/), {
+    fireEvent.change(screen.getByLabelText(/^标的$/), {
       target: { value: "hk.00700" },
     });
     fireEvent.click(screen.getByRole("button", { name: /运行 OpenD 回测/ }));

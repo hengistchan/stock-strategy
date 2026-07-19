@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
 import type { StrategyMetadata } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime } from "../lib/format";
@@ -25,7 +26,7 @@ export function StrategyWorkspace({
   const [notice, setNotice] = useState<string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const documentQuery = useQuery({
-    queryKey: ["strategy", selectedPath],
+    queryKey: queryKeys.strategy(selectedPath),
     queryFn: () => api.strategy(selectedPath),
     enabled: Boolean(selectedPath),
   });
@@ -35,9 +36,9 @@ export function StrategyWorkspace({
     mutationFn: (templatePath?: string) =>
       api.createStrategy({ name: newName, template_path: templatePath }),
     onSuccess: (created) => {
-      void queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      void queryClient.invalidateQueries({ queryKey: ["config"] });
-      queryClient.setQueryData(["strategy", created.path], created);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.strategies });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.config });
+      queryClient.setQueryData(queryKeys.strategy(created.path), created);
       onSelectedPathChange(created.path);
       setEditorDirty(false);
       setNewName("");

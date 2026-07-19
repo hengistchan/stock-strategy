@@ -58,6 +58,21 @@ export interface HealthResponse {
   };
 }
 
+export interface SymbolMatch {
+  code: string;
+  name: string;
+  market: string;
+}
+
+export interface SymbolSearchResponse {
+  query: string;
+  symbols: SymbolMatch[];
+}
+
+export interface SymbolResolveResponse {
+  symbols: SymbolMatch[];
+}
+
 export interface BacktestRequest {
   strategy: string;
   symbol: string;
@@ -169,6 +184,10 @@ export interface BacktestSummary {
       session?: string;
       extended_time?: boolean;
       cache_path: string;
+    };
+    market_metadata?: {
+      name?: string;
+      [key: string]: unknown;
     };
     [key: string]: unknown;
   };

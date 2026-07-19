@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { api } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
 import type { StrategyDocument } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatNumber } from "../lib/format";
@@ -34,9 +35,9 @@ export function StrategyEditor({
   const saveMutation = useMutation({
     mutationFn: () => api.saveStrategy(document.path, draft, document.revision),
     onSuccess: (saved) => {
-      queryClient.setQueryData(["strategy", saved.path], saved);
-      void queryClient.invalidateQueries({ queryKey: ["strategies"] });
-      void queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.setQueryData(queryKeys.strategy(saved.path), saved);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.strategies });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.config });
       setDraft(saved.content);
       onDirtyChange(false);
       setNotice(t("strategy.savedNotice"));

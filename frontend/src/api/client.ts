@@ -12,6 +12,8 @@ import type {
   PriceWindow,
   StrategiesResponse,
   StrategyDocument,
+  SymbolResolveResponse,
+  SymbolSearchResponse,
 } from "./types";
 import { translations } from "../i18n/translations";
 
@@ -54,6 +56,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<HealthResponse>("/api/health"),
   config: () => request<AppConfig>("/api/config"),
+  symbols: (query: string, limit = 8) => {
+    const parameters = new URLSearchParams({ q: query, limit: String(limit) });
+    return request<SymbolSearchResponse>(`/api/symbols?${parameters}`);
+  },
+  resolveSymbols: (codes: string[]) => {
+    const parameters = new URLSearchParams();
+    codes.forEach((code) => parameters.append("codes", code));
+    return request<SymbolResolveResponse>(`/api/symbols/resolve?${parameters}`);
+  },
   jobs: () => request<JobsResponse>("/api/jobs"),
   job: (jobId: string) => request<BacktestJob>(`/api/jobs/${jobId}`),
   result: (jobId: string) => request<BacktestResult>(`/api/jobs/${jobId}/result`),

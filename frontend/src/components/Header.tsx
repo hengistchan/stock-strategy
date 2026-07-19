@@ -1,15 +1,13 @@
 import type { HealthResponse } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
-
-export type WorkspaceMode = "backtest" | "iterate" | "strategies";
+import { NavLink } from "react-router-dom";
+import { workspacePaths } from "../lib/workspaceRoutes";
 
 interface HeaderProps {
   health?: HealthResponse;
-  mode: WorkspaceMode;
-  onModeChange: (mode: WorkspaceMode) => void;
 }
 
-export function Header({ health, mode, onModeChange }: HeaderProps) {
+export function Header({ health }: HeaderProps) {
   const { locale, setLocale, t } = useI18n();
   const connected = health?.opend.connected === true;
   return (
@@ -23,30 +21,18 @@ export function Header({ health, mode, onModeChange }: HeaderProps) {
       </div>
 
       <nav className="workspace-tabs" aria-label={t("header.workspace")}>
-        <button
-          type="button"
-          aria-current={mode === "backtest" ? "page" : undefined}
-          onClick={() => onModeChange("backtest")}
-        >
+        <NavLink to={workspacePaths.backtest}>
           {t("header.backtest")}
           <small>{t("header.backtestHint")}</small>
-        </button>
-        <button
-          type="button"
-          aria-current={mode === "iterate" ? "page" : undefined}
-          onClick={() => onModeChange("iterate")}
-        >
+        </NavLink>
+        <NavLink to={workspacePaths.iterate}>
           {t("header.iterate")}
           <small>{t("header.iterateHint")}</small>
-        </button>
-        <button
-          type="button"
-          aria-current={mode === "strategies" ? "page" : undefined}
-          onClick={() => onModeChange("strategies")}
-        >
+        </NavLink>
+        <NavLink to={workspacePaths.strategies}>
           {t("header.strategies")}
           <small>{t("header.strategiesHint")}</small>
-        </button>
+        </NavLink>
       </nav>
 
       <div className="system-status-cell" data-state={connected ? "connected" : "offline"}>

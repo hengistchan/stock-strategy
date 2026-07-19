@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
 import type { AppConfig, ExperimentRequest } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
+import { useSymbolNames } from "../hooks/useSymbolNames";
+import { useTransientNotice } from "../hooks/useTransientNotice";
 import { CachePanel } from "./CachePanel";
 import { ExperimentBoard } from "./ExperimentBoard";
 import { ExperimentForm } from "./ExperimentForm";
@@ -25,12 +28,12 @@ export function IterationWorkspace({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [activeExperimentId, setActiveExperimentId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const experimentsQuery = useQuery({ queryKey: ["experiments"], queryFn: api.experiments });
-  const cacheQuery = useQuery({ queryKey: ["cache"], queryFn: api.cache });
+  const [notice, setNotice] = useTransientNotice();
+  const experimentsQuery = useQuery({ queryKey: queryKeys.experiments, queryFn: api.experiments });
+  const cacheQuery = useQuery({ queryKey: queryKeys.cache, queryFn: api.cache });
   const resolvedExperimentId = activeExperimentId ?? experimentsQuery.data?.experiments[0]?.id ?? null;
   const experimentQuery = useQuery({
-    queryKey: ["experiment", resolvedExperimentId],
+    queryKey: queryKeys.experiment(resolvedExperimentId),
     queryFn: () => api.experiment(resolvedExperimentId!),
     enabled: Boolean(resolvedExperimentId),
     refetchInterval: (query) => {
@@ -42,8 +45,8 @@ export function IterationWorkspace({
     mutationFn: (request: ExperimentRequest) => api.runExperiment(request),
     onSuccess: (experiment) => {
       setActiveExperimentId(experiment.id);
-      queryClient.setQueryData(["experiment", experiment.id], experiment);
-      void queryClient.invalidateQueries({ queryKey: ["experiments"] });
+      queryClient.setQueryData(queryKeys.experiment(experiment.id), experiment);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.experiments });
       setNotice(t("experiment.started", { name: experiment.name, count: experiment.progress.total }));
     },
     onError: (error) => setNotice(error.message),
@@ -51,7 +54,7 @@ export function IterationWorkspace({
   const deleteMutation = useMutation({
     mutationFn: api.deleteCache,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["cache"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cache });
       setNotice(t("experiment.cacheDeleted"));
     },
     onError: (error) => setNotice(error.message),
@@ -60,20 +63,22 @@ export function IterationWorkspace({
   useEffect(() => {
     const status = experimentQuery.data?.status;
     if (status === "succeeded" || status === "failed") {
-      void queryClient.invalidateQueries({ queryKey: ["experiments"] });
-      void queryClient.invalidateQueries({ queryKey: ["cache"] });
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.experiments });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cache });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
     }
   }, [experimentQuery.data?.status, queryClient]);
 
-  useEffect(() => {
-    if (!notice) return undefined;
-    const timer = window.setTimeout(() => setNotice(null), 5_000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
   const selectedMetadata = config?.strategies.find((strategy) => strategy.path === selectedStrategy);
   const definitions = selectedMetadata?.parameters ?? [];
+  const symbolNames = useSymbolNames(
+    [
+      ...(experimentsQuery.data?.experiments ?? []).map((item) => item.base_request.symbol),
+      ...(experimentQuery.data ? [experimentQuery.data.base_request.symbol] : []),
+      ...(cacheQuery.data?.entries ?? []).map((entry) => entry.symbol),
+    ],
+    opendConnected,
+  );
 
   function deleteCache(cacheId: string) {
     if (window.confirm(t("experiment.confirmDeleteCache"))) {
@@ -103,6 +108,7 @@ export function IterationWorkspace({
           activeExperimentId={resolvedExperimentId}
           onSelectExperiment={setActiveExperimentId}
           onOpenRun={onOpenRun}
+          symbolNames={symbolNames}
         />
         <CachePanel
           cache={cacheQuery.data}
@@ -110,6 +116,7 @@ export function IterationWorkspace({
           deletingId={deleteMutation.variables ?? null}
           onDelete={deleteCache}
           onRefresh={() => void cacheQuery.refetch()}
+          symbolNames={symbolNames}
         />
       </div>
       {notice ? <div className="toast" role="status">{notice}</div> : null}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { BacktestJob } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime } from "../lib/format";
+import { formatSymbolLabel, type SymbolNameMap } from "../lib/symbols";
 
 interface RunHistoryProps {
   jobs: BacktestJob[];
@@ -9,6 +10,7 @@ interface RunHistoryProps {
   onSelect: (jobId: string) => void;
   onRefresh: () => void;
   onCreate: () => void;
+  symbolNames?: SymbolNameMap;
 }
 
 interface StrategyGroup {
@@ -24,7 +26,7 @@ interface SymbolGroup {
 
 const RUNS_PER_PAGE = 6;
 
-export function RunHistory({ jobs, activeJobId, onSelect, onRefresh, onCreate }: RunHistoryProps) {
+export function RunHistory({ jobs, activeJobId, onSelect, onRefresh, onCreate, symbolNames = {} }: RunHistoryProps) {
   const { locale, t } = useI18n();
   const [pages, setPages] = useState<Record<string, number>>({});
   const archive = groupJobs(jobs);
@@ -74,7 +76,7 @@ export function RunHistory({ jobs, activeJobId, onSelect, onRefresh, onCreate }:
                 }}
               >
                 {archive.map((group) => (
-                  <option key={group.symbol} value={group.symbol}>{group.symbol}</option>
+                  <option key={group.symbol} value={group.symbol}>{formatSymbolLabel(group.symbol, symbolNames)}</option>
                 ))}
               </select>
               <span className="archive-select-arrow" aria-hidden="true">⌄</span>

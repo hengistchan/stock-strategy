@@ -105,6 +105,7 @@ describe("ResultView compatibility evidence", () => {
       <ResultView
         job={job}
         loading={false}
+        symbolName="苹果"
         result={makeResult({
           engine_contract: {
             version: 2,
@@ -124,6 +125,7 @@ describe("ResultView compatibility evidence", () => {
     );
 
     expect(screen.getByText("OPEND CONTRACT V2")).toBeInTheDocument();
+    expect(screen.getByText("· 苹果")).toBeInTheDocument();
     expect(screen.getByText("期末持仓未强平")).toBeInTheDocument();
     expect(screen.queryByText(/旧版撮合契约/)).not.toBeInTheDocument();
   });

@@ -6,18 +6,61 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from stock_strategy.web import (
-    BacktestRequest,
-    JobStore,
-    _last_error,
-    _read_downsampled_equity_curve,
-    create_app,
-    list_strategies,
-    resolve_strategy,
-)
+from stock_strategy.job_store import JobStore, last_error
+from stock_strategy.result_reader import read_downsampled_equity_curve
+from stock_strategy.web import create_app, list_strategies, resolve_strategy
+from stock_strategy.web_models import BacktestRequest
+
+
+class FakeSymbolDirectory:
+    def __init__(self):
+        self.requests = []
+
+    def search(self, query, limit):
+        self.requests.append((query, limit))
+        return [{"code": "US.AAPL", "name": "Apple", "market": "US"}]
+
+    def resolve(self, codes):
+        self.requests.append(("resolve", codes))
+        return [
+            {"code": code, "name": {"US.AAPL": "苹果", "HK.00700": "腾讯控股"}[code], "market": code.split(".")[0]}
+            for code in codes
+        ]
 
 
 class WebTest(unittest.TestCase):
+    def test_symbol_search_uses_the_opend_directory(self):
+        directory = FakeSymbolDirectory()
+        app = create_app(
+            opend_probe=lambda host, port: True,
+            symbol_directory=directory,
+        )
+        with TestClient(app) as client:
+            response = client.get("/api/symbols", params={"q": "appl", "limit": 6})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(directory.requests, [("appl", 6)])
+        self.assertEqual(response.json()["symbols"][0]["code"], "US.AAPL")
+
+    def test_symbol_resolver_batches_exact_opend_codes(self):
+        directory = FakeSymbolDirectory()
+        app = create_app(
+            opend_probe=lambda host, port: True,
+            symbol_directory=directory,
+        )
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/symbols/resolve",
+                params=[("codes", "us.aapl"), ("codes", "HK.00700")],
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(directory.requests, [("resolve", ["US.AAPL", "HK.00700"])])
+        self.assertEqual(
+            [item["name"] for item in response.json()["symbols"]],
+            ["苹果", "腾讯控股"],
+        )
+
     def test_equity_display_sampling_preserves_extremes_without_loading_all_rows(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "equity_curve.csv"
@@ -28,7 +71,7 @@ class WebTest(unittest.TestCase):
                 rows.append(f"2025-01-{index + 1:02d},{equity},{100 + index},{drawdown}")
             path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
-            sampled, total = _read_downsampled_equity_curve(path, max_points=8)
+            sampled, total = read_downsampled_equity_curve(path, max_points=8)
 
         self.assertEqual(total, 20)
         self.assertEqual(sampled[0]["date"], "2025-01-01")
@@ -38,7 +81,7 @@ class WebTest(unittest.TestCase):
 
     def test_failure_summary_prefers_strategy_stderr_over_opend_stdout(self):
         self.assertEqual(
-            _last_error(
+            last_error(
                 "回测失败：requested K_DAY, but this backtest contains K_5M bars\n",
                 "OpenD disconnected: CallClose\n",
             ),
@@ -57,12 +100,18 @@ class WebTest(unittest.TestCase):
             )
             with TestClient(app) as client:
                 home = client.get("/")
+                experiments_page = client.get("/experiments")
+                missing_api = client.get("/api/not-a-route")
                 health = client.get("/api/health")
                 config = client.get("/api/config")
         self.assertEqual(home.status_code, 200)
         self.assertEqual(home.headers["cache-control"], "no-cache")
         self.assertIn("Strategy Lab", home.text)
         self.assertIn('id="root"', home.text)
+        self.assertEqual(experiments_page.status_code, 200)
+        self.assertIn('id="root"', experiments_page.text)
+        self.assertEqual(missing_api.status_code, 404)
+        self.assertEqual(missing_api.headers["content-type"], "application/json")
         self.assertTrue(health.json()["opend"]["connected"])
         self.assertIn("examples/ma_cross.py", [item["path"] for item in config.json()["strategies"]])
         example = next(item for item in config.json()["strategies"] if item["path"] == "examples/ma_cross.py")

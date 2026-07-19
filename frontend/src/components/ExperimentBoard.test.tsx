@@ -33,9 +33,11 @@ describe("ExperimentBoard", () => {
         activeExperimentId="exp-1"
         onSelectExperiment={() => undefined}
         onOpenRun={onOpenRun}
+        symbolNames={{ "US.AAPL": "苹果" }}
       />,
     );
 
+    expect(screen.getAllByText(/US\.AAPL · 苹果/).length).toBeGreaterThan(0);
     expect(screen.getByText("#1")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("比较第 2 组"));
     fireEvent.click(screen.getByRole("button", { name: /查看回测证据/ }));

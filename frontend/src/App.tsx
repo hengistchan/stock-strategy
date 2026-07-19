@@ -1,13 +1,14 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { lazy, Suspense, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { api } from "./api/client";
-import type { BacktestRequest } from "./api/types";
+import { queryKeys } from "./api/queryKeys";
 import { useI18n } from "./i18n/I18nContext";
-import { resolveVisibleJobId, type BacktestRail } from "./lib/backtestWorkspace";
-import { BacktestForm } from "./components/BacktestForm";
-import { Header, type WorkspaceMode } from "./components/Header";
-import { ResultView } from "./components/ResultView";
-import { RunHistory } from "./components/RunHistory";
+import { useTransientNotice } from "./hooks/useTransientNotice";
+import type { BacktestRail } from "./lib/backtestWorkspace";
+import { workspacePaths } from "./lib/workspaceRoutes";
+import { BacktestWorkspace } from "./components/BacktestWorkspace";
+import { Header } from "./components/Header";
 
 const StrategyWorkspace = lazy(() =>
   import("./components/StrategyWorkspace").then((module) => ({
@@ -23,157 +24,92 @@ const IterationWorkspace = lazy(() =>
 
 export function App() {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
-  const [mode, setMode] = useState<WorkspaceMode>("backtest");
+  const navigate = useNavigate();
   const [backtestRail, setBacktestRail] = useState<BacktestRail>("archive");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [selectedStrategy, setSelectedStrategy] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useTransientNotice();
 
   const healthQuery = useQuery({
-    queryKey: ["health"],
+    queryKey: queryKeys.health,
     queryFn: api.health,
     refetchInterval: 5_000,
   });
-  const configQuery = useQuery({ queryKey: ["config"], queryFn: api.config });
-  const strategiesQuery = useQuery({ queryKey: ["strategies"], queryFn: api.strategies });
-  const jobsQuery = useQuery({ queryKey: ["jobs"], queryFn: api.jobs });
-  const resolvedStrategy = selectedStrategy || configQuery.data?.strategies[0]?.path || "";
-  const resolvedJobId = resolveVisibleJobId(backtestRail, activeJobId, jobsQuery.data?.jobs ?? []);
-  const jobQuery = useQuery({
-    queryKey: ["job", resolvedJobId],
-    queryFn: () => api.job(resolvedJobId!),
-    enabled: Boolean(resolvedJobId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 900 : false;
-    },
+  const configQuery = useQuery({ queryKey: queryKeys.config, queryFn: api.config });
+  const strategiesQuery = useQuery({
+    queryKey: queryKeys.strategies,
+    queryFn: api.strategies,
   });
-  const resultQuery = useQuery({
-    queryKey: ["result", resolvedJobId],
-    queryFn: () => api.result(resolvedJobId!),
-    enabled: Boolean(resolvedJobId && jobQuery.data?.status === "succeeded"),
-  });
-
-  const runMutation = useMutation({
-    mutationFn: (request: BacktestRequest) => api.runBacktest(request),
-    onSuccess: (job) => {
-      setActiveJobId(job.id);
-      queryClient.setQueryData(["job", job.id], job);
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      setBacktestRail("archive");
-      setToast(t("app.backtestQueued", { id: job.id }));
-    },
-    onError: (error) => setToast(error.message),
-  });
-
-  useEffect(() => {
-    if (jobQuery.data?.status === "succeeded" || jobQuery.data?.status === "failed") {
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
-    }
-  }, [jobQuery.data?.status, queryClient]);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = window.setTimeout(() => setToast(null), 5_000);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const job = backtestRail === "archive"
-    ? jobQuery.data ?? jobsQuery.data?.jobs.find((item) => item.id === resolvedJobId)
-    : undefined;
-  const result = backtestRail === "archive" ? resultQuery.data : undefined;
   const strategies = strategiesQuery.data?.strategies ?? configQuery.data?.strategies ?? [];
-  const selectedStrategyMetadata = strategies.find((strategy) => strategy.path === resolvedStrategy);
+  const resolvedStrategy = selectedStrategy || strategies[0]?.path || "";
+  const opendConnected = healthQuery.data?.opend.connected === true;
 
   function useStrategyForBacktest(path: string) {
     setSelectedStrategy(path);
-    setMode("backtest");
     setBacktestRail("create");
     setToast(t("app.strategySelected", { path }));
+    navigate(workspacePaths.backtest);
   }
 
   function openExperimentRun(jobId: string) {
     setActiveJobId(jobId);
-    setMode("backtest");
     setBacktestRail("archive");
     setToast(t("app.experimentRunOpened", { id: jobId }));
+    navigate(workspacePaths.backtest);
   }
 
   return (
     <div className="page-shell">
-      <Header health={healthQuery.data} mode={mode} onModeChange={setMode} />
+      <Header health={healthQuery.data} />
 
-      {mode === "backtest" ? (
-        <main className="backtest-workspace">
-          <aside className="control-rail" aria-label={t("app.backtestConfig")}>
-            <div className="rail-heading">
-              <div>
-                <span className="section-code">{backtestRail === "create" ? "INPUT" : "ARCHIVE"}</span>
-                <h2>{backtestRail === "create" ? t("app.experimentConditions") : t("history.title")}</h2>
-              </div>
-              <button
-                className="source-seal"
-                type="button"
-                onClick={() => setBacktestRail((current) => current === "create" ? "archive" : "create")}
-              >
-                {backtestRail === "create" ? t("history.viewArchive") : t("history.newBacktest")}
-              </button>
-            </div>
-            {backtestRail === "create" ? (
-              <BacktestForm
+      <Routes>
+        <Route path="/" element={<Navigate to={workspacePaths.backtest} replace />} />
+        <Route
+          path={workspacePaths.backtest}
+          element={(
+            <BacktestWorkspace
+              config={configQuery.data}
+              strategies={strategies}
+              selectedStrategy={resolvedStrategy}
+              onSelectedStrategyChange={setSelectedStrategy}
+              rail={backtestRail}
+              onRailChange={setBacktestRail}
+              activeJobId={activeJobId}
+              onActiveJobChange={setActiveJobId}
+              opendConnected={opendConnected}
+              onNotice={setToast}
+            />
+          )}
+        />
+        <Route
+          path={workspacePaths.iterate}
+          element={(
+            <Suspense fallback={<div className="workspace-loading">{t("app.loadingExperiments")}</div>}>
+              <IterationWorkspace
                 config={configQuery.data}
                 selectedStrategy={resolvedStrategy}
-                onStrategyChange={setSelectedStrategy}
-                onSubmit={(request) => runMutation.mutate(request)}
-                running={runMutation.isPending || job?.status === "queued" || job?.status === "running"}
-                opendConnected={healthQuery.data?.opend.connected === true}
-                parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
-                compatibility={selectedStrategyMetadata?.compatibility}
+                onSelectedStrategyChange={setSelectedStrategy}
+                opendConnected={opendConnected}
+                onOpenRun={openExperimentRun}
               />
-            ) : (
-              <RunHistory
-                jobs={jobsQuery.data?.jobs ?? []}
-                activeJobId={resolvedJobId}
-                onSelect={setActiveJobId}
-                onRefresh={() => void jobsQuery.refetch()}
-                onCreate={() => setBacktestRail("create")}
+            </Suspense>
+          )}
+        />
+        <Route
+          path={workspacePaths.strategies}
+          element={(
+            <Suspense fallback={<div className="workspace-loading">{t("app.loadingEditor")}</div>}>
+              <StrategyWorkspace
+                strategies={strategies}
+                selectedPath={resolvedStrategy}
+                onSelectedPathChange={setSelectedStrategy}
+                onUseForBacktest={useStrategyForBacktest}
               />
-            )}
-          </aside>
-          <section className="result-desk" aria-live="polite">
-            <div className="desk-intro">
-              <div><span className="section-code">OUTPUT</span><p>{job ? `${job.request.symbol} · ${t(`status.${job.status}`)}` : t(backtestRail === "create" ? "app.waitingNewBacktest" : "app.waitingConditions")}</p></div>
-              <p className="desk-note">{t("app.executionNote")}</p>
-            </div>
-            <ResultView
-              job={job}
-              result={result}
-              loading={backtestRail === "archive" && resultQuery.isLoading}
-              emptyContext={backtestRail === "create" ? "create" : "archive"}
-            />
-          </section>
-        </main>
-      ) : mode === "iterate" ? (
-        <Suspense fallback={<div className="workspace-loading">{t("app.loadingExperiments")}</div>}>
-          <IterationWorkspace
-            config={configQuery.data}
-            selectedStrategy={resolvedStrategy}
-            onSelectedStrategyChange={setSelectedStrategy}
-            opendConnected={healthQuery.data?.opend.connected === true}
-            onOpenRun={openExperimentRun}
-          />
-        </Suspense>
-      ) : (
-        <Suspense fallback={<div className="workspace-loading">{t("app.loadingEditor")}</div>}>
-          <StrategyWorkspace
-            strategies={strategies}
-            selectedPath={resolvedStrategy}
-            onSelectedPathChange={setSelectedStrategy}
-            onUseForBacktest={useStrategyForBacktest}
-          />
-        </Suspense>
-      )}
+            </Suspense>
+          )}
+        />
+        <Route path="*" element={<Navigate to={workspacePaths.backtest} replace />} />
+      </Routes>
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>

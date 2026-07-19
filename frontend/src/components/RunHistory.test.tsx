@@ -48,10 +48,12 @@ describe("RunHistory", () => {
         onSelect={onSelect}
         onRefresh={() => undefined}
         onCreate={() => undefined}
+        symbolNames={{ "US.AAPL": "苹果", "US.FUTU": "富途控股" }}
       />,
     );
 
     expect(screen.getByRole("combobox", { name: "标的" })).toHaveValue("US.AAPL");
+    expect(screen.getByRole("option", { name: "US.AAPL · 苹果" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "策略" })).toHaveValue("examples/ma_cross.py");
     expect(screen.getByText("回测 2 · 策略 2")).toBeInTheDocument();
     expect(screen.getByText("2024-01-01 → 2025-12-31")).toBeInTheDocument();

@@ -3,6 +3,7 @@ import type { AppConfig, BacktestRequest, StrategyCompatibility, StrategyParamet
 import { useI18n } from "../i18n/I18nContext";
 import { readParameterValues } from "../lib/parameters";
 import { StrategyParameterFields } from "./StrategyParameterFields";
+import { SymbolSearchField } from "./SymbolSearchField";
 
 interface BacktestFormProps {
   config?: AppConfig;
@@ -103,11 +104,7 @@ export function BacktestForm({
         </aside>
       ) : null}
 
-      <label className="field field-wide">
-        <span>{t("form.symbol")}</span>
-        <input name="symbol" defaultValue="US.AAPL" placeholder="US.AAPL" required />
-        <small>{t("form.symbolHelp")}</small>
-      </label>
+      <SymbolSearchField className="field-wide" searchEnabled={opendConnected} />
 
       <div className="field-pair">
         <label className="field">

@@ -3,6 +3,7 @@ import type { Experiment, ExperimentRun } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import type { Locale } from "../i18n/core";
 import { formatDateTime, formatNumber, formatSignedPercent } from "../lib/format";
+import { formatSymbolLabel, type SymbolNameMap } from "../lib/symbols";
 
 interface ExperimentBoardProps {
   experiments: Experiment[];
@@ -10,6 +11,7 @@ interface ExperimentBoardProps {
   activeExperimentId: string | null;
   onSelectExperiment: (id: string) => void;
   onOpenRun: (jobId: string) => void;
+  symbolNames?: SymbolNameMap;
 }
 
 export function ExperimentBoard({
@@ -18,6 +20,7 @@ export function ExperimentBoard({
   activeExperimentId,
   onSelectExperiment,
   onOpenRun,
+  symbolNames = {},
 }: ExperimentBoardProps) {
   const { locale, t } = useI18n();
   const objectiveLabels: Record<string, string> = {
@@ -62,7 +65,7 @@ export function ExperimentBoard({
               onClick={() => onSelectExperiment(item.id)}
             >
               <span className={`history-mark ${item.status}`} aria-hidden="true" />
-              <span><strong>{item.name}</strong><small>{item.progress.completed}/{item.progress.total} · {objectiveLabels[item.objective]}</small></span>
+              <span><strong>{item.name}</strong><small>{formatSymbolLabel(item.base_request.symbol, symbolNames)} · {item.progress.completed}/{item.progress.total} · {objectiveLabels[item.objective]}</small></span>
               <time>{formatDateTime(item.created_at, locale)}</time>
             </button>
           ))}
@@ -82,7 +85,7 @@ export function ExperimentBoard({
               <div>
                 <span className="section-code">RANKING TAPE</span>
                 <h2>{experiment.name}</h2>
-                <p>{experiment.strategy_path} · {experiment.base_request.symbol} · {t("experiment.priority", { objective: objectiveLabels[experiment.objective] })}</p>
+                <p>{experiment.strategy_path} · {formatSymbolLabel(experiment.base_request.symbol, symbolNames)} · {t("experiment.priority", { objective: objectiveLabels[experiment.objective] })}</p>
               </div>
               <div className="experiment-progress" data-status={experiment.status}>
                 <strong>{experiment.progress.completed}/{experiment.progress.total}</strong>

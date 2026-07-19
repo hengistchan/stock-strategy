@@ -5,6 +5,7 @@ import type {
   WheelEvent as ReactWheelEvent,
 } from "react";
 import { api } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
 import type { PricePoint, PriceWindow, Trade } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import type { Locale } from "../i18n/core";
@@ -88,7 +89,7 @@ export function PriceChart({
     return { offset: pointOffset, total: totalPoints, points };
   }, [pointOffset, points, totalPoints, viewport]);
   const pricesQuery = useQuery({
-    queryKey: ["prices", jobId, chunkOffset, PRICE_CHUNK_SIZE],
+    queryKey: queryKeys.prices(jobId, chunkOffset, PRICE_CHUNK_SIZE),
     queryFn: () => api.prices(jobId, chunkOffset, PRICE_CHUNK_SIZE),
     initialData: initialWindow,
     placeholderData: (previous) => previous,

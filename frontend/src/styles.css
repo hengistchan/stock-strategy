@@ -81,7 +81,7 @@ summary:focus-visible {
   border-right: 1px solid var(--rule);
 }
 
-.workspace-tabs button {
+.workspace-tabs a {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -95,11 +95,12 @@ summary:focus-visible {
   cursor: pointer;
   text-align: left;
   font: 600 19px/1.1 var(--display);
+  text-decoration: none;
 }
 
-.workspace-tabs button:last-child { border-right: 0; }
-.workspace-tabs button:hover { background: rgba(39, 135, 121, 0.055); }
-.workspace-tabs button[aria-current="page"] {
+.workspace-tabs a:last-child { border-right: 0; }
+.workspace-tabs a:hover { background: rgba(39, 135, 121, 0.055); }
+.workspace-tabs a[aria-current="page"] {
   color: var(--ink);
   background: linear-gradient(90deg, rgba(39, 135, 121, 0.11), transparent 72%);
   box-shadow: inset 0 -3px 0 var(--signal);
@@ -384,10 +385,107 @@ h1 {
 }
 
 .field > span,
+.field > .field-label,
 .check-field > span {
   color: var(--ink-soft);
   font: 600 11px/1.2 var(--mono);
   letter-spacing: 0.045em;
+}
+
+.field > .field-label {
+  display: block;
+}
+
+.symbol-search-control {
+  position: relative;
+}
+
+.symbol-search-control > input[role="combobox"] {
+  padding-right: 30px;
+  font-family: var(--mono);
+}
+
+.symbol-search-mark {
+  position: absolute;
+  top: 12px;
+  right: 4px;
+  color: var(--signal);
+  font: 18px/1 var(--mono);
+  pointer-events: none;
+}
+
+.symbol-search-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  max-height: 292px;
+  overflow-y: auto;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule-dark);
+  background: var(--sheet);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.symbol-search-option {
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
+  align-items: center;
+  gap: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 9px 12px;
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.symbol-search-option:last-child { border-bottom: 0; }
+.symbol-search-option:hover,
+.symbol-search-option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--signal) 10%, var(--sheet));
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+
+.symbol-search-option > span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.symbol-search-option strong {
+  overflow: hidden;
+  color: var(--ocean);
+  font: 650 13px/1.2 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol-search-option small {
+  color: var(--muted);
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.symbol-search-option em {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font: normal 12px/1.35 var(--sans);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol-search-state {
+  margin: 0;
+  padding: 16px 12px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .field small {
@@ -410,6 +508,10 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.experiment-symbol-row {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
 }
 
 input,
@@ -877,6 +979,13 @@ select:focus {
 .result-title-row h2 {
   margin: 6px 0 0;
   font: 600 clamp(30px, 3vw, 46px)/1 var(--display);
+}
+
+.result-symbol-name {
+  margin-left: 8px;
+  color: var(--ink-soft);
+  font: 500 0.58em/1.2 var(--sans);
+  letter-spacing: 0;
 }
 
 .result-title-row h2 small {
@@ -1915,7 +2024,7 @@ td {
     border-right: 0;
   }
 
-  .workspace-tabs button { padding: 18px 30px; }
+  .workspace-tabs a { padding: 18px 30px; }
 
   .backtest-workspace {
     grid-template-columns: 340px minmax(0, 1fr);
@@ -1960,7 +2069,7 @@ td {
     grid-column: auto;
   }
 
-  .workspace-tabs button { padding: 18px; }
+  .workspace-tabs a { padding: 18px; }
 
   .backtest-workspace {
     display: block;
@@ -2048,7 +2157,7 @@ td {
   .performance-chart-shell { height: 450px; min-height: 450px; }
   .trade-pagination > span { width: 100%; }
   .desk-note { display: none; }
-  .workspace-tabs button { font-size: 16px; }
+  .workspace-tabs a { font-size: 16px; }
   .editor-toolbar { display: block; }
   .editor-actions { flex-wrap: wrap; margin-top: 16px; }
   .editor-actions button { flex: 1 1 auto; }
