@@ -54,7 +54,7 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
   const strategyParameters = summary.settings.strategy_parameters as Record<string, boolean | number | string> | undefined;
   const hasOpenPosition = Math.abs(endingPosition?.quantity ?? 0) > 1e-9;
   const contractVersion = summary.settings.engine_contract?.version;
-  const isLegacyResult = contractVersion !== 2;
+  const isLegacyResult = contractVersion === undefined || contractVersion < 2;
   const resolvedSymbolName = symbolName ?? summary.settings.market_metadata?.name;
   return (
     <section className="result-sheet">

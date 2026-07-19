@@ -129,4 +129,24 @@ describe("ResultView compatibility evidence", () => {
     expect(screen.getByText("期末持仓未强平")).toBeInTheDocument();
     expect(screen.queryByText(/旧版撮合契约/)).not.toBeInTheDocument();
   });
+
+  it("accepts newer engine contract versions", () => {
+    render(
+      <ResultView
+        job={job}
+        loading={false}
+        result={makeResult({
+          engine_contract: {
+            version: 3,
+            strict_single_period: false,
+            day_order_scope: "trading-day",
+            end_position_policy: "mark-to-market",
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("OPEND CONTRACT V3")).toBeInTheDocument();
+    expect(screen.queryByText(/旧版撮合契约/)).not.toBeInTheDocument();
+  });
 });
