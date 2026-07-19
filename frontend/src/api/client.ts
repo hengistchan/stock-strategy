@@ -4,6 +4,7 @@ import type {
   BacktestRequest,
   BacktestResult,
   CacheResponse,
+  DiagnosticsResponse,
   Experiment,
   ExperimentRequest,
   ExperimentsResponse,
@@ -55,6 +56,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<HealthResponse>("/api/health"),
+  diagnostics: () => request<DiagnosticsResponse>("/api/diagnostics"),
   config: () => request<AppConfig>("/api/config"),
   symbols: (query: string, limit = 8) => {
     const parameters = new URLSearchParams({ q: query, limit: String(limit) });

@@ -1,4 +1,4 @@
-.PHONY: install frontend-install build package test acceptance dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test acceptance dev-api dev-web serve
 
 install:
 	python3.12 -m venv .venv
@@ -7,6 +7,9 @@ install:
 
 frontend-install:
 	cd frontend && npm ci
+
+doctor:
+	PYTHONPATH=backend .venv/bin/python -m stock_strategy.doctor
 
 build:
 	cd frontend && npm run build

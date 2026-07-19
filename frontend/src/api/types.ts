@@ -58,6 +58,22 @@ export interface HealthResponse {
   };
 }
 
+export type DiagnosticStatus = "pass" | "fail" | "blocked";
+
+export interface DiagnosticCheck {
+  id: "python" | "futu_api" | "workspace" | "opend" | "quote_directory";
+  status: DiagnosticStatus;
+  detail: string;
+  hint: string | null;
+}
+
+export interface DiagnosticsResponse {
+  ready: boolean;
+  host: string;
+  port: number;
+  checks: DiagnosticCheck[];
+}
+
 export interface SymbolMatch {
   code: string;
   name: string;

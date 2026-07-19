@@ -19,6 +19,7 @@ test = ["build>=1.3,<2", "httpx2>=2.7,<3"]
 
 [project.scripts]
 stock-backtest = "stock_strategy.cli:main"
+stock-doctor = "stock_strategy.doctor:main"
 stock-web = "stock_strategy.web:main"
 
 [tool.setuptools.packages.find]

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from stock_strategy.diagnostics import DiagnosticsService
 from stock_strategy.job_store import JobStore, last_error
 from stock_strategy.result_reader import read_downsampled_equity_curve
 from stock_strategy.web import create_app, list_strategies, resolve_strategy
@@ -29,6 +30,28 @@ class FakeSymbolDirectory:
 
 
 class WebTest(unittest.TestCase):
+    def test_diagnostics_endpoint_exposes_actionable_readiness_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ("examples", "strategies", "data", "runs"):
+                (root / name).mkdir()
+            diagnostics = DiagnosticsService(
+                root,
+                connection_probe=lambda host, port: True,
+                package_version_probe=lambda package: "10.6.6608",
+                quote_probe=lambda: "OpenD stock directory readable",
+            )
+            app = create_app(project_root=root, diagnostics_service=diagnostics)
+            with TestClient(app) as client:
+                response = client.get("/api/diagnostics")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ready"])
+        self.assertEqual(
+            [check["id"] for check in response.json()["checks"]],
+            ["python", "futu_api", "workspace", "opend", "quote_directory"],
+        )
+
     def test_symbol_search_uses_the_opend_directory(self):
         directory = FakeSymbolDirectory()
         app = create_app(

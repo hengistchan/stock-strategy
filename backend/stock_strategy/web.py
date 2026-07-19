@@ -4,7 +4,6 @@ import argparse
 import os
 from pathlib import Path
 import re
-import socket
 import sys
 from typing import Any, Callable
 
@@ -14,6 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .execution_service import ExecutionService
+from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
 from .job_store import JobStore, last_error as _last_error
 from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
@@ -49,6 +49,7 @@ def create_app(
     experiment_store: ExperimentStore | None = None,
     opend_probe: Callable[[str, int], bool] | None = None,
     symbol_directory: OpenDSymbolDirectory | None = None,
+    diagnostics_service: DiagnosticsService | None = None,
     frontend_root: Path | None = None,
 ) -> FastAPI:
     root = project_root.resolve()
@@ -62,6 +63,13 @@ def create_app(
         host=store.opend_host,
         port=store.opend_port,
     )
+    diagnostics = diagnostics_service or DiagnosticsService(
+        root,
+        host=store.opend_host,
+        port=store.opend_port,
+        connection_probe=probe,
+        quote_probe=lambda: _probe_quote_directory(directory),
+    )
 
     app = FastAPI(title="Strategy Lab", docs_url=None, redoc_url=None)
     app.state.job_store = store
@@ -69,6 +77,7 @@ def create_app(
     app.state.strategy_repository = strategies
     app.state.execution_service = execution
     app.state.symbol_directory = directory
+    app.state.diagnostics_service = diagnostics
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -101,6 +110,10 @@ def create_app(
                 "port": store.opend_port,
             },
         }
+
+    @app.get("/api/diagnostics")
+    def diagnostics_report() -> dict[str, object]:
+        return diagnostics.run().to_dict()
 
     @app.get("/api/config")
     async def config() -> dict[str, Any]:
@@ -304,12 +317,9 @@ def _strategy_http_error(error: StrategyRepositoryError) -> HTTPException:
     return HTTPException(status_code=400, detail=str(error))
 
 
-def is_opend_available(host: str, port: int) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=0.35):
-            return True
-    except OSError:
-        return False
+def _probe_quote_directory(directory: OpenDSymbolDirectory) -> str:
+    matches = directory.search("AAPL", 1)
+    return f"OpenD stock directory readable · {len(matches)} probe result(s)"
 
 
 def main(argv: list[str] | None = None) -> int:
