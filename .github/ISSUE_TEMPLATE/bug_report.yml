@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible problem in Strategy Lab.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Strategy Lab. Do not include account credentials, OpenD unlock passwords, or private market data.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+      placeholder: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the smallest strategy, command, or UI sequence that reproduces the issue.
+      placeholder: |
+        1. Start OpenD...
+        2. Run...
+        3. Observe...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.5.0 or fa5c00e
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected area
+      options:
+        - Web interface
+        - Backtest engine
+        - Futu strategy compatibility
+        - OpenD data adapter
+        - Strategy editor
+        - Packaging or installation
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python, Node.js, OpenD, market, K-line interval, and trading session where relevant.
+      placeholder: macOS 15, Python 3.12, Node 22, OpenD 10.x, US, K_DAY, ALL
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove tokens, passwords, personal paths, and account information before posting.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed credentials and account information from this report.
+          required: true

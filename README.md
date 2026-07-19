@@ -1,5 +1,8 @@
 # Strategy Lab · OpenD 量化策略工作台
 
+[![CI](https://github.com/hengistchan/stock-strategy/actions/workflows/ci.yml/badge.svg)](https://github.com/hengistchan/stock-strategy/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 一个本机优先、面向开源协作的 Futu OpenD 量化策略创建与回测项目。你可以在 React 工作台中创建、编辑和保存 Python 策略，直接读取 OpenD 历史行情进行回测，并检查价格、成交位置、资金曲线、回撤、费用和逐笔交易。
 
 项目不会读取交易账户，也不会发送真实订单。
@@ -272,6 +275,6 @@ docs/                             架构、兼容性和验收记录
 
 ## 开源协作与安全
 
-项目使用 [MIT License](LICENSE)。提交代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；漏洞请按 [SECURITY.md](SECURITY.md) 私密报告。
+项目使用 [MIT License](LICENSE)。参与前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)；漏洞请按 [SECURITY.md](SECURITY.md) 私密报告。Bug、功能建议和 Pull Request 都提供了结构化模板。
 
 当前 Web 服务没有认证、沙箱和多租户隔离，默认只绑定 `127.0.0.1`。策略是可执行 Python 代码，只运行你信任的文件，不要把服务直接暴露到公网。

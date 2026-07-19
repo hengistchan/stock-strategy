@@ -2,6 +2,8 @@
 
 感谢你参与 Strategy Lab。项目接受问题报告、文档修正、OpenD 格式兼容、回测引擎测试和前端工作台改进。
 
+参与项目即表示你同意遵守 [Code of Conduct](CODE_OF_CONDUCT.md)。涉及漏洞或敏感信息时，请按 [SECURITY.md](SECURITY.md) 私密报告，不要创建公开 Issue。
+
 ## 本地开发
 
 要求 Python 3.11+、Node.js 22+、npm 11+。首次安装：

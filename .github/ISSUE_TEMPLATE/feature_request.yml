@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose an improvement to the local OpenD research workflow.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the research or backtesting workflow that is currently difficult.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Explain the desired behavior and where it belongs in the product.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Primary area
+      options:
+        - Strategy authoring
+        - Single backtest
+        - Parameter experiments
+        - Results and visualization
+        - OpenD integration
+        - Futu compatibility
+        - Developer experience
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include workarounds or simpler approaches you considered.
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Project boundaries
+      options:
+        - label: This request is for stock backtesting, not futures or live order execution.
+          required: true
+        - label: I understand this project does not provide investment advice.
+          required: true
