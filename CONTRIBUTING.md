@@ -30,6 +30,7 @@ make acceptance
 
 - Python 改动需要覆盖 `backend/tests/` 中的 `unittest`。
 - React 组件改动需要通过 ESLint、TypeScript 和 Vitest。
+- 关键工作台流程改动需要通过 `cd frontend && npm run test:e2e`；首次运行前执行 `npx playwright install chromium`。
 - OpenD 相关改动不得添加网页行情或静默模拟数据回退。
 - 策略保存能力必须继续限制在 `strategies/`，示例目录保持只读。
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -16,12 +18,38 @@ def main(argv: list[str] | None = None) -> int:
         print("usage: verify_release_version.py vX.Y.Z", file=sys.stderr)
         return 2
     tag = arguments[0]
-    expected = f"v{package_version(Path(__file__).resolve().parents[1] / 'pyproject.toml')}"
+    project_root = Path(__file__).resolve().parents[2]
+    versions = {
+        "backend/pyproject.toml": package_version(project_root / "backend" / "pyproject.toml"),
+        "frontend/package.json": str(
+            json.loads((project_root / "frontend" / "package.json").read_text(encoding="utf-8"))["version"]
+        ),
+        "backend/stock_strategy/__init__.py": source_version(
+            project_root / "backend" / "stock_strategy" / "__init__.py"
+        ),
+    }
+    if len(set(versions.values())) != 1:
+        print("release versions are not aligned:", file=sys.stderr)
+        for path, version_value in versions.items():
+            print(f"  {path}: {version_value}", file=sys.stderr)
+        return 1
+    expected = f"v{next(iter(versions.values()))}"
     if tag != expected:
         print(f"release tag {tag!r} does not match package version {expected!r}", file=sys.stderr)
         return 1
     print(f"release version verified: {tag}")
     return 0
+
+
+def source_version(path: Path) -> str:
+    match = re.search(
+        r'^__version__\s*=\s*["\']([^"\']+)["\']',
+        path.read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    )
+    if match is None:
+        raise ValueError(f"missing __version__ in {path}")
+    return match.group(1)
 
 
 if __name__ == "__main__":

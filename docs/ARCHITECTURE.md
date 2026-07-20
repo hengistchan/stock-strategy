@@ -28,6 +28,7 @@ React + TypeScript (frontend/)
 FastAPI composition root (backend/stock_strategy/web.py)
   ├── web_models ── HTTP 输入模型与边界校验
   ├── ExecutionService ── 策略兼容性、参数归一化、用例编排
+  ├── DiagnosticsService ── CLI / HTTP 共用本机就绪检查
   ├── StrategyRepository ── examples/ (只读)
   │                      └─ strategies/ (可写、原子保存)
   ├── ExperimentStore ── 参数组合 / 排名 ── runs/experiments/
@@ -58,6 +59,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - `web.py` 是 FastAPI composition root，只负责依赖装配、HTTP 映射和静态资源回退。
 - `web_models.py` 定义 HTTP 输入契约；跨字段规则在模型边界校验，日期区间不会进入应用服务后再重复判断。
 - `ExecutionService` 是应用服务层，集中处理策略解析、Futu 兼容性、参数默认值与实验搜索空间归一化。
+- `DiagnosticsService` 是 `make doctor`、`stock-doctor` 和 `/api/diagnostics` 的唯一诊断来源，统一检查运行时、工作区、OpenD TCP 与股票目录读取权限。
 - `JobStore` 只负责作业持久化和子进程生命周期；`result_reader` 负责结果文件读取、行情窗口索引与曲线降采样。
 - `StrategyRepository` 只读取 `examples/*.py` 和 `strategies/*.py`；只有后者可以写入。
 - `STRATEGY_PARAMETERS` 只通过 `ast.literal_eval` 读取；参数类型、边界、候选值和运行覆盖均在执行前验证。
@@ -73,7 +75,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 
 依赖由外向内保持单向：HTTP 路由依赖应用服务，应用服务依赖仓库和作业接口，作业层依赖回测 CLI 与文件产物。回测运行时不反向依赖 FastAPI 或 React。`ExperimentStore` 通过 `JobStoreProtocol` 使用作业能力，避免绑定具体 Web 实现。
 
-`web.py` 仍暂时承载全部 REST 路由；当 API 继续扩展到删除作业、组合管理或实时交易时，应按 `symbols / strategies / backtests / experiments / cache` 拆分 `APIRouter`，而不是再次向 composition root 堆叠业务校验。
+`web.py` 仍暂时承载全部 REST 路由；当 API 继续扩展到删除作业、组合管理或实时交易时，应按 `diagnostics / symbols / strategies / backtests / experiments / cache` 拆分 `APIRouter`，而不是再次向 composition root 堆叠业务校验。
 
 ## 信任模型
 

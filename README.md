@@ -30,6 +30,7 @@ Requirements: Python 3.11+, Node.js 22+, npm 11+, and OpenD listening on `127.0.
 git clone https://github.com/hengistchan/stock-strategy.git
 cd stock-strategy
 make install
+make doctor
 make serve
 ```
 
@@ -58,6 +59,7 @@ docs/                      Architecture, compatibility, and acceptance notes
 ```bash
 make test
 make acceptance
+cd frontend && npx playwright install chromium && npm run test:e2e
 ```
 
 OpenD integration never silently falls back to simulated or third-party web data. Backtest semantics and supported Futu stock APIs are documented in [FUTU_COMPATIBILITY.md](docs/FUTU_COMPATIBILITY.md).
