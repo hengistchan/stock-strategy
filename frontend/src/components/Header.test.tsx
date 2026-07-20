@@ -1,18 +1,28 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
 import { Header } from "./Header";
 
 describe("Header", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  function renderHeader(health: ComponentProps<typeof Header>["health"], path = "/") {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[path]}>
+          <Header health={health} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
   it("keeps the OpenD state and language switch in one status cell", () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/experiments"]}>
-        <Header
-          health={{ status: "ok", opend: { connected: true, host: "127.0.0.1", port: 11111 } }}
-        />
-      </MemoryRouter>,
+    const { container } = renderHeader(
+      { status: "ok", opend: { connected: true, host: "127.0.0.1", port: 11111 } },
+      "/experiments",
     );
 
     const statusCell = container.querySelector(".system-status-cell");
@@ -39,13 +49,7 @@ describe("Header", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(
-      <MemoryRouter>
-        <Header
-          health={{ status: "ok", opend: { connected: false, host: "127.0.0.1", port: 11111 } }}
-        />
-      </MemoryRouter>,
-    );
+    renderHeader({ status: "ok", opend: { connected: false, host: "127.0.0.1", port: 11111 } });
     fireEvent.click(screen.getByRole("button", { name: /OpenD 未连接/ }));
 
     await waitFor(() => expect(screen.getByText("Python 3.12.1")).toBeInTheDocument());

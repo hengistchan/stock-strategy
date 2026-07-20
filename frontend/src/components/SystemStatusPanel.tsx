@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
-import type { DiagnosticCheck, DiagnosticsResponse, HealthResponse } from "../api/types";
+import { queryKeys } from "../api/queryKeys";
+import type { DiagnosticCheck, HealthResponse } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import type { TranslationKey } from "../i18n/translations";
 
@@ -27,30 +29,19 @@ const checkActions: Record<DiagnosticCheck["id"], TranslationKey> = {
 export function SystemStatusPanel({ health }: SystemStatusPanelProps) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<DiagnosticsResponse>();
-  const [error, setError] = useState<string>();
+  const diagnosticsQuery = useQuery({
+    queryKey: queryKeys.diagnostics,
+    queryFn: api.diagnostics,
+    enabled: open,
+    staleTime: 15_000,
+    retry: false,
+  });
+  const report = diagnosticsQuery.data;
   const connected = health?.opend.connected === true;
   const state = health ? (connected ? "connected" : "offline") : "checking";
 
-  async function loadDiagnostics() {
-    setLoading(true);
-    setError(undefined);
-    try {
-      setReport(await api.diagnostics());
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : String(requestError));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function togglePanel() {
-    const nextOpen = !open;
-    setOpen(nextOpen);
-    if (nextOpen && !report && !loading) {
-      void loadDiagnostics();
-    }
+    setOpen((current) => !current);
   }
 
   return (
@@ -90,11 +81,11 @@ export function SystemStatusPanel({ health }: SystemStatusPanelProps) {
               <small>{t("diagnostics.eyebrow")}</small>
               <strong>{report ? (report.ready ? t("diagnostics.ready") : t("diagnostics.actionRequired")) : t("diagnostics.title")}</strong>
             </div>
-            <button type="button" onClick={() => void loadDiagnostics()} disabled={loading}>
-              {loading ? t("diagnostics.loading") : t("common.refresh")}
+            <button type="button" onClick={() => void diagnosticsQuery.refetch()} disabled={diagnosticsQuery.isFetching}>
+              {diagnosticsQuery.isFetching ? t("diagnostics.loading") : t("common.refresh")}
             </button>
           </div>
-          {error ? <p className="diagnostics-error">{error}</p> : null}
+          {diagnosticsQuery.error ? <p className="diagnostics-error">{diagnosticsQuery.error.message}</p> : null}
           {report ? (
             <ul className="diagnostics-list">
               {report.checks.map((check) => (
@@ -115,7 +106,7 @@ export function SystemStatusPanel({ health }: SystemStatusPanelProps) {
                 </li>
               ))}
             </ul>
-          ) : loading ? <p className="diagnostics-loading">{t("diagnostics.loading")}</p> : null}
+          ) : diagnosticsQuery.isFetching ? <p className="diagnostics-loading">{t("diagnostics.loading")}</p> : null}
         </section>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 export const queryKeys = {
   health: ["health"] as const,
+  diagnostics: ["diagnostics"] as const,
   config: ["config"] as const,
   strategies: ["strategies"] as const,
   strategy: (path: string) => ["strategy", path] as const,
