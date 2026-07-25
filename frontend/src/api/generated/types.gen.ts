@@ -855,6 +855,24 @@ export type StrategyMetadata = {
 };
 
 /**
+ * StrategyRestoreRequest
+ */
+export type StrategyRestoreRequest = {
+    /**
+     * Strategy Path
+     */
+    strategy_path: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Expected Revision
+     */
+    expected_revision: string;
+};
+
+/**
  * StrategySaveRequest
  */
 export type StrategySaveRequest = {
@@ -866,6 +884,59 @@ export type StrategySaveRequest = {
      * Expected Revision
      */
     expected_revision?: string | null;
+};
+
+/**
+ * StrategyVersion
+ */
+export type StrategyVersion = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Source Path
+     */
+    source_path: string;
+    /**
+     * Current
+     */
+    current: boolean;
+    /**
+     * Backtest Count
+     */
+    backtest_count?: number;
+    /**
+     * Experiment Count
+     */
+    experiment_count?: number;
+    [key: string]: unknown;
+};
+
+/**
+ * StrategyVersionsResponse
+ */
+export type StrategyVersionsResponse = {
+    /**
+     * Strategy Path
+     */
+    strategy_path: string;
+    /**
+     * Versions
+     */
+    versions: Array<StrategyVersion>;
 };
 
 /**
@@ -1126,6 +1197,81 @@ export type CreateStrategyApiStrategiesPostResponses = {
 };
 
 export type CreateStrategyApiStrategiesPostResponse = CreateStrategyApiStrategiesPostResponses[keyof CreateStrategyApiStrategiesPostResponses];
+
+export type ListStrategyVersionsApiStrategiesVersionsGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Strategy Path
+         */
+        strategy_path: string;
+    };
+    url: '/api/strategies/versions';
+};
+
+export type ListStrategyVersionsApiStrategiesVersionsGetErrors = {
+    /**
+     * Structured API error
+     */
+    403: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListStrategyVersionsApiStrategiesVersionsGetError = ListStrategyVersionsApiStrategiesVersionsGetErrors[keyof ListStrategyVersionsApiStrategiesVersionsGetErrors];
+
+export type ListStrategyVersionsApiStrategiesVersionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: StrategyVersionsResponse;
+};
+
+export type ListStrategyVersionsApiStrategiesVersionsGetResponse = ListStrategyVersionsApiStrategiesVersionsGetResponses[keyof ListStrategyVersionsApiStrategiesVersionsGetResponses];
+
+export type RestoreStrategyVersionApiStrategiesVersionsRestorePostData = {
+    body: StrategyRestoreRequest;
+    path?: never;
+    query?: never;
+    url: '/api/strategies/versions/restore';
+};
+
+export type RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors = {
+    /**
+     * Structured API error
+     */
+    403: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    409: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type RestoreStrategyVersionApiStrategiesVersionsRestorePostError = RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors[keyof RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors];
+
+export type RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: StrategyDocument;
+};
+
+export type RestoreStrategyVersionApiStrategiesVersionsRestorePostResponse = RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses[keyof RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses];
 
 export type ReadStrategyApiStrategiesStrategyPathGetData = {
     body?: never;

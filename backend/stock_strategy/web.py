@@ -116,7 +116,7 @@ def create_app(
     app.include_router(create_system_router(store, strategies, diagnostics, probe))
     app.include_router(create_events_router(store.events))
     app.include_router(create_symbols_router(directory))
-    app.include_router(create_strategies_router(strategies))
+    app.include_router(create_strategies_router(strategies, store, experiments))
     app.include_router(create_jobs_router(store, execution))
     app.include_router(create_experiments_router(experiments, execution))
     app.include_router(create_cache_router(store))

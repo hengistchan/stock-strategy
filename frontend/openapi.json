@@ -305,6 +305,139 @@
         }
       }
     },
+    "/api/strategies/versions": {
+      "get": {
+        "tags": [
+          "strategies"
+        ],
+        "summary": "List Strategy Versions",
+        "operationId": "list_strategy_versions_api_strategies_versions_get",
+        "parameters": [
+          {
+            "name": "strategy_path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyVersionsResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies/versions/restore": {
+      "post": {
+        "tags": [
+          "strategies"
+        ],
+        "summary": "Restore Strategy Version",
+        "operationId": "restore_strategy_version_api_strategies_versions_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyRestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDocument"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/strategies/{strategy_path}": {
       "get": {
         "tags": [
@@ -2571,6 +2704,33 @@
         ],
         "title": "StrategyMetadata"
       },
+      "StrategyRestoreRequest": {
+        "properties": {
+          "strategy_path": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Strategy Path"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Revision"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_path",
+          "revision",
+          "expected_revision"
+        ],
+        "title": "StrategyRestoreRequest"
+      },
       "StrategySaveRequest": {
         "properties": {
           "content": {
@@ -2597,6 +2757,76 @@
           "content"
         ],
         "title": "StrategySaveRequest"
+      },
+      "StrategyVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "source_path": {
+            "type": "string",
+            "title": "Source Path"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "backtest_count": {
+            "type": "integer",
+            "title": "Backtest Count",
+            "default": 0
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "revision",
+          "created_at",
+          "reason",
+          "source_path",
+          "current"
+        ],
+        "title": "StrategyVersion"
+      },
+      "StrategyVersionsResponse": {
+        "properties": {
+          "strategy_path": {
+            "type": "string",
+            "title": "Strategy Path"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_path",
+          "versions"
+        ],
+        "title": "StrategyVersionsResponse"
       },
       "SymbolMatch": {
         "properties": {

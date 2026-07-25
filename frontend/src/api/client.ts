@@ -13,6 +13,7 @@ import type {
   PriceWindow,
   StrategiesResponse,
   StrategyDocument,
+  StrategyVersionsResponse,
   SymbolResolveResponse,
   SymbolSearchResponse,
 } from "./types";
@@ -32,11 +33,13 @@ import {
   listCacheApiCacheGet,
   listExperimentsApiExperimentsGet,
   listStrategyDocumentsApiStrategiesGet,
+  listStrategyVersionsApiStrategiesVersionsGet,
   pricesApiJobsJobIdPricesGet,
   readStrategyApiStrategiesStrategyPathGet,
   resolveSymbolsApiSymbolsResolveGet,
   resultApiJobsJobIdResultGet,
   retryJobApiJobsJobIdRetryPost,
+  restoreStrategyVersionApiStrategiesVersionsRestorePost,
   saveStrategyApiStrategiesStrategyPathPut,
   searchSymbolsApiSymbolsGet,
 } from "./generated";
@@ -227,6 +230,28 @@ export const api = {
         path: { strategy_path: path },
         body: {
           content,
+          expected_revision: expectedRevision,
+        },
+      }),
+    ),
+  strategyVersions: (path: string) =>
+    unwrap<StrategyVersionsResponse>(
+      listStrategyVersionsApiStrategiesVersionsGet({
+        headers: requestHeaders(),
+        query: { strategy_path: path },
+      }),
+    ),
+  restoreStrategyVersion: (
+    path: string,
+    revision: string,
+    expectedRevision: string,
+  ) =>
+    unwrap<StrategyDocument>(
+      restoreStrategyVersionApiStrategiesVersionsRestorePost({
+        headers: requestHeaders(),
+        body: {
+          strategy_path: path,
+          revision,
           expected_revision: expectedRevision,
         },
       }),

@@ -4,6 +4,7 @@ export const queryKeys = {
   config: ["config"] as const,
   strategies: ["strategies"] as const,
   strategy: (path: string) => ["strategy", path] as const,
+  strategyVersions: (path: string) => ["strategy-versions", path] as const,
   jobs: ["jobs"] as const,
   job: (jobId: string | null) => ["job", jobId] as const,
   result: (jobId: string | null) => ["result", jobId] as const,

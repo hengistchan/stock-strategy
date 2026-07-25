@@ -49,6 +49,22 @@ export interface StrategyDocument extends StrategyMetadata {
   content: string;
 }
 
+export interface StrategyVersion {
+  id: string;
+  revision: string;
+  created_at: string;
+  reason: "created" | "saved" | "restored" | "imported";
+  source_path: string;
+  current: boolean;
+  backtest_count: number;
+  experiment_count: number;
+}
+
+export interface StrategyVersionsResponse {
+  strategy_path: string;
+  versions: StrategyVersion[];
+}
+
 export interface AppConfig {
   strategies: StrategyMetadata[];
   kline_types: string[];

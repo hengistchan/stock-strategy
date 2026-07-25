@@ -158,3 +158,9 @@ class StrategyCreateRequest(BaseModel):
 class StrategySaveRequest(BaseModel):
     content: str = Field(max_length=MAX_STRATEGY_BYTES)
     expected_revision: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class StrategyRestoreRequest(BaseModel):
+    strategy_path: str = Field(min_length=1, max_length=200)
+    revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+    expected_revision: str = Field(pattern=r"^[0-9a-f]{64}$")

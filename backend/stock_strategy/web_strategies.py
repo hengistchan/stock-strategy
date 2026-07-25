@@ -8,6 +8,7 @@ from .api_errors import ApiProblem
 from .api_models import (
     StrategiesResponse,
     StrategyDocument,
+    StrategyVersionsResponse,
     error_responses,
 )
 from .strategy_repository import (
@@ -18,10 +19,20 @@ from .strategy_repository import (
     StrategyRepositoryError,
     StrategyValidationError,
 )
-from .web_models import StrategyCreateRequest, StrategySaveRequest
+from .experiments import ExperimentStore
+from .job_store import JobStore
+from .web_models import (
+    StrategyCreateRequest,
+    StrategyRestoreRequest,
+    StrategySaveRequest,
+)
 
 
-def create_strategies_router(strategies: StrategyRepository) -> APIRouter:
+def create_strategies_router(
+    strategies: StrategyRepository,
+    jobs: JobStore,
+    experiments: ExperimentStore,
+) -> APIRouter:
     router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
     @router.get("", response_model=StrategiesResponse)
@@ -40,6 +51,59 @@ def create_strategies_router(strategies: StrategyRepository) -> APIRouter:
                 request.name,
                 content=request.content,
                 template_path=request.template_path,
+            )
+        except StrategyRepositoryError as error:
+            raise strategy_http_error(error) from error
+
+    @router.get(
+        "/versions",
+        response_model=StrategyVersionsResponse,
+        responses=error_responses(403, 404),
+    )
+    async def list_strategy_versions(strategy_path: str) -> dict[str, Any]:
+        try:
+            versions = strategies.versions(strategy_path)
+            job_counts: dict[str, int] = {}
+            experiment_counts: dict[str, int] = {}
+            for job in jobs.list_jobs():
+                revision = job.get("strategy_revision")
+                if revision and job.get("strategy_path") == strategy_path:
+                    job_counts[revision] = job_counts.get(revision, 0) + 1
+            for experiment in experiments.list():
+                revision = experiment.get("strategy_revision")
+                if revision and experiment.get("strategy_path") == strategy_path:
+                    experiment_counts[revision] = (
+                        experiment_counts.get(revision, 0) + 1
+                    )
+            return {
+                "strategy_path": strategy_path,
+                "versions": [
+                    {
+                        **version,
+                        "backtest_count": job_counts.get(version["revision"], 0),
+                        "experiment_count": experiment_counts.get(
+                            version["revision"], 0
+                        ),
+                    }
+                    for version in versions
+                ],
+            }
+        except StrategyRepositoryError as error:
+            raise strategy_http_error(error) from error
+
+    @router.post(
+        "/versions/restore",
+        response_model=StrategyDocument,
+        responses=error_responses(403, 404, 409, 422),
+    )
+    async def restore_strategy_version(
+        request: StrategyRestoreRequest,
+    ) -> dict[str, Any]:
+        try:
+            return strategies.restore(
+                request.strategy_path,
+                request.revision,
+                expected_revision=request.expected_revision,
             )
         except StrategyRepositoryError as error:
             raise strategy_http_error(error) from error

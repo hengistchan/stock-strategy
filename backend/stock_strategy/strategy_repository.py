@@ -9,6 +9,7 @@ import re
 from typing import Any
 import uuid
 
+from .run_manifest import atomic_write_json, atomic_write_text
 from .strategy_parameters import StrategyParameterError, extract_parameter_definitions
 from . import futu
 
@@ -60,6 +61,8 @@ class StrategyRepository:
         self.examples_root = (self.project_root / "examples").resolve()
         self.strategies_root = (self.project_root / "strategies").resolve()
         self.strategies_root.mkdir(parents=True, exist_ok=True)
+        self.versions_root = (self.project_root / "runs" / "strategy_versions").resolve()
+        self.versions_root.mkdir(parents=True, exist_ok=True)
 
     def list(self) -> list[dict[str, Any]]:
         strategies: list[dict[str, Any]] = []
@@ -106,7 +109,9 @@ class StrategyRepository:
             source = DEFAULT_STRATEGY_SOURCE
         validate_strategy_source(source)
         self._atomic_write(path, source)
-        return self.read(str(path.relative_to(self.project_root)))
+        value = str(path.relative_to(self.project_root))
+        self._record_version(value, source, reason="created")
+        return self.read(value)
 
     def save(
         self, value: str, content: str, *, expected_revision: str | None
@@ -120,7 +125,59 @@ class StrategyRepository:
             )
         validate_strategy_source(content)
         self._atomic_write(path, content)
-        return self.read(str(path.relative_to(self.project_root)))
+        relative_path = str(path.relative_to(self.project_root))
+        self._record_version(relative_path, content, reason="saved")
+        return self.read(relative_path)
+
+    def versions(self, value: str) -> list[dict[str, Any]]:
+        path, _, _ = self._resolve_readable(value)
+        relative_path = str(path.relative_to(self.project_root))
+        content = self._read_source(path)
+        self._record_version(relative_path, content, reason="imported")
+        index = self._read_version_index(relative_path)
+        current_revision = _revision(content)
+        return [
+            {
+                **entry,
+                "current": entry["revision"] == current_revision,
+            }
+            for entry in reversed(index["entries"])
+        ]
+
+    def restore(
+        self,
+        value: str,
+        revision: str,
+        *,
+        expected_revision: str | None,
+    ) -> dict[str, Any]:
+        path = self._resolve_writable(value)
+        relative_path = str(path.relative_to(self.project_root))
+        current = self._read_source(path)
+        if expected_revision and _revision(current) != expected_revision:
+            raise StrategyConflictError(
+                "策略已被其他操作修改，请重新载入后再恢复。"
+            )
+        source = self.version_source(relative_path, revision)
+        validate_strategy_source(source)
+        self._atomic_write(path, source)
+        self._record_version(relative_path, source, reason="restored")
+        return self.read(relative_path)
+
+    def version_source(self, value: str, revision: str) -> str:
+        self._resolve_readable(value)
+        if not re.fullmatch(r"[0-9a-f]{64}", revision):
+            raise StrategyNotFoundError("策略版本不存在。")
+        index = self._read_version_index(value)
+        if not any(entry["revision"] == revision for entry in index["entries"]):
+            raise StrategyNotFoundError("策略版本不存在。")
+        path = self._version_directory(value) / f"{revision}.py"
+        if not path.is_file():
+            raise StrategyNotFoundError("策略版本源码不存在。")
+        content = path.read_text(encoding="utf-8")
+        if _revision(content) != revision:
+            raise StrategyValidationError("策略版本源码校验失败。")
+        return content
 
     def resolve_for_backtest(self, value: str) -> Path:
         path, _, _ = self._resolve_readable(value)
@@ -181,6 +238,54 @@ class StrategyRepository:
             temporary.replace(path)
         finally:
             temporary.unlink(missing_ok=True)
+
+    def _record_version(self, value: str, content: str, *, reason: str) -> None:
+        revision = _revision(content)
+        directory = self._version_directory(value)
+        directory.mkdir(parents=True, exist_ok=True)
+        snapshot_path = directory / f"{revision}.py"
+        if not snapshot_path.exists():
+            atomic_write_text(snapshot_path, content)
+        index = self._read_version_index(value)
+        entries = index["entries"]
+        if entries and entries[-1]["revision"] == revision:
+            return
+        entries.append(
+            {
+                "id": uuid.uuid4().hex,
+                "revision": revision,
+                "created_at": datetime.now().astimezone().isoformat(
+                    timespec="seconds"
+                ),
+                "reason": reason,
+                "source_path": str(snapshot_path.relative_to(self.project_root)),
+            }
+        )
+        atomic_write_json(directory / "index.json", index)
+
+    def _read_version_index(self, value: str) -> dict[str, Any]:
+        path = self._version_directory(value) / "index.json"
+        if not path.is_file():
+            return {"strategy_path": value, "entries": []}
+        try:
+            import json
+
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise StrategyValidationError("策略版本索引无法读取。") from error
+        if payload.get("strategy_path") != value or not isinstance(
+            payload.get("entries"), list
+        ):
+            raise StrategyValidationError("策略版本索引格式无效。")
+        return payload
+
+    def _version_directory(self, value: str) -> Path:
+        key = hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+        stem = Path(value).stem
+        path = (self.versions_root / f"{stem}-{key}").resolve()
+        if path.parent != self.versions_root:
+            raise StrategyPermissionError("策略版本路径无效。")
+        return path
 
 
 def validate_strategy_source(content: str) -> None:

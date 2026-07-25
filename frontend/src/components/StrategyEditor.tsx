@@ -7,6 +7,7 @@ import { queryKeys } from "../api/queryKeys";
 import type { StrategyDocument } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatNumber } from "../lib/format";
+import { StrategyVersionPanel } from "./StrategyVersionPanel";
 
 interface StrategyEditorProps {
   document: StrategyDocument;
@@ -38,6 +39,9 @@ export function StrategyEditor({
       queryClient.setQueryData(queryKeys.strategy(saved.path), saved);
       void queryClient.invalidateQueries({ queryKey: queryKeys.strategies });
       void queryClient.invalidateQueries({ queryKey: queryKeys.config });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.strategyVersions(saved.path),
+      });
       setDraft(saved.content);
       onDirtyChange(false);
       setNotice(t("strategy.savedNotice"));
@@ -94,6 +98,7 @@ export function StrategyEditor({
           basicSetup={{ foldGutter: true, highlightActiveLine: true, autocompletion: true }}
         />
       </div>
+      <StrategyVersionPanel document={document} />
       {notice ? <p className="editor-notice" role="status">{notice}</p> : null}
     </>
   );

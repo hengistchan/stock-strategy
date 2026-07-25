@@ -565,15 +565,32 @@ class Strategy(StrategyBase):
                         "expected_revision": revision,
                     },
                 )
+                versions = client.get(
+                    "/api/strategies/versions",
+                    params={"strategy_path": "strategies/my_strategy.py"},
+                )
+                restored = client.post(
+                    "/api/strategies/versions/restore",
+                    json={
+                        "strategy_path": "strategies/my_strategy.py",
+                        "revision": revision,
+                        "expected_revision": saved.json()["revision"],
+                    },
+                )
 
             self.assertEqual(created.status_code, 201)
             self.assertFalse(created.json()["readonly"])
             self.assertEqual(loaded.status_code, 200)
             self.assertEqual(saved.status_code, 200)
             self.assertNotEqual(saved.json()["revision"], revision)
+            self.assertEqual(versions.status_code, 200)
+            self.assertEqual(len(versions.json()["versions"]), 2)
+            self.assertTrue(versions.json()["versions"][0]["current"])
+            self.assertEqual(restored.status_code, 200)
+            self.assertEqual(restored.json()["revision"], revision)
             self.assertEqual(
                 (root / "strategies" / "my_strategy.py").read_text(encoding="utf-8"),
-                "class Strategy:\n    value = 2\n",
+                "class Strategy:\n    pass\n",
             )
 
     def test_strategy_api_rejects_invalid_source_stale_revision_and_example_write(self):

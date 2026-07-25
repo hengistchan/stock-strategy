@@ -157,6 +157,22 @@ class StrategiesResponse(BaseModel):
     strategies: list[StrategyMetadata]
 
 
+class StrategyVersion(ApiModel):
+    id: str
+    revision: str
+    created_at: str
+    reason: str
+    source_path: str
+    current: bool
+    backtest_count: int = 0
+    experiment_count: int = 0
+
+
+class StrategyVersionsResponse(BaseModel):
+    strategy_path: str
+    versions: list[StrategyVersion]
+
+
 class ExperimentRun(ApiModel):
     index: int
     parameters: dict[str, Any]
