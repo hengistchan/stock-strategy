@@ -47,7 +47,7 @@ describe("ExperimentBoard", () => {
     );
 
     expect(screen.getAllByText(/US\.AAPL · 苹果/).length).toBeGreaterThan(0);
-    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getAllByText("#1").length).toBeGreaterThan(0);
     expect(screen.getByText("验证 Sharpe")).toBeInTheDocument();
     expect(screen.getByText("1.40")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("比较第 2 组"));

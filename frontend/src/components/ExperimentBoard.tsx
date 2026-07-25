@@ -4,6 +4,7 @@ import { useI18n } from "../i18n/I18nContext";
 import type { Locale } from "../i18n/core";
 import { formatDateTime, formatNumber, formatSignedPercent } from "../lib/format";
 import { formatSymbolLabel, type SymbolNameMap } from "../lib/symbols";
+import { ParameterHeatmap } from "./ParameterHeatmap";
 
 interface ExperimentBoardProps {
   experiments: Experiment[];
@@ -106,6 +107,10 @@ export function ExperimentBoard({
                 <ResearchMetric label={t("experiment.worstWindowDrawdown")} value={metricPercent(experiment.research_summary.worst_window_drawdown_pct ?? undefined, locale)} />
                 <ResearchMetric label={t("experiment.parameterStability")} value={experiment.research_summary.parameter_stability == null ? "—" : formatSignedPercent(experiment.research_summary.parameter_stability * 100, locale)} />
               </section>
+            ) : null}
+
+            {experiment.status === "succeeded" || experiment.status === "completed_with_errors" ? (
+              <ParameterHeatmap experiment={experiment} />
             ) : null}
 
             {comparableRuns.length > 0 ? (
