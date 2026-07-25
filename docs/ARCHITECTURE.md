@@ -63,6 +63,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - `DiagnosticsService` 是 `make doctor`、`stock-doctor` 和 `/api/diagnostics` 的唯一诊断来源，统一检查运行时、工作区、OpenD TCP 与股票目录读取权限。
 - `JobStore` 在任务入队时冻结策略源码和请求，执行后冻结 OpenD 行情；`run_manifest` 记录输入哈希、运行时版本和状态。`result_reader` 负责兼容新旧结果文件、行情窗口索引与曲线降采样。
 - `runs/state.sqlite3` 以 WAL 模式保存作业元数据；启动时自动导入旧的 `runs/web/*/job.json`，每次写入仍同步兼容 JSON 镜像。
+- `job_lifecycle` 定义 `queued / running / cancelling / succeeded / failed / cancelled` 转换图；SQLite 在写事务内验证当前状态，终态不能被回退或覆盖。
 - `StrategyRepository` 只读取 `examples/*.py` 和 `strategies/*.py`；只有后者可以写入。
 - `STRATEGY_PARAMETERS` 只通过 `ast.literal_eval` 读取；参数类型、边界、候选值和运行覆盖均在执行前验证。
 - 保存前用 `ast.parse` 校验 Python 语法和 `Strategy` 类，使用 revision 做乐观并发控制，并通过临时文件原子替换。

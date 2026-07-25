@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from stock_strategy.state_repository import STATE_SCHEMA_VERSION, SqliteJobRepository
+from stock_strategy.job_lifecycle import InvalidJobTransition
 
 
 class SqliteJobRepositoryTest(unittest.TestCase):
@@ -83,6 +84,38 @@ class SqliteJobRepositoryTest(unittest.TestCase):
 
             with self.assertRaises(KeyError):
                 repository.get("missing")
+
+    def test_transition_is_atomic_and_rejects_terminal_rewind(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy_root = root / "web"
+            legacy_root.mkdir()
+            repository = SqliteJobRepository(root / "state.sqlite3", legacy_root)
+            repository.upsert(
+                {
+                    "id": "job-1",
+                    "status": "queued",
+                    "created_at": "2026-07-25T10:00:00+08:00",
+                    "started_at": None,
+                    "finished_at": None,
+                }
+            )
+
+            running = repository.transition(
+                "job-1",
+                "running",
+                {"started_at": "2026-07-25T10:00:01+08:00"},
+            )
+            succeeded = repository.transition(
+                "job-1",
+                "succeeded",
+                {"finished_at": "2026-07-25T10:00:02+08:00"},
+            )
+            with self.assertRaises(InvalidJobTransition):
+                repository.transition("job-1", "running")
+
+        self.assertEqual(running["status"], "running")
+        self.assertEqual(succeeded["status"], "succeeded")
 
 
 if __name__ == "__main__":

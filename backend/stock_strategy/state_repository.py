@@ -5,6 +5,8 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Mapping
 
+from .job_lifecycle import InvalidJobTransition, validate_job_transition
+
 
 STATE_SCHEMA_VERSION = 1
 
@@ -76,6 +78,64 @@ class SqliteJobRepository:
     def delete(self, job_id: str) -> None:
         with self._connect() as connection:
             connection.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+
+    def transition(
+        self,
+        job_id: str,
+        target_status: str,
+        updates: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT payload_json FROM jobs WHERE id = ?",
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(job_id)
+            payload = json.loads(str(row["payload_json"]))
+            current_status = str(payload["status"])
+            validate_job_transition(current_status, target_status)
+            payload.update(dict(updates or {}), status=target_status)
+            created_at = str(payload.get("created_at") or "")
+            updated_at = str(
+                payload.get("finished_at")
+                or payload.get("started_at")
+                or payload.get("created_at")
+                or ""
+            )
+            serialized = json.dumps(
+                payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            cursor = connection.execute(
+                """
+                UPDATE jobs
+                SET status = ?, created_at = ?, updated_at = ?, payload_json = ?
+                WHERE id = ? AND status = ?
+                """,
+                (
+                    target_status,
+                    created_at,
+                    updated_at,
+                    serialized,
+                    job_id,
+                    current_status,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise InvalidJobTransition(
+                    f"job {job_id} changed during transition"
+                )
+            connection.commit()
+            return payload
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def import_legacy_jobs(self) -> int:
         imported = 0

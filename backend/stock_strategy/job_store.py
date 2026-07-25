@@ -13,6 +13,7 @@ from typing import Any, Mapping
 import uuid
 
 from .market_cache import MarketDataCache
+from .job_lifecycle import JobStatus
 from .paths import BACKEND_ROOT, PROJECT_ROOT
 from .result_reader import (
     load_price_window_payload,
@@ -140,9 +141,11 @@ class JobStore:
             await self._execute_job(job_id)
 
     async def _execute_job(self, job_id: str) -> None:
-        job = self.get_job(job_id)
-        job.update(status="running", started_at=_now())
-        self._write_job(job)
+        job = self._transition_job(
+            job_id,
+            JobStatus.RUNNING,
+            started_at=_now(),
+        )
         command = self.build_command(job)
         environment = build_strategy_environment(BACKEND_ROOT)
         try:
@@ -160,16 +163,20 @@ class JobStore:
         except asyncio.TimeoutError:
             terminate_process_tree(process)
             await process.communicate()
-            job.update(
-                status="failed",
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
                 finished_at=_now(),
                 error=f"回测超过 {self.timeout_seconds} 秒，已终止。",
             )
-            self._write_job(job)
             return
         except Exception as error:
-            job.update(status="failed", finished_at=_now(), error=str(error))
-            self._write_job(job)
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
+                finished_at=_now(),
+                error=str(error),
+            )
             return
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
@@ -183,23 +190,41 @@ class JobStore:
         except (OSError, ValueError, csv.Error) as error:
             cache_error = error
         if process.returncode != 0:
-            job.update(status="failed", error=last_error(stderr, stdout))
-            self._write_job(job)
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
+                stdout=job["stdout"],
+                stderr=job["stderr"],
+                finished_at=job["finished_at"],
+                market_data_path=job.get("market_data_path"),
+                error=last_error(stderr, stdout),
+            )
             return
         if not job.get("market_data_path"):
             detail = str(cache_error) if cache_error else "OpenD 缓存不存在"
-            job.update(
-                status="failed",
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
+                stdout=job["stdout"],
+                stderr=job["stderr"],
+                finished_at=job["finished_at"],
+                market_data_path=job.get("market_data_path"),
                 error=f"回测完成但无法冻结 OpenD 行情快照：{detail}",
             )
-            self._write_job(job)
             return
 
         output_root = self._job_dir(job_id) / "output"
         summaries = sorted(output_root.glob("*/summary.json"))
         if not summaries:
-            job.update(status="failed", error="回测结束但没有生成 summary.json。")
-            self._write_job(job)
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
+                stdout=job["stdout"],
+                stderr=job["stderr"],
+                finished_at=job["finished_at"],
+                market_data_path=job.get("market_data_path"),
+                error="回测结束但没有生成 summary.json。",
+            )
             return
         if job.get("market_data_path"):
             self._bind_summary_to_market_snapshot(
@@ -221,18 +246,29 @@ class JobStore:
             name for name in required_artifacts if not (run_dir / name).is_file()
         )
         if missing_artifacts:
-            job.update(
-                status="failed",
+            self._transition_job(
+                job_id,
+                JobStatus.FAILED,
+                stdout=job["stdout"],
+                stderr=job["stderr"],
+                finished_at=job["finished_at"],
+                market_data_path=job.get("market_data_path"),
                 error="回测结果缺少审计产物：" + ", ".join(missing_artifacts),
             )
-            self._write_job(job)
             return
         update_run_manifest(
             self._job_dir(job_id) / "manifest.json",
             artifacts=artifact_inventory(run_dir, self._job_dir(job_id)),
         )
-        job.update(status="succeeded", run_dir=str(summaries[-1].parent.resolve()))
-        self._write_job(job)
+        self._transition_job(
+            job_id,
+            JobStatus.SUCCEEDED,
+            stdout=job["stdout"],
+            stderr=job["stderr"],
+            finished_at=job["finished_at"],
+            market_data_path=job["market_data_path"],
+            run_dir=str(summaries[-1].parent.resolve()),
+        )
 
     def build_command(self, job: dict[str, Any]) -> list[str]:
         request = job["request"]
@@ -343,6 +379,25 @@ class JobStore:
                 finished_at=payload.get("finished_at"),
             )
 
+    def _transition_job(
+        self,
+        job_id: str,
+        target_status: JobStatus,
+        **updates: Any,
+    ) -> dict[str, Any]:
+        payload = self.repository.transition(job_id, target_status.value, updates)
+        path = self._job_dir(job_id) / "job.json"
+        atomic_write_json(path, payload)
+        manifest_path = path.parent / "manifest.json"
+        if manifest_path.is_file():
+            update_run_manifest(
+                manifest_path,
+                status=target_status.value,
+                started_at=payload.get("started_at"),
+                finished_at=payload.get("finished_at"),
+            )
+        return payload
+
     def _strategy_execution_path(self, job: Mapping[str, Any]) -> Path:
         snapshot_value = job.get("strategy_snapshot_path")
         if snapshot_value:
@@ -391,12 +446,12 @@ class JobStore:
     def _reconcile_interrupted_jobs(self) -> None:
         for job in self.list_jobs():
             if job.get("status") in {"queued", "running"}:
-                job.update(
-                    status="failed",
+                self._transition_job(
+                    str(job["id"]),
+                    JobStatus.FAILED,
                     finished_at=_now(),
                     error="Web 服务重启，上一轮回测已中断。",
                 )
-                self._write_job(job)
 
 
 def _now() -> str:
