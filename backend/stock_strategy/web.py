@@ -3,13 +3,12 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-import re
 import secrets
 import sys
 from typing import Any, Callable
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -19,29 +18,18 @@ from .execution_service import ExecutionService
 from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
 from .job_store import JobStore, last_error as _last_error
-from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
+from .opend import OpenDSymbolDirectory
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
 from .result_reader import (
     read_downsampled_equity_curve as _read_downsampled_equity_curve,
 )
-from .strategy_parameters import StrategyParameterError
-from .strategy_repository import (
-    StrategyConflictError,
-    StrategyNotFoundError,
-    StrategyPermissionError,
-    StrategyRepository,
-    StrategyRepositoryError,
-    StrategyValidationError,
-)
-from .web_models import (
-    KLINE_TYPES,
-    SESSION_TYPES,
-    SYMBOL_PATTERN,
-    ExperimentRequest,
-    StrategyCreateRequest,
-    StrategySaveRequest,
-)
+from .strategy_repository import StrategyRepository, StrategyRepositoryError
+from .web_cache import create_cache_router
+from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
+from .web_strategies import create_strategies_router
+from .web_symbols import create_symbols_router
+from .web_system import create_system_router
 
 
 def create_app(
@@ -114,7 +102,12 @@ def create_app(
     assets_root = web_root / "assets"
     if assets_root.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_root), name="assets")
+    app.include_router(create_system_router(store, strategies, diagnostics, probe))
+    app.include_router(create_symbols_router(directory))
+    app.include_router(create_strategies_router(strategies))
     app.include_router(create_jobs_router(store, execution))
+    app.include_router(create_experiments_router(experiments, execution))
+    app.include_router(create_cache_router(store))
 
     @app.get("/")
     async def index():
@@ -126,139 +119,6 @@ def create_app(
             "<p>Run <code>cd frontend &amp;&amp; npm install &amp;&amp; npm run build</code>.</p>",
             status_code=503,
         )
-
-    @app.get("/api/health")
-    async def health() -> dict[str, Any]:
-        return {
-            "status": "ok",
-            "opend": {
-                "connected": probe(store.opend_host, store.opend_port),
-                "host": store.opend_host,
-                "port": store.opend_port,
-            },
-        }
-
-    @app.get("/api/diagnostics")
-    def diagnostics_report() -> dict[str, object]:
-        return diagnostics.run().to_dict()
-
-    @app.get("/api/config")
-    async def config() -> dict[str, Any]:
-        return {
-            "strategies": strategies.list(),
-            "kline_types": list(KLINE_TYPES),
-            "adjustment_types": ["QFQ", "HFQ", "NONE"],
-            "session_types": list(SESSION_TYPES),
-        }
-
-    @app.get("/api/symbols")
-    def search_symbols(
-        q: str = Query(min_length=1, max_length=80),
-        limit: int = Query(default=8, ge=1, le=20),
-    ) -> dict[str, Any]:
-        try:
-            return {"query": q, "symbols": directory.search(q, limit)}
-        except (OpenDUnavailableError, OpenDRequestError, OSError) as error:
-            raise HTTPException(
-                status_code=503,
-                detail=f"OpenD 标的搜索暂不可用：{error}",
-            ) from error
-
-    @app.get("/api/symbols/resolve")
-    def resolve_symbols(codes: list[str] = Query()) -> dict[str, Any]:
-        normalized = list(
-            dict.fromkeys(code.strip().upper() for code in codes if code.strip())
-        )
-        if not normalized:
-            raise HTTPException(status_code=422, detail="至少需要一个标的代码。")
-        if len(normalized) > 100:
-            raise HTTPException(status_code=422, detail="单次最多解析 100 个标的代码。")
-        invalid = [
-            code for code in normalized if re.fullmatch(SYMBOL_PATTERN, code) is None
-        ]
-        if invalid:
-            raise HTTPException(
-                status_code=422,
-                detail=f"无效的 Futu 标的代码：{', '.join(invalid)}",
-            )
-        try:
-            return {"symbols": directory.resolve(normalized)}
-        except (OpenDUnavailableError, OpenDRequestError, OSError) as error:
-            raise HTTPException(
-                status_code=503,
-                detail=f"OpenD 标的名称暂不可用：{error}",
-            ) from error
-
-    @app.get("/api/strategies")
-    async def list_strategy_documents() -> dict[str, Any]:
-        return {"strategies": strategies.list()}
-
-    @app.post("/api/strategies", status_code=201)
-    async def create_strategy(request: StrategyCreateRequest) -> dict[str, Any]:
-        try:
-            return strategies.create(
-                request.name,
-                content=request.content,
-                template_path=request.template_path,
-            )
-        except StrategyRepositoryError as error:
-            raise _strategy_http_error(error) from error
-
-    @app.get("/api/strategies/{strategy_path:path}")
-    async def read_strategy(strategy_path: str) -> dict[str, Any]:
-        try:
-            return strategies.read(strategy_path)
-        except StrategyRepositoryError as error:
-            raise _strategy_http_error(error) from error
-
-    @app.put("/api/strategies/{strategy_path:path}")
-    async def save_strategy(
-        strategy_path: str, request: StrategySaveRequest
-    ) -> dict[str, Any]:
-        try:
-            return strategies.save(
-                strategy_path,
-                request.content,
-                expected_revision=request.expected_revision,
-            )
-        except StrategyRepositoryError as error:
-            raise _strategy_http_error(error) from error
-
-    @app.get("/api/experiments")
-    async def list_experiments() -> dict[str, Any]:
-        return {"experiments": experiments.list()[:50]}
-
-    @app.post("/api/experiments", status_code=202)
-    async def create_experiment(request: ExperimentRequest) -> dict[str, Any]:
-        try:
-            return execution.create_experiment(request)
-        except (StrategyRepositoryError, StrategyParameterError, ValueError) as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-    @app.get("/api/experiments/{experiment_id}")
-    async def get_experiment(experiment_id: str) -> dict[str, Any]:
-        try:
-            return experiments.get(experiment_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次参数实验。") from error
-
-    @app.get("/api/cache")
-    async def list_cache() -> dict[str, Any]:
-        entries = store.cache.list()
-        return {
-            "entries": entries,
-            "total_bytes": sum(entry.get("bytes", 0) for entry in entries),
-        }
-
-    @app.delete("/api/cache/{cache_id}")
-    async def delete_cache(cache_id: str) -> dict[str, Any]:
-        try:
-            deleted = store.cache.delete(cache_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这份 OpenD 缓存。") from error
-        if not deleted:
-            raise HTTPException(status_code=404, detail="找不到这份 OpenD 缓存。")
-        return {"deleted": cache_id}
 
     @app.get("/{frontend_path:path}")
     async def frontend_fallback(frontend_path: str):
@@ -281,18 +141,6 @@ def resolve_strategy(project_root: Path, value: str) -> Path:
         return StrategyRepository(project_root).resolve_for_backtest(value)
     except StrategyRepositoryError as error:
         raise ValueError(str(error)) from error
-
-
-def _strategy_http_error(error: StrategyRepositoryError) -> HTTPException:
-    if isinstance(error, StrategyNotFoundError):
-        return HTTPException(status_code=404, detail=str(error))
-    if isinstance(error, StrategyConflictError):
-        return HTTPException(status_code=409, detail=str(error))
-    if isinstance(error, StrategyPermissionError):
-        return HTTPException(status_code=403, detail=str(error))
-    if isinstance(error, StrategyValidationError):
-        return HTTPException(status_code=422, detail=str(error))
-    return HTTPException(status_code=400, detail=str(error))
 
 
 def _probe_quote_directory(directory: OpenDSymbolDirectory) -> str:
