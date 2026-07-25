@@ -80,6 +80,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - `execution_models` 定义费用与滑点协议；默认 `bps-commission-v1` 和 `bps-slippage-v1` 保持现有请求兼容，Broker 只依赖模型接口并在结果中记录模型清单。
 - 每次运行持久化 `orders / fills / trades / equity_curve / daily_returns / logs / report`；JobStore 在发布成功状态前校验整套审计产物，并把每个文件的 SHA-256 写入运行清单。
 - `engine_contract` 为回测语义提供版本边界；缺少版本的历史结果只作为 legacy 工程证据展示。
+- `stock_strategy.sdk` 以 `SignalModel / PositionSizer / RiskPolicy / ExitPolicy / OrderExecutor` 协议拆分策略职责；它只使用不可变状态对象，不依赖 Broker、HTTP DTO 或 React。
 
 ## 依赖方向
 

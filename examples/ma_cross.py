@@ -3,6 +3,18 @@
 import math
 
 from stock_strategy.futu import *
+from stock_strategy.sdk import (
+    AccountState,
+    AllowAllRiskPolicy,
+    ExecutionReceipt,
+    ExitDecision,
+    FractionalBuyingPowerSizer,
+    OrderProposal,
+    PositionState,
+    Signal,
+    SignalContext,
+    StrategyPipeline,
+)
 
 
 STRATEGY_PARAMETERS = {
@@ -51,6 +63,44 @@ STRATEGY_PARAMETERS = {
 }
 
 
+class MovingAverageCrossSignal:
+    def evaluate(self, context):
+        if not context.values["crossed_up"]:
+            return None
+        return Signal(
+            symbol=context.symbol,
+            side="buy",
+            reference_price=context.price,
+            reason="ma_cross_up",
+        )
+
+
+class MovingAverageCrossExit:
+    def evaluate(self, context, position):
+        del position
+        if context.values["crossed_down"]:
+            return ExitDecision("ma_cross_down")
+        return None
+
+
+class FutuMarketExecutor:
+    def submit(self, proposal):
+        if proposal.side == "buy":
+            order_id = place_market(
+                Contract(proposal.symbol),
+                qty=proposal.quantity,
+                side=OrderSide.BUY,
+            )
+        elif proposal.side == "sell":
+            order_id = close_positions(
+                Contract(proposal.symbol),
+                qty=proposal.quantity,
+            )
+        else:
+            raise ValueError("MA cross example supports long stock orders only")
+        return ExecutionReceipt(order_id=order_id, proposal=proposal)
+
+
 class Strategy(StrategyBase):
     def initialize(self):
         declare_strategy_type(AlgoStrategyType.SECURITY)
@@ -68,6 +118,13 @@ class Strategy(StrategyBase):
         self.capital_fraction = strategy_parameter("capital_fraction")
         if self.fast_period >= self.slow_period:
             raise ValueError("fast_period must be smaller than slow_period")
+        self.pipeline = StrategyPipeline(
+            signal=MovingAverageCrossSignal(),
+            sizer=FractionalBuyingPowerSizer(self.capital_fraction),
+            risk=AllowAllRiskPolicy(),
+            exit=MovingAverageCrossExit(),
+            executor=FutuMarketExecutor(),
+        )
 
     def handle_data(self):
         fast_now = ma(
@@ -104,16 +161,35 @@ class Strategy(StrategyBase):
 
         crossed_up = fast_now > slow_now and fast_previous <= slow_previous
         crossed_down = fast_now < slow_now and fast_previous >= slow_previous
-
-        if crossed_up and position_side(self.symbol) == PositionSide.NONE:
-            cash_quantity = max_qty_to_buy_on_cash(
-                self.symbol,
-                order_type=OrdType.MKT,
-                price=current_price(self.symbol, price_type=self.session_type),
+        price = current_price(self.symbol, price_type=self.session_type)
+        side = position_side(self.symbol)
+        quantity = position_holding_qty(self.symbol)
+        cash_quantity = max_qty_to_buy_on_cash(
+            self.symbol,
+            order_type=OrdType.MKT,
+            price=price,
+        )
+        context = SignalContext(
+            symbol=str(self.symbol),
+            timestamp=device_time(TimeZone.MARKET_TIME_ZONE),
+            price=price,
+            values={
+                "crossed_up": crossed_up,
+                "crossed_down": crossed_down,
+            },
+        )
+        account = AccountState(
+            cash=cash_quantity * price,
+            equity=cash_quantity * price + quantity * price,
+            buying_power=cash_quantity * price,
+            open_positions=0 if side == PositionSide.NONE else 1,
+        )
+        position = None
+        if side != PositionSide.NONE:
+            position = PositionState(
+                symbol=str(self.symbol),
+                quantity=quantity if side == PositionSide.LONG else -quantity,
+                average_price=price,
+                current_price=price,
             )
-            quantity = math.floor(cash_quantity * self.capital_fraction)
-            if quantity > 0:
-                place_market(self.symbol, qty=quantity, side=OrderSide.BUY)
-
-        elif crossed_down and position_side(self.symbol) == PositionSide.LONG:
-            close_positions(self.symbol)
+        self.pipeline.evaluate(context, account, position).execute()
