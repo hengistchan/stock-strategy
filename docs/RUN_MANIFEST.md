@@ -27,6 +27,7 @@ runs/web/<job-id>/
 `manifest.json` schema version 1 records:
 
 - application, Python, Futu SDK, engine-contract, cache-schema, and data-adapter versions;
+- the `trusted-local-v1` execution profile used by the strategy subprocess;
 - the original strategy path, immutable revision, snapshot path, and SHA-256;
 - the canonical request SHA-256;
 - the market-data snapshot path, SHA-256, byte size, and row count;

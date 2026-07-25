@@ -116,6 +116,7 @@ class WebTest(unittest.TestCase):
             legacy_command = store.build_command(legacy_job)
 
         self.assertEqual(snapshot_content, original_source)
+        self.assertEqual(command[1], "-P")
         self.assertEqual(command[command.index("--strategy") + 1], str(snapshot_path))
         self.assertEqual(
             legacy_command[legacy_command.index("--strategy") + 1],

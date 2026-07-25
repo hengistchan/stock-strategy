@@ -28,6 +28,12 @@ from .run_manifest import (
     sha256_file,
     update_run_manifest,
 )
+from .strategy_process import (
+    TRUSTED_EXECUTION_PROFILE,
+    build_strategy_environment,
+    subprocess_isolation_options,
+    terminate_process_tree,
+)
 
 
 JOB_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
@@ -103,6 +109,7 @@ class JobStore:
                     (job_dir / "strategy.py").relative_to(self.project_root)
                 ),
                 "market_data_path": None,
+                "execution_profile": TRUSTED_EXECUTION_PROFILE,
                 "run_dir": None,
                 "stdout": "",
                 "stderr": "",
@@ -131,13 +138,7 @@ class JobStore:
         job.update(status="running", started_at=_now())
         self._write_job(job)
         command = self.build_command(job)
-        environment = os.environ.copy()
-        existing_pythonpath = environment.get("PYTHONPATH")
-        environment["PYTHONPATH"] = (
-            str(BACKEND_ROOT)
-            if not existing_pythonpath
-            else str(BACKEND_ROOT) + os.pathsep + existing_pythonpath
-        )
+        environment = build_strategy_environment(BACKEND_ROOT)
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -145,12 +146,13 @@ class JobStore:
                 env=environment,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                **subprocess_isolation_options(),
             )
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
                 process.communicate(), timeout=self.timeout_seconds
             )
         except asyncio.TimeoutError:
-            process.kill()
+            terminate_process_tree(process)
             await process.communicate()
             job.update(
                 status="failed",
@@ -233,6 +235,7 @@ class JobStore:
         cache_path = self.cache.descriptor(request)["path"]
         command = [
             sys.executable,
+            "-P",
             "-m",
             "stock_strategy",
             "--strategy",

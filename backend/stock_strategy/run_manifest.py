@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from . import __version__
 from .market_cache import CACHE_SCHEMA_VERSION, DATA_ADAPTER_VERSION
 from .runtime import ENGINE_CONTRACT_VERSION
+from .strategy_process import TRUSTED_EXECUTION_PROFILE
 
 
 RUN_MANIFEST_SCHEMA_VERSION = 1
@@ -57,6 +58,7 @@ def create_run_manifest(
         "engine_contract_version": ENGINE_CONTRACT_VERSION,
         "cache_schema_version": CACHE_SCHEMA_VERSION,
         "data_adapter_version": DATA_ADAPTER_VERSION,
+        "execution_profile": TRUSTED_EXECUTION_PROFILE,
         "request_sha256": sha256_bytes(request_bytes),
         "strategy_source_path": strategy.source_path,
         "strategy_snapshot_path": "strategy.py",

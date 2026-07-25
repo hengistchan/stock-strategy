@@ -83,4 +83,4 @@ FastAPI composition root (backend/stock_strategy/web.py)
 
 ## 信任模型
 
-策略文件是可执行 Python 代码，不是安全沙箱。编辑 API 只防止目录越界和意外覆盖，不防止恶意策略代码。服务默认绑定本机；非 loopback 绑定需要显式开关和 API token，但仍不能直接作为多用户公网服务。
+策略文件是可执行 Python 代码，不是安全沙箱。编辑 API 只防止目录越界和意外覆盖，不防止恶意策略代码。`trusted-local-v1` 子进程不继承敏感宿主环境或外部 `PYTHONPATH`，并以独立进程组运行，但仍可访问本机文件和网络。服务默认绑定本机；非 loopback 绑定需要显式开关和 API token，但仍不能直接作为多用户公网服务。
