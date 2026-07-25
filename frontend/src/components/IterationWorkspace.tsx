@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
@@ -14,6 +14,9 @@ interface IterationWorkspaceProps {
   config?: AppConfig;
   selectedStrategy: string;
   onSelectedStrategyChange: (path: string) => void;
+  activeExperimentId: string | null;
+  selectDefaultExperiment: boolean;
+  onActiveExperimentChange: (experimentId: string) => void;
   opendConnected: boolean;
   onOpenRun: (jobId: string) => void;
 }
@@ -22,16 +25,18 @@ export function IterationWorkspace({
   config,
   selectedStrategy,
   onSelectedStrategyChange,
+  activeExperimentId,
+  selectDefaultExperiment,
+  onActiveExperimentChange,
   opendConnected,
   onOpenRun,
 }: IterationWorkspaceProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const [activeExperimentId, setActiveExperimentId] = useState<string | null>(null);
   const [notice, setNotice] = useTransientNotice();
   const experimentsQuery = useQuery({ queryKey: queryKeys.experiments, queryFn: api.experiments });
   const cacheQuery = useQuery({ queryKey: queryKeys.cache, queryFn: api.cache });
-  const resolvedExperimentId = activeExperimentId ?? experimentsQuery.data?.experiments[0]?.id ?? null;
+  const resolvedExperimentId = activeExperimentId;
   const experimentQuery = useQuery({
     queryKey: queryKeys.experiment(resolvedExperimentId),
     queryFn: () => api.experiment(resolvedExperimentId!),
@@ -40,7 +45,7 @@ export function IterationWorkspace({
   const runMutation = useMutation({
     mutationFn: (request: ExperimentRequest) => api.runExperiment(request),
     onSuccess: (experiment) => {
-      setActiveExperimentId(experiment.id);
+      onActiveExperimentChange(experiment.id);
       queryClient.setQueryData(queryKeys.experiment(experiment.id), experiment);
       void queryClient.invalidateQueries({ queryKey: queryKeys.experiments });
       setNotice(t("experiment.started", { name: experiment.name, count: experiment.progress.total }));
@@ -64,6 +69,22 @@ export function IterationWorkspace({
       void queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
     }
   }, [experimentQuery.data?.status, queryClient]);
+
+  useEffect(() => {
+    const firstExperimentId = experimentsQuery.data?.experiments[0]?.id;
+    if (
+      selectDefaultExperiment &&
+      !activeExperimentId &&
+      firstExperimentId
+    ) {
+      onActiveExperimentChange(firstExperimentId);
+    }
+  }, [
+    activeExperimentId,
+    experimentsQuery.data?.experiments,
+    onActiveExperimentChange,
+    selectDefaultExperiment,
+  ]);
 
   const selectedMetadata = config?.strategies.find((strategy) => strategy.path === selectedStrategy);
   const definitions = selectedMetadata?.parameters ?? [];
@@ -102,7 +123,7 @@ export function IterationWorkspace({
           experiments={experimentsQuery.data?.experiments ?? []}
           experiment={experimentQuery.data}
           activeExperimentId={resolvedExperimentId}
-          onSelectExperiment={setActiveExperimentId}
+          onSelectExperiment={onActiveExperimentChange}
           onOpenRun={onOpenRun}
           symbolNames={symbolNames}
         />
