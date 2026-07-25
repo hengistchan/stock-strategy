@@ -176,6 +176,14 @@ class StrategyRestoreRequest(BaseModel):
     expected_revision: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class StrategyMigrationSourceRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=MAX_STRATEGY_BYTES)
+
+
+class StrategyMigrationImportRequest(StrategyMigrationSourceRequest):
+    name: str = Field(min_length=1, max_length=67)
+
+
 class PortfolioRequest(BaseModel):
     weights: dict[str, float] = Field(min_length=2, max_length=12)
     start: date

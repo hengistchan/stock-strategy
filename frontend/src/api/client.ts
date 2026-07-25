@@ -41,10 +41,13 @@ import {
   resolveSymbolsApiSymbolsResolveGet,
   resultApiJobsJobIdResultGet,
   runPortfolioApiPortfoliosPost,
+  importStrategyApiMigrationsImportPost,
   retryJobApiJobsJobIdRetryPost,
   restoreStrategyVersionApiStrategiesVersionsRestorePost,
   saveStrategyApiStrategiesStrategyPathPut,
+  scanStrategyApiMigrationsScanPost,
   searchSymbolsApiSymbolsGet,
+  validateStrategyFixtureApiMigrationsFixturePost,
 } from "./generated";
 import { client as generatedClient } from "./generated/client.gen";
 import type {
@@ -225,6 +228,30 @@ export const api = {
           "Content-Type": "application/zip",
         },
         body: bundle,
+      }),
+    ),
+  scanMigration: (content: string) =>
+    unwrap<import("./types").StrategyMigrationReport>(
+      scanStrategyApiMigrationsScanPost({
+        headers: requestHeaders(),
+        body: { content },
+      }),
+    ),
+  validateMigrationFixture: (content: string) =>
+    unwrap<import("./types").StrategyMigrationReport>(
+      validateStrategyFixtureApiMigrationsFixturePost({
+        headers: requestHeaders(),
+        body: { content },
+      }),
+    ),
+  importMigration: (name: string, content: string) =>
+    unwrap<{
+      strategy: StrategyDocument;
+      report: import("./types").StrategyMigrationReport;
+    }>(
+      importStrategyApiMigrationsImportPost({
+        headers: requestHeaders(),
+        body: { name, content },
       }),
     ),
   strategies: () =>

@@ -1012,6 +1012,69 @@ export type StrategyMetadata = {
 };
 
 /**
+ * StrategyMigrationImportRequest
+ */
+export type StrategyMigrationImportRequest = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * StrategyMigrationImportResponse
+ */
+export type StrategyMigrationImportResponse = {
+    strategy: StrategyDocument;
+    report: StrategyMigrationReport;
+};
+
+/**
+ * StrategyMigrationReport
+ */
+export type StrategyMigrationReport = {
+    /**
+     * Source Sha256
+     */
+    source_sha256: string;
+    /**
+     * Syntax Valid
+     */
+    syntax_valid: boolean;
+    /**
+     * Compatibility
+     */
+    compatibility: {
+        [key: string]: unknown;
+    };
+    /**
+     * Fixture
+     */
+    fixture: {
+        [key: string]: unknown;
+    };
+    /**
+     * Next Step
+     */
+    next_step: string;
+    [key: string]: unknown;
+};
+
+/**
+ * StrategyMigrationSourceRequest
+ */
+export type StrategyMigrationSourceRequest = {
+    /**
+     * Content
+     */
+    content: string;
+};
+
+/**
  * StrategyRestoreRequest
  */
 export type StrategyRestoreRequest = {
@@ -1846,6 +1909,89 @@ export type ImportEvidenceApiEvidenceImportPostResponses = {
 };
 
 export type ImportEvidenceApiEvidenceImportPostResponse = ImportEvidenceApiEvidenceImportPostResponses[keyof ImportEvidenceApiEvidenceImportPostResponses];
+
+export type ScanStrategyApiMigrationsScanPostData = {
+    body: StrategyMigrationSourceRequest;
+    path?: never;
+    query?: never;
+    url: '/api/migrations/scan';
+};
+
+export type ScanStrategyApiMigrationsScanPostErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type ScanStrategyApiMigrationsScanPostError = ScanStrategyApiMigrationsScanPostErrors[keyof ScanStrategyApiMigrationsScanPostErrors];
+
+export type ScanStrategyApiMigrationsScanPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: StrategyMigrationReport;
+};
+
+export type ScanStrategyApiMigrationsScanPostResponse = ScanStrategyApiMigrationsScanPostResponses[keyof ScanStrategyApiMigrationsScanPostResponses];
+
+export type ValidateStrategyFixtureApiMigrationsFixturePostData = {
+    body: StrategyMigrationSourceRequest;
+    path?: never;
+    query?: never;
+    url: '/api/migrations/fixture';
+};
+
+export type ValidateStrategyFixtureApiMigrationsFixturePostErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type ValidateStrategyFixtureApiMigrationsFixturePostError = ValidateStrategyFixtureApiMigrationsFixturePostErrors[keyof ValidateStrategyFixtureApiMigrationsFixturePostErrors];
+
+export type ValidateStrategyFixtureApiMigrationsFixturePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: StrategyMigrationReport;
+};
+
+export type ValidateStrategyFixtureApiMigrationsFixturePostResponse = ValidateStrategyFixtureApiMigrationsFixturePostResponses[keyof ValidateStrategyFixtureApiMigrationsFixturePostResponses];
+
+export type ImportStrategyApiMigrationsImportPostData = {
+    body: StrategyMigrationImportRequest;
+    path?: never;
+    query?: never;
+    url: '/api/migrations/import';
+};
+
+export type ImportStrategyApiMigrationsImportPostErrors = {
+    /**
+     * Structured API error
+     */
+    403: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    409: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type ImportStrategyApiMigrationsImportPostError = ImportStrategyApiMigrationsImportPostErrors[keyof ImportStrategyApiMigrationsImportPostErrors];
+
+export type ImportStrategyApiMigrationsImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: StrategyMigrationImportResponse;
+};
+
+export type ImportStrategyApiMigrationsImportPostResponse = ImportStrategyApiMigrationsImportPostResponses[keyof ImportStrategyApiMigrationsImportPostResponses];
 
 export type ListExperimentsApiExperimentsGetData = {
     body?: never;

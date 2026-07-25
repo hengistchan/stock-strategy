@@ -173,6 +173,19 @@ class StrategyVersionsResponse(BaseModel):
     versions: list[StrategyVersion]
 
 
+class StrategyMigrationReport(ApiModel):
+    source_sha256: str
+    syntax_valid: bool
+    compatibility: dict[str, Any]
+    fixture: dict[str, Any]
+    next_step: str
+
+
+class StrategyMigrationImportResponse(BaseModel):
+    strategy: StrategyDocument
+    report: StrategyMigrationReport
+
+
 class ExperimentRun(ApiModel):
     index: int
     parameters: dict[str, Any]

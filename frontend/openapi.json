@@ -1122,6 +1122,149 @@
         }
       }
     },
+    "/api/migrations/scan": {
+      "post": {
+        "tags": [
+          "strategy-migration"
+        ],
+        "summary": "Scan Strategy",
+        "operationId": "scan_strategy_api_migrations_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyMigrationSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyMigrationReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/migrations/fixture": {
+      "post": {
+        "tags": [
+          "strategy-migration"
+        ],
+        "summary": "Validate Strategy Fixture",
+        "operationId": "validate_strategy_fixture_api_migrations_fixture_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyMigrationSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyMigrationReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/migrations/import": {
+      "post": {
+        "tags": [
+          "strategy-migration"
+        ],
+        "summary": "Import Strategy",
+        "operationId": "import_strategy_api_migrations_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyMigrationImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyMigrationImportResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments": {
       "get": {
         "tags": [
@@ -3103,6 +3246,95 @@
           "updated_at"
         ],
         "title": "StrategyMetadata"
+      },
+      "StrategyMigrationImportRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 262144,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 67,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content",
+          "name"
+        ],
+        "title": "StrategyMigrationImportRequest"
+      },
+      "StrategyMigrationImportResponse": {
+        "properties": {
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyDocument"
+          },
+          "report": {
+            "$ref": "#/components/schemas/StrategyMigrationReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy",
+          "report"
+        ],
+        "title": "StrategyMigrationImportResponse"
+      },
+      "StrategyMigrationReport": {
+        "properties": {
+          "source_sha256": {
+            "type": "string",
+            "title": "Source Sha256"
+          },
+          "syntax_valid": {
+            "type": "boolean",
+            "title": "Syntax Valid"
+          },
+          "compatibility": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Compatibility"
+          },
+          "fixture": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Fixture"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "source_sha256",
+          "syntax_valid",
+          "compatibility",
+          "fixture",
+          "next_step"
+        ],
+        "title": "StrategyMigrationReport"
+      },
+      "StrategyMigrationSourceRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 262144,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "StrategyMigrationSourceRequest"
       },
       "StrategyRestoreRequest": {
         "properties": {

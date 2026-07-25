@@ -26,6 +26,9 @@ class ApiContractTest(unittest.TestCase):
         self.assertIn("ExperimentResponse", schema["components"]["schemas"])
         self.assertIn("StrategyDocument", schema["components"]["schemas"])
         self.assertIn("CacheResponse", schema["components"]["schemas"])
+        self.assertIn("/api/migrations/scan", schema["paths"])
+        self.assertIn("/api/migrations/fixture", schema["paths"])
+        self.assertIn("/api/migrations/import", schema["paths"])
 
 
 if __name__ == "__main__":

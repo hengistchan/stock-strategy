@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CancelJobApiJobsJobIdDeleteData, CancelJobApiJobsJobIdDeleteErrors, CancelJobApiJobsJobIdDeleteResponses, ConfigApiConfigGetData, ConfigApiConfigGetResponses, CreateExperimentApiExperimentsPostData, CreateExperimentApiExperimentsPostErrors, CreateExperimentApiExperimentsPostResponses, CreateJobApiJobsPostData, CreateJobApiJobsPostErrors, CreateJobApiJobsPostResponses, CreateStrategyApiStrategiesPostData, CreateStrategyApiStrategiesPostErrors, CreateStrategyApiStrategiesPostResponses, DeleteCacheApiCacheCacheIdDeleteData, DeleteCacheApiCacheCacheIdDeleteErrors, DeleteCacheApiCacheCacheIdDeleteResponses, DiagnosticsReportApiDiagnosticsGetData, DiagnosticsReportApiDiagnosticsGetResponses, EventStreamApiEventsGetData, EventStreamApiEventsGetResponse, EventStreamApiEventsGetResponses, ExportEvidenceApiEvidenceJobIdZipGetData, ExportEvidenceApiEvidenceJobIdZipGetErrors, ExportEvidenceApiEvidenceJobIdZipGetResponses, FrontendFallbackFrontendPathGetData, FrontendFallbackFrontendPathGetErrors, FrontendFallbackFrontendPathGetResponses, GetExperimentApiExperimentsExperimentIdGetData, GetExperimentApiExperimentsExperimentIdGetErrors, GetExperimentApiExperimentsExperimentIdGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, ImportEvidenceApiEvidenceImportPostData, ImportEvidenceApiEvidenceImportPostErrors, ImportEvidenceApiEvidenceImportPostResponses, IndexGetData, IndexGetResponses, JobApiJobsJobIdGetData, JobApiJobsJobIdGetErrors, JobApiJobsJobIdGetResponses, JobsApiJobsGetData, JobsApiJobsGetResponses, ListCacheApiCacheGetData, ListCacheApiCacheGetResponses, ListExperimentsApiExperimentsGetData, ListExperimentsApiExperimentsGetResponses, ListStrategyDocumentsApiStrategiesGetData, ListStrategyDocumentsApiStrategiesGetResponses, ListStrategyVersionsApiStrategiesVersionsGetData, ListStrategyVersionsApiStrategiesVersionsGetErrors, ListStrategyVersionsApiStrategiesVersionsGetResponses, PricesApiJobsJobIdPricesGetData, PricesApiJobsJobIdPricesGetErrors, PricesApiJobsJobIdPricesGetResponses, ReadStrategyApiStrategiesStrategyPathGetData, ReadStrategyApiStrategiesStrategyPathGetErrors, ReadStrategyApiStrategiesStrategyPathGetResponses, ReportApiJobsJobIdReportSvgGetData, ReportApiJobsJobIdReportSvgGetErrors, ReportApiJobsJobIdReportSvgGetResponses, ResolveSymbolsApiSymbolsResolveGetData, ResolveSymbolsApiSymbolsResolveGetErrors, ResolveSymbolsApiSymbolsResolveGetResponses, RestoreStrategyVersionApiStrategiesVersionsRestorePostData, RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors, RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses, ResultApiJobsJobIdResultGetData, ResultApiJobsJobIdResultGetErrors, ResultApiJobsJobIdResultGetResponses, RetryJobApiJobsJobIdRetryPostData, RetryJobApiJobsJobIdRetryPostErrors, RetryJobApiJobsJobIdRetryPostResponses, RunPortfolioApiPortfoliosPostData, RunPortfolioApiPortfoliosPostErrors, RunPortfolioApiPortfoliosPostResponses, SaveStrategyApiStrategiesStrategyPathPutData, SaveStrategyApiStrategiesStrategyPathPutErrors, SaveStrategyApiStrategiesStrategyPathPutResponses, SearchSymbolsApiSymbolsGetData, SearchSymbolsApiSymbolsGetErrors, SearchSymbolsApiSymbolsGetResponses } from './types.gen';
+import type { CancelJobApiJobsJobIdDeleteData, CancelJobApiJobsJobIdDeleteErrors, CancelJobApiJobsJobIdDeleteResponses, ConfigApiConfigGetData, ConfigApiConfigGetResponses, CreateExperimentApiExperimentsPostData, CreateExperimentApiExperimentsPostErrors, CreateExperimentApiExperimentsPostResponses, CreateJobApiJobsPostData, CreateJobApiJobsPostErrors, CreateJobApiJobsPostResponses, CreateStrategyApiStrategiesPostData, CreateStrategyApiStrategiesPostErrors, CreateStrategyApiStrategiesPostResponses, DeleteCacheApiCacheCacheIdDeleteData, DeleteCacheApiCacheCacheIdDeleteErrors, DeleteCacheApiCacheCacheIdDeleteResponses, DiagnosticsReportApiDiagnosticsGetData, DiagnosticsReportApiDiagnosticsGetResponses, EventStreamApiEventsGetData, EventStreamApiEventsGetResponse, EventStreamApiEventsGetResponses, ExportEvidenceApiEvidenceJobIdZipGetData, ExportEvidenceApiEvidenceJobIdZipGetErrors, ExportEvidenceApiEvidenceJobIdZipGetResponses, FrontendFallbackFrontendPathGetData, FrontendFallbackFrontendPathGetErrors, FrontendFallbackFrontendPathGetResponses, GetExperimentApiExperimentsExperimentIdGetData, GetExperimentApiExperimentsExperimentIdGetErrors, GetExperimentApiExperimentsExperimentIdGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, ImportEvidenceApiEvidenceImportPostData, ImportEvidenceApiEvidenceImportPostErrors, ImportEvidenceApiEvidenceImportPostResponses, ImportStrategyApiMigrationsImportPostData, ImportStrategyApiMigrationsImportPostErrors, ImportStrategyApiMigrationsImportPostResponses, IndexGetData, IndexGetResponses, JobApiJobsJobIdGetData, JobApiJobsJobIdGetErrors, JobApiJobsJobIdGetResponses, JobsApiJobsGetData, JobsApiJobsGetResponses, ListCacheApiCacheGetData, ListCacheApiCacheGetResponses, ListExperimentsApiExperimentsGetData, ListExperimentsApiExperimentsGetResponses, ListStrategyDocumentsApiStrategiesGetData, ListStrategyDocumentsApiStrategiesGetResponses, ListStrategyVersionsApiStrategiesVersionsGetData, ListStrategyVersionsApiStrategiesVersionsGetErrors, ListStrategyVersionsApiStrategiesVersionsGetResponses, PricesApiJobsJobIdPricesGetData, PricesApiJobsJobIdPricesGetErrors, PricesApiJobsJobIdPricesGetResponses, ReadStrategyApiStrategiesStrategyPathGetData, ReadStrategyApiStrategiesStrategyPathGetErrors, ReadStrategyApiStrategiesStrategyPathGetResponses, ReportApiJobsJobIdReportSvgGetData, ReportApiJobsJobIdReportSvgGetErrors, ReportApiJobsJobIdReportSvgGetResponses, ResolveSymbolsApiSymbolsResolveGetData, ResolveSymbolsApiSymbolsResolveGetErrors, ResolveSymbolsApiSymbolsResolveGetResponses, RestoreStrategyVersionApiStrategiesVersionsRestorePostData, RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors, RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses, ResultApiJobsJobIdResultGetData, ResultApiJobsJobIdResultGetErrors, ResultApiJobsJobIdResultGetResponses, RetryJobApiJobsJobIdRetryPostData, RetryJobApiJobsJobIdRetryPostErrors, RetryJobApiJobsJobIdRetryPostResponses, RunPortfolioApiPortfoliosPostData, RunPortfolioApiPortfoliosPostErrors, RunPortfolioApiPortfoliosPostResponses, SaveStrategyApiStrategiesStrategyPathPutData, SaveStrategyApiStrategiesStrategyPathPutErrors, SaveStrategyApiStrategiesStrategyPathPutResponses, ScanStrategyApiMigrationsScanPostData, ScanStrategyApiMigrationsScanPostErrors, ScanStrategyApiMigrationsScanPostResponses, SearchSymbolsApiSymbolsGetData, SearchSymbolsApiSymbolsGetErrors, SearchSymbolsApiSymbolsGetResponses, ValidateStrategyFixtureApiMigrationsFixturePostData, ValidateStrategyFixtureApiMigrationsFixturePostErrors, ValidateStrategyFixtureApiMigrationsFixturePostResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -155,6 +155,42 @@ export const exportEvidenceApiEvidenceJobIdZipGet = <ThrowOnError extends boolea
  * Import Evidence
  */
 export const importEvidenceApiEvidenceImportPost = <ThrowOnError extends boolean = false>(options?: Options<ImportEvidenceApiEvidenceImportPostData, ThrowOnError>): RequestResult<ImportEvidenceApiEvidenceImportPostResponses, ImportEvidenceApiEvidenceImportPostErrors, ThrowOnError> => (options?.client ?? client).post<ImportEvidenceApiEvidenceImportPostResponses, ImportEvidenceApiEvidenceImportPostErrors, ThrowOnError>({ url: '/api/evidence/import', ...options });
+
+/**
+ * Scan Strategy
+ */
+export const scanStrategyApiMigrationsScanPost = <ThrowOnError extends boolean = false>(options: Options<ScanStrategyApiMigrationsScanPostData, ThrowOnError>): RequestResult<ScanStrategyApiMigrationsScanPostResponses, ScanStrategyApiMigrationsScanPostErrors, ThrowOnError> => (options.client ?? client).post<ScanStrategyApiMigrationsScanPostResponses, ScanStrategyApiMigrationsScanPostErrors, ThrowOnError>({
+    url: '/api/migrations/scan',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Validate Strategy Fixture
+ */
+export const validateStrategyFixtureApiMigrationsFixturePost = <ThrowOnError extends boolean = false>(options: Options<ValidateStrategyFixtureApiMigrationsFixturePostData, ThrowOnError>): RequestResult<ValidateStrategyFixtureApiMigrationsFixturePostResponses, ValidateStrategyFixtureApiMigrationsFixturePostErrors, ThrowOnError> => (options.client ?? client).post<ValidateStrategyFixtureApiMigrationsFixturePostResponses, ValidateStrategyFixtureApiMigrationsFixturePostErrors, ThrowOnError>({
+    url: '/api/migrations/fixture',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Import Strategy
+ */
+export const importStrategyApiMigrationsImportPost = <ThrowOnError extends boolean = false>(options: Options<ImportStrategyApiMigrationsImportPostData, ThrowOnError>): RequestResult<ImportStrategyApiMigrationsImportPostResponses, ImportStrategyApiMigrationsImportPostErrors, ThrowOnError> => (options.client ?? client).post<ImportStrategyApiMigrationsImportPostResponses, ImportStrategyApiMigrationsImportPostErrors, ThrowOnError>({
+    url: '/api/migrations/import',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * List Experiments

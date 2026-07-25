@@ -315,6 +315,7 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
     module = ast.parse(content, filename="strategy.py")
     assigned = {"self"}
     loaded: set[str] = set()
+    loaded_lines: dict[str, int] = {}
     bar_attributes: dict[str, str] = {}
     session_attributes: dict[str, str] = {}
     bar_types: set[str] = set()
@@ -334,6 +335,7 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
                 assigned.add(node.id)
             elif isinstance(node.ctx, ast.Load):
                 loaded.add(node.id)
+                loaded_lines.setdefault(node.id, node.lineno)
         elif (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
@@ -424,6 +426,31 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
     if len(session_types) > 1:
         issues.append("multiple_session_types")
     driver_bar_type = min(bar_types, key=_bar_type_rank) if bar_types else None
+    findings = [
+        {
+            "severity": "error",
+            "code": "unsupported_name",
+            "line": loaded_lines.get(name),
+            "name": name,
+            "message": f"{name} is not available in the local stock runtime.",
+            "suggestion": (
+                "Replace it with an exported stock_strategy.futu API, "
+                "or isolate the behavior in a supported helper."
+            ),
+        }
+        for name in unsupported_names
+    ]
+    if len(session_types) > 1:
+        findings.append(
+            {
+                "severity": "error",
+                "code": "multiple_session_types",
+                "line": None,
+                "name": None,
+                "message": "One run cannot mix multiple THType session contracts.",
+                "suggestion": "Choose one session and run the alternatives separately.",
+            }
+        )
     return {
         "supported": not issues,
         "issues": issues,
@@ -432,6 +459,28 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
         "driver_bar_type": driver_bar_type,
         "session_types": sorted(session_types),
         "required_session": next(iter(session_types)) if len(session_types) == 1 else None,
+        "findings": findings,
+        "semantic_differences": [
+            {
+                "code": "next_bar_execution",
+                "message": "Signals created on a bar can fill no earlier than the next bar.",
+            },
+            {
+                "code": "historical_stock_only",
+                "message": "The local runtime supports historical stock backtests only.",
+            },
+            {
+                "code": "opend_market_data",
+                "message": "Historical prices come exclusively from OpenD.",
+            },
+            {
+                "code": "end_position_mark_to_market",
+                "message": "Open positions are marked to market unless end liquidation is enabled.",
+            },
+        ],
+        "suggestions": [
+            finding["suggestion"] for finding in findings
+        ],
     }
 
 

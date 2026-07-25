@@ -26,11 +26,13 @@ from .result_reader import (
     read_downsampled_equity_curve as _read_downsampled_equity_curve,
 )
 from .strategy_repository import StrategyRepository, StrategyRepositoryError
+from .strategy_migration import StrategyMigrationService
 from .web_cache import create_cache_router
 from .web_events import create_events_router
 from .web_evidence import create_evidence_router
 from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
+from .web_migrations import create_migrations_router
 from .web_portfolios import create_portfolios_router
 from .web_strategies import create_strategies_router
 from .web_symbols import create_symbols_router
@@ -53,6 +55,7 @@ def create_app(
     experiments = experiment_store or ExperimentStore(root, store)
     strategies = StrategyRepository(root)
     execution = ExecutionService(strategies, store, experiments)
+    migrations = StrategyMigrationService(root, strategies)
     portfolios = portfolio_service or PortfolioService(
         root,
         host=store.opend_host,
@@ -82,6 +85,7 @@ def create_app(
     app.state.experiment_store = experiments
     app.state.strategy_repository = strategies
     app.state.execution_service = execution
+    app.state.strategy_migration_service = migrations
     app.state.portfolio_service = portfolios
     app.state.symbol_directory = directory
     app.state.diagnostics_service = diagnostics
@@ -129,6 +133,7 @@ def create_app(
     app.include_router(create_strategies_router(strategies, store, experiments))
     app.include_router(create_jobs_router(store, execution))
     app.include_router(create_evidence_router(store))
+    app.include_router(create_migrations_router(migrations))
     app.include_router(create_experiments_router(experiments, execution))
     app.include_router(create_portfolios_router(portfolios))
     app.include_router(create_cache_router(store))

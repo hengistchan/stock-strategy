@@ -43,6 +43,32 @@ export interface StrategyCompatibility {
   driver_bar_type?: string | null;
   session_types?: string[];
   required_session?: string | null;
+  findings?: StrategyCompatibilityFinding[];
+  semantic_differences?: Array<{ code: string; message: string }>;
+  suggestions?: string[];
+}
+
+export interface StrategyCompatibilityFinding {
+  severity: "error" | "warning" | "info";
+  code: string;
+  line: number | null;
+  name: string | null;
+  message: string;
+  suggestion: string;
+}
+
+export interface StrategyMigrationReport {
+  source_sha256: string;
+  syntax_valid: boolean;
+  compatibility: StrategyCompatibility;
+  fixture: {
+    status: "not_run" | "blocked" | "passed" | "failed";
+    error?: string;
+    bars?: number;
+    symbol?: string;
+    metrics?: BacktestMetrics;
+  };
+  next_step: string;
 }
 
 export interface StrategyDocument extends StrategyMetadata {

@@ -6,6 +6,7 @@ import type { StrategyMetadata } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime } from "../lib/format";
 import { StrategyEditor } from "./StrategyEditor";
+import { StrategyMigrationPanel } from "./StrategyMigrationPanel";
 
 interface StrategyWorkspaceProps {
   strategies: StrategyMetadata[];
@@ -73,6 +74,7 @@ export function StrategyWorkspace({
           <h2>{t("strategy.repository")}</h2>
           <p>{t("strategy.repositoryHelp")}</p>
         </div>
+        <StrategyMigrationPanel onImported={onSelectedPathChange} />
         <div className="strategy-create">
           <label htmlFor="strategyName">{t("strategy.newName")}</label>
           <div>
