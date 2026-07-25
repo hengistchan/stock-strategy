@@ -34,6 +34,7 @@ from .strategy_process import (
     subprocess_isolation_options,
     terminate_process_tree,
 )
+from .state_repository import SqliteJobRepository
 
 
 JOB_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
@@ -52,6 +53,10 @@ class JobStore:
         self.project_root = project_root.resolve()
         self.root = (self.project_root / "runs" / "web").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self.repository = SqliteJobRepository(
+            self.project_root / "runs" / "state.sqlite3",
+            self.root,
+        )
         self.timeout_seconds = timeout_seconds
         self.opend_host = opend_host or os.environ.get("OPEND_HOST", "127.0.0.1")
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
@@ -118,6 +123,7 @@ class JobStore:
             self._write_job(payload)
             return payload
         except Exception:
+            self.repository.delete(job_id)
             shutil.rmtree(job_dir, ignore_errors=True)
             raise
 
@@ -285,19 +291,11 @@ class JobStore:
         return command
 
     def list_jobs(self) -> list[dict[str, Any]]:
-        jobs = []
-        for path in self.root.glob("*/job.json"):
-            try:
-                jobs.append(json.loads(path.read_text(encoding="utf-8")))
-            except (OSError, json.JSONDecodeError):
-                continue
-        return sorted(jobs, key=lambda job: job.get("created_at", ""), reverse=True)
+        return self.repository.list()
 
     def get_job(self, job_id: str) -> dict[str, Any]:
-        path = self._job_dir(job_id) / "job.json"
-        if not path.is_file():
-            raise KeyError(job_id)
-        return json.loads(path.read_text(encoding="utf-8"))
+        self._job_dir(job_id)
+        return self.repository.get(job_id)
 
     def load_result(self, job_id: str) -> dict[str, Any]:
         return load_result_payload(
@@ -334,6 +332,7 @@ class JobStore:
 
     def _write_job(self, payload: dict[str, Any]) -> None:
         path = self._job_dir(payload["id"]) / "job.json"
+        self.repository.upsert(payload)
         atomic_write_json(path, payload)
         manifest_path = path.parent / "manifest.json"
         if manifest_path.is_file():

@@ -98,6 +98,8 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
                 await store.run_job(job["id"])
 
             completed = store.get_job(job["id"])
+            (store.root / job["id"] / "job.json").unlink()
+            completed_from_database = store.get_job(job["id"])
             manifest = json.loads(
                 (store.root / job["id"] / "manifest.json").read_text(encoding="utf-8")
             )
@@ -119,6 +121,7 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             result_summary_sha256 = sha256_file(run_dir / "summary.json")
 
         self.assertEqual(completed["status"], "succeeded")
+        self.assertEqual(completed_from_database, completed)
         self.assertEqual(strategy_snapshot_content, original_source)
         self.assertEqual(manifest["market_data_sha256"], snapshot_sha256)
         self.assertEqual(
