@@ -166,6 +166,7 @@ class ExperimentRun(ApiModel):
     score: float | None
     rank: int | None
     error: str | None
+    phases: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class ExperimentResponse(ApiModel):
@@ -177,12 +178,15 @@ class ExperimentResponse(ApiModel):
     finished_at: str | None
     objective: str
     base_request: BacktestRequest
+    validation_window: dict[str, str] | None = None
+    test_window: dict[str, str] | None = None
     parameter_grid: dict[str, list[Any]]
     strategy_path: str
     strategy_revision: str | None = None
     strategy_snapshot_path: str | None = None
     progress: dict[str, int]
     runs: list[ExperimentRun]
+    research_summary: dict[str, Any] | None = None
 
 
 class ExperimentsResponse(BaseModel):

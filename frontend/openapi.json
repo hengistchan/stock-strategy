@@ -1775,6 +1775,26 @@
         ],
         "title": "ErrorResponse"
       },
+      "EvaluationWindowRequest": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "EvaluationWindowRequest"
+      },
       "ExperimentRequest": {
         "properties": {
           "name": {
@@ -1819,6 +1839,26 @@
             ],
             "title": "Objective",
             "default": "sharpe_ratio"
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationWindowRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "test": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationWindowRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1875,6 +1915,34 @@
           "base_request": {
             "$ref": "#/components/schemas/BacktestRequest"
           },
+          "validation_window": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Window"
+          },
+          "test_window": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Window"
+          },
           "parameter_grid": {
             "additionalProperties": {
               "items": {},
@@ -1922,6 +1990,18 @@
             },
             "type": "array",
             "title": "Runs"
+          },
+          "research_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Summary"
           }
         },
         "additionalProperties": true,
@@ -2012,6 +2092,14 @@
               }
             ],
             "title": "Error"
+          },
+          "phases": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Phases"
           }
         },
         "additionalProperties": true,

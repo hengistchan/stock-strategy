@@ -93,4 +93,30 @@ describe("ExperimentForm", () => {
     expect(screen.getByLabelText("Candidate values for Fast moving-average period")).toBeInTheDocument();
     expect(screen.queryByText("短均线周期")).not.toBeInTheDocument();
   });
+
+  it("submits validation and final test windows explicitly", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ExperimentForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        parameterDefinitions={definitions}
+        onStrategyChange={() => undefined}
+        onSubmit={onSubmit}
+        running={false}
+        opendConnected
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("启用样本外验证"));
+    fireEvent.click(screen.getByLabelText("增加最终测试区间"));
+    fireEvent.click(screen.getByRole("button", { name: /运行 4 组参数/ }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        validation: { start: "2026-01-01", end: "2026-03-31" },
+        test: { start: "2026-04-01", end: "2026-06-30" },
+      }),
+    );
+  });
 });

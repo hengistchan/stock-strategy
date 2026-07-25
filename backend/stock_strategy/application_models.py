@@ -71,3 +71,14 @@ class ExperimentSpec:
     base: BacktestSpec
     parameter_grid: Mapping[str, list[ParameterValue]]
     objective: str = "sharpe_ratio"
+    validation: "EvaluationWindow | None" = None
+    test: "EvaluationWindow | None" = None
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationWindow:
+    start: date
+    end: date
+
+    def to_dict(self) -> dict[str, str]:
+        return {"start": self.start.isoformat(), "end": self.end.isoformat()}

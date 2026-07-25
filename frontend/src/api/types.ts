@@ -253,6 +253,21 @@ export interface ExperimentRequest {
   base: BacktestRequest;
   parameter_grid: Record<string, ParameterValue[]>;
   objective: ExperimentObjective;
+  validation?: EvaluationWindow;
+  test?: EvaluationWindow;
+}
+
+export interface EvaluationWindow {
+  start: string;
+  end: string;
+}
+
+export interface ExperimentPhase {
+  job_id: string | null;
+  status: JobStatus;
+  metrics: BacktestMetrics | null;
+  error: string | null;
+  window: EvaluationWindow;
 }
 
 export interface ExperimentRun {
@@ -264,6 +279,7 @@ export interface ExperimentRun {
   score: number | null;
   rank: number | null;
   error: string | null;
+  phases?: Record<string, ExperimentPhase>;
 }
 
 export interface Experiment {
@@ -275,10 +291,21 @@ export interface Experiment {
   finished_at: string | null;
   objective: ExperimentObjective;
   base_request: BacktestRequest;
+  validation_window?: EvaluationWindow | null;
+  test_window?: EvaluationWindow | null;
   parameter_grid: Record<string, ParameterValue[]>;
   strategy_path: string;
   progress: { completed: number; total: number };
   runs: ExperimentRun[];
+  research_summary?: {
+    mode: "in_sample" | "train_validation_test";
+    selected_parameters: Record<string, ParameterValue> | null;
+    out_of_sample: boolean;
+    validation_metrics?: BacktestMetrics | null;
+    test_metrics?: BacktestMetrics | null;
+    positive_window_ratio?: number | null;
+    worst_window_drawdown_pct?: number | null;
+  };
 }
 
 export interface ExperimentsResponse {

@@ -69,6 +69,10 @@ class ExecutionService:
             strategy_source=prepared.strategy_source,
             strategy_revision=prepared.strategy_revision,
             objective=request.objective,
+            validation_window=(
+                request.validation.to_dict() if request.validation else None
+            ),
+            test_window=request.test.to_dict() if request.test else None,
         )
         self.experiments.launch(experiment["id"])
         return experiment

@@ -82,6 +82,8 @@ class ExperimentStore:
         strategy_source: str | None = None,
         strategy_revision: str | None = None,
         objective: str,
+        validation_window: Mapping[str, str] | None = None,
+        test_window: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
         if objective not in EXPERIMENT_OBJECTIVES:
             raise ValueError(f"unsupported experiment objective: {objective}")
@@ -115,6 +117,10 @@ class ExperimentStore:
             "finished_at": None,
             "objective": objective,
             "base_request": dict(base_request),
+            "validation_window": (
+                dict(validation_window) if validation_window else None
+            ),
+            "test_window": dict(test_window) if test_window else None,
             "parameter_grid": {key: list(values) for key, values in parameter_grid.items()},
             "strategy_path": snapshot.source_path,
             "strategy_revision": snapshot.revision,
@@ -130,6 +136,7 @@ class ExperimentStore:
                     "score": None,
                     "rank": None,
                     "error": None,
+                    "phases": {},
                 }
                 for index, parameters in enumerate(combinations)
             ],
@@ -155,43 +162,91 @@ class ExperimentStore:
         )
         strategy_source = snapshot_path.read_text(encoding="utf-8")
         strategy_revision = experiment.get("strategy_revision")
-        for run_index, run in enumerate(experiment["runs"]):
+        for run in experiment["runs"]:
             try:
                 request = dict(experiment["base_request"])
                 request["parameters"] = {
                     **dict(request.get("parameters") or {}),
                     **dict(run["parameters"]),
                 }
-                if run_index > 0:
-                    request["refresh_cache"] = False
-                job = self.job_store.create_job(
+                request["refresh_cache"] = False
+                train = await self._run_phase(
+                    experiment,
+                    run,
+                    "train",
                     request,
                     strategy_path,
-                    strategy_source=strategy_source,
-                    strategy_revision=strategy_revision,
+                    strategy_source,
+                    strategy_revision,
                 )
-                run.update(job_id=job["id"], status="running")
-                self._write(experiment)
-                await self.job_store.run_job(job["id"])
-                completed_job = self.job_store.get_job(job["id"])
-                run["status"] = completed_job["status"]
-                if completed_job["status"] == "succeeded":
-                    result = self.job_store.load_result(job["id"])
-                    metrics = result["summary"]["metrics"]
-                    run["metrics"] = metrics
-                    run["score"] = metrics.get(experiment["objective"])
-                else:
-                    run["error"] = completed_job.get("error") or "回测失败"
+                scoring_phase = train
+                validation_window = experiment.get("validation_window")
+                if train["status"] == "succeeded" and validation_window:
+                    validation_request = {
+                        **request,
+                        "start": validation_window["start"],
+                        "end": validation_window["end"],
+                    }
+                    scoring_phase = await self._run_phase(
+                        experiment,
+                        run,
+                        "validation",
+                        validation_request,
+                        strategy_path,
+                        strategy_source,
+                        strategy_revision,
+                    )
+                run["job_id"] = scoring_phase.get("job_id")
+                run["status"] = scoring_phase["status"]
+                run["metrics"] = scoring_phase.get("metrics")
+                run["score"] = (
+                    scoring_phase.get("metrics", {}).get(experiment["objective"])
+                    if scoring_phase["status"] == "succeeded"
+                    else None
+                )
+                run["error"] = scoring_phase.get("error")
             except Exception as error:
                 run.update(status="failed", error=str(error))
             experiment["progress"]["completed"] += 1
             self._rank(experiment)
             self._write(experiment)
 
+        self._rank(experiment)
+        selected = next(
+            (run for run in experiment["runs"] if run.get("rank") == 1),
+            None,
+        )
+        test_status: str | None = None
+        if selected is not None and experiment.get("test_window"):
+            test_window = experiment["test_window"]
+            test_request = {
+                **dict(experiment["base_request"]),
+                "start": test_window["start"],
+                "end": test_window["end"],
+                "parameters": {
+                    **dict(experiment["base_request"].get("parameters") or {}),
+                    **dict(selected["parameters"]),
+                },
+                "refresh_cache": False,
+            }
+            test_phase = await self._run_phase(
+                experiment,
+                selected,
+                "test",
+                test_request,
+                strategy_path,
+                strategy_source,
+                strategy_revision,
+            )
+            test_status = test_phase["status"]
+
         succeeded_count = sum(
             run["status"] == "succeeded" for run in experiment["runs"]
         )
-        if succeeded_count == len(experiment["runs"]):
+        if succeeded_count == len(experiment["runs"]) and test_status in {
+            None,
+            "succeeded",
+        }:
             final_status = "succeeded"
         elif succeeded_count:
             final_status = "completed_with_errors"
@@ -200,9 +255,104 @@ class ExperimentStore:
         experiment.update(
             status=final_status,
             finished_at=_now(),
+            research_summary=self._research_summary(experiment, selected),
         )
         self._rank(experiment)
         self._write(experiment)
+
+    async def _run_phase(
+        self,
+        experiment: dict[str, Any],
+        run: dict[str, Any],
+        phase_name: str,
+        request: Mapping[str, Any],
+        strategy_path: Path,
+        strategy_source: str,
+        strategy_revision: str | None,
+    ) -> dict[str, Any]:
+        phase = {
+            "job_id": None,
+            "status": "queued",
+            "metrics": None,
+            "error": None,
+            "window": {
+                "start": str(request.get("start") or ""),
+                "end": str(request.get("end") or ""),
+            },
+        }
+        run["phases"][phase_name] = phase
+        try:
+            job = self.job_store.create_job(
+                request,
+                strategy_path,
+                strategy_source=strategy_source,
+                strategy_revision=strategy_revision,
+            )
+            phase.update(job_id=job["id"], status="running")
+            if phase_name != "test":
+                run["status"] = "running"
+            self._write(experiment)
+            await self.job_store.run_job(job["id"])
+            completed_job = self.job_store.get_job(job["id"])
+            phase["status"] = completed_job["status"]
+            if completed_job["status"] == "succeeded":
+                result = self.job_store.load_result(job["id"])
+                phase["metrics"] = result["summary"]["metrics"]
+            else:
+                phase["error"] = completed_job.get("error") or "回测失败"
+        except Exception as error:
+            phase.update(status="failed", error=str(error))
+        self._write(experiment)
+        return phase
+
+    @staticmethod
+    def _research_summary(
+        experiment: Mapping[str, Any],
+        selected: Mapping[str, Any] | None,
+    ) -> dict[str, Any]:
+        if selected is None:
+            return {
+                "mode": "in_sample",
+                "selected_parameters": None,
+                "out_of_sample": False,
+            }
+        phases = selected.get("phases", {})
+        validation = phases.get("validation")
+        test = phases.get("test")
+        observed = [
+            phase
+            for phase in phases.values()
+            if phase.get("status") == "succeeded" and phase.get("metrics")
+        ]
+        returns = [
+            float(phase["metrics"]["total_return_pct"])
+            for phase in observed
+            if phase["metrics"].get("total_return_pct") is not None
+        ]
+        drawdowns = [
+            float(phase["metrics"]["max_drawdown_pct"])
+            for phase in observed
+            if phase["metrics"].get("max_drawdown_pct") is not None
+        ]
+        return {
+            "mode": (
+                "train_validation_test"
+                if experiment.get("validation_window")
+                else "in_sample"
+            ),
+            "selected_parameters": dict(selected["parameters"]),
+            "out_of_sample": validation is not None,
+            "validation_metrics": (
+                validation.get("metrics") if validation is not None else None
+            ),
+            "test_metrics": test.get("metrics") if test is not None else None,
+            "positive_window_ratio": (
+                sum(value > 0 for value in returns) / len(returns)
+                if returns
+                else None
+            ),
+            "worst_window_drawdown_pct": min(drawdowns) if drawdowns else None,
+        }
 
     def list(self) -> list[dict[str, Any]]:
         experiments: list[dict[str, Any]] = []

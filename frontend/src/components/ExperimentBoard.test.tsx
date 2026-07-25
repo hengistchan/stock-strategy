@@ -17,6 +17,15 @@ const experiment: Experiment = {
   parameter_grid: { fast_period: [10, 20] },
   strategy_path: "examples/ma_cross.py",
   progress: { completed: 2, total: 2 },
+  research_summary: {
+    mode: "train_validation_test",
+    selected_parameters: { fast_period: 20 },
+    out_of_sample: true,
+    validation_metrics: { total_return_pct: 12, benchmark_return_pct: 8, max_drawdown_pct: -9, sharpe_ratio: 1.4, total_trades: 3, total_fees: 12, exposure_pct: 55 },
+    test_metrics: { total_return_pct: 8, benchmark_return_pct: 6, max_drawdown_pct: -7, sharpe_ratio: 1.1, total_trades: 2, total_fees: 9, exposure_pct: 50 },
+    positive_window_ratio: 1,
+    worst_window_drawdown_pct: -10,
+  },
   runs: [
     { index: 1, parameters: { fast_period: 10 }, job_id: "job-1", status: "succeeded", score: 1.2, rank: 2, error: null, metrics: { total_return_pct: 20, benchmark_return_pct: 10, max_drawdown_pct: -12, sharpe_ratio: 1.2, total_trades: 3, total_fees: 20, exposure_pct: 60 } },
     { index: 2, parameters: { fast_period: 20 }, job_id: "job-2", status: "succeeded", score: 1.8, rank: 1, error: null, metrics: { total_return_pct: 30, benchmark_return_pct: 10, max_drawdown_pct: -10, sharpe_ratio: 1.8, total_trades: 4, total_fees: 25, exposure_pct: 65 } },
@@ -39,6 +48,8 @@ describe("ExperimentBoard", () => {
 
     expect(screen.getAllByText(/US\.AAPL · 苹果/).length).toBeGreaterThan(0);
     expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByText("验证 Sharpe")).toBeInTheDocument();
+    expect(screen.getByText("1.40")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("比较第 2 组"));
     fireEvent.click(screen.getByRole("button", { name: /查看回测证据/ }));
     expect(onOpenRun).toHaveBeenCalledWith("job-2");

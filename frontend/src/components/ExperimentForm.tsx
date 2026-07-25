@@ -43,6 +43,8 @@ export function ExperimentForm({
       ]),
     ),
   );
+  const [outOfSample, setOutOfSample] = useState(false);
+  const [includeTest, setIncludeTest] = useState(false);
   const combinationCount = parameterDefinitions.reduce(
     (count, definition) => count * parseGridValues(gridText[definition.name] ?? "", definition).length,
     1,
@@ -60,10 +62,24 @@ export function ExperimentForm({
     const defaults = Object.fromEntries(
       parameterDefinitions.map((definition) => [definition.name, definition.default]),
     );
+    const validation = outOfSample
+      ? {
+          start: String(data.get("validation_start")),
+          end: String(data.get("validation_end")),
+        }
+      : undefined;
+    const test = outOfSample && includeTest
+      ? {
+          start: String(data.get("test_start")),
+          end: String(data.get("test_end")),
+        }
+      : undefined;
     onSubmit({
       name: String(data.get("name")).trim(),
       objective: String(data.get("objective")) as ExperimentObjective,
       parameter_grid: parameterGrid,
+      validation,
+      test,
       base: {
         strategy: selectedStrategy,
         symbol: String(data.get("symbol")).trim().toUpperCase(),
@@ -126,6 +142,43 @@ export function ExperimentForm({
         <label className="field"><span>{t("form.ktype")}</span><select name="ktype" defaultValue="K_DAY">{(config?.kline_types ?? ["K_DAY"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
         <label className="field"><span>{t("form.session")}</span><select name="session" defaultValue="ALL">{(config?.session_types ?? ["ALL"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div>
+
+      <section className="grid-editor research-window-editor">
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={outOfSample}
+            onChange={(event) => {
+              setOutOfSample(event.target.checked);
+              if (!event.target.checked) setIncludeTest(false);
+            }}
+          />
+          <span>{t("experiment.enableOutOfSample")}</span>
+        </label>
+        <p>{t("experiment.outOfSampleHelp")}</p>
+        {outOfSample ? (
+          <>
+            <div className="field-pair">
+              <label className="field"><span>{t("experiment.validationStart")}</span><input type="date" name="validation_start" defaultValue="2026-01-01" required /></label>
+              <label className="field"><span>{t("experiment.validationEnd")}</span><input type="date" name="validation_end" defaultValue="2026-03-31" required /></label>
+            </div>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={includeTest}
+                onChange={(event) => setIncludeTest(event.target.checked)}
+              />
+              <span>{t("experiment.enableTestWindow")}</span>
+            </label>
+            {includeTest ? (
+              <div className="field-pair">
+                <label className="field"><span>{t("experiment.testStart")}</span><input type="date" name="test_start" defaultValue="2026-04-01" required /></label>
+                <label className="field"><span>{t("experiment.testEnd")}</span><input type="date" name="test_end" defaultValue="2026-06-30" required /></label>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </section>
 
       <section className="grid-editor" aria-labelledby="gridEditorTitle">
         <div className="grid-editor-heading">

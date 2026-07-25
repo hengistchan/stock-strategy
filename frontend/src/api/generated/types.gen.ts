@@ -377,6 +377,20 @@ export type ErrorResponse = {
 };
 
 /**
+ * EvaluationWindowRequest
+ */
+export type EvaluationWindowRequest = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     */
+    end: string;
+};
+
+/**
  * ExperimentRequest
  */
 export type ExperimentRequest = {
@@ -395,6 +409,8 @@ export type ExperimentRequest = {
      * Objective
      */
     objective?: 'total_return_pct' | 'sharpe_ratio' | 'max_drawdown_pct';
+    validation?: EvaluationWindowRequest | null;
+    test?: EvaluationWindowRequest | null;
 };
 
 /**
@@ -431,6 +447,18 @@ export type ExperimentResponse = {
     objective: string;
     base_request: BacktestRequest;
     /**
+     * Validation Window
+     */
+    validation_window?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * Test Window
+     */
+    test_window?: {
+        [key: string]: string;
+    } | null;
+    /**
      * Parameter Grid
      */
     parameter_grid: {
@@ -458,6 +486,12 @@ export type ExperimentResponse = {
      * Runs
      */
     runs: Array<ExperimentRun>;
+    /**
+     * Research Summary
+     */
+    research_summary?: {
+        [key: string]: unknown;
+    } | null;
     [key: string]: unknown;
 };
 
@@ -501,6 +535,14 @@ export type ExperimentRun = {
      * Error
      */
     error: string | null;
+    /**
+     * Phases
+     */
+    phases?: {
+        [key: string]: {
+            [key: string]: unknown;
+        };
+    };
     [key: string]: unknown;
 };
 

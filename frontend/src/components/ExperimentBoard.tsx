@@ -97,6 +97,16 @@ export function ExperimentBoard({
               <span style={{ width: `${experiment.progress.total ? experiment.progress.completed / experiment.progress.total * 100 : 0}%` }} />
             </div>
 
+            {experiment.research_summary?.out_of_sample ? (
+              <section className="comparison-strip" aria-label={t("experiment.outOfSampleSummary")}>
+                <div className="comparison-heading"><span>OUT OF SAMPLE</span><strong>{t("experiment.robustness")}</strong></div>
+                <ResearchMetric label={t("experiment.validationSharpe")} value={metricNumber(experiment.research_summary.validation_metrics?.sharpe_ratio ?? undefined, locale)} />
+                <ResearchMetric label={t("experiment.testSharpe")} value={metricNumber(experiment.research_summary.test_metrics?.sharpe_ratio ?? undefined, locale)} />
+                <ResearchMetric label={t("experiment.positiveWindows")} value={experiment.research_summary.positive_window_ratio == null ? "—" : formatSignedPercent(experiment.research_summary.positive_window_ratio * 100, locale)} />
+                <ResearchMetric label={t("experiment.worstWindowDrawdown")} value={metricPercent(experiment.research_summary.worst_window_drawdown_pct ?? undefined, locale)} />
+              </section>
+            ) : null}
+
             {comparableRuns.length > 0 ? (
               <section className="comparison-strip" aria-label={t("experiment.comparisonAria")}>
                 <div className="comparison-heading"><span>COMPARE</span><strong>{comparableRuns.length} / 3</strong></div>
@@ -133,6 +143,10 @@ export function ExperimentBoard({
       </div>
     </section>
   );
+}
+
+function ResearchMetric({ label, value }: { label: string; value: string }) {
+  return <article className="comparison-card"><small>{label}</small><strong>{value}</strong></article>;
 }
 
 function ComparisonCard({ run, onOpenRun }: { run: ExperimentRun; onOpenRun: (jobId: string) => void }) {

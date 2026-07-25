@@ -56,6 +56,23 @@ class PartiallyFailingJobStore(FakeJobStore):
             self.jobs[job_id]["error"] = "candidate failed"
 
 
+class WindowAwareJobStore(FakeJobStore):
+    def load_result(self, job_id):
+        request = self.jobs[job_id]["request"]
+        fast = request["parameters"]["fast"]
+        year = int(str(request["start"])[:4])
+        sharpe = fast / 10 if year == 2022 else -fast / 10
+        return {
+            "summary": {
+                "metrics": {
+                    "total_return_pct": sharpe * 5,
+                    "sharpe_ratio": sharpe,
+                    "max_drawdown_pct": -fast,
+                }
+            }
+        }
+
+
 class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
     def test_grid_expansion_is_deterministic_and_bounded(self):
         self.assertEqual(
@@ -158,6 +175,44 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
             [run["status"] for run in completed["runs"]],
             ["failed", "succeeded"],
         )
+
+    async def test_validation_selects_parameters_and_test_runs_only_the_winner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            jobs = WindowAwareJobStore(root)
+            store = ExperimentStore(root, jobs)
+            experiment = store.create(
+                name="out of sample",
+                base_request={
+                    "symbol": "US.AAPL",
+                    "start": "2022-01-01",
+                    "end": "2022-12-31",
+                    "parameters": {},
+                },
+                validation_window={"start": "2023-01-01", "end": "2023-12-31"},
+                test_window={"start": "2024-01-01", "end": "2024-12-31"},
+                parameter_grid={"fast": [10, 20]},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+            )
+
+            await store._run(experiment["id"])
+            completed = store.get(experiment["id"])
+
+        selected = next(run for run in completed["runs"] if run["rank"] == 1)
+        self.assertEqual(selected["parameters"], {"fast": 10})
+        self.assertEqual(completed["status"], "succeeded")
+        self.assertEqual(len(jobs.jobs), 5)
+        self.assertIn("test", selected["phases"])
+        self.assertNotIn("test", completed["runs"][1]["phases"])
+        self.assertEqual(
+            completed["research_summary"]["mode"],
+            "train_validation_test",
+        )
+        self.assertTrue(completed["research_summary"]["out_of_sample"])
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from .application_models import (
     SESSION_TYPES,
     SYMBOL_PATTERN,
     BacktestSpec,
+    EvaluationWindow,
     ExperimentSpec,
     ParameterValue,
 )
@@ -64,6 +65,18 @@ class ExperimentRequest(BaseModel):
     objective: Literal[
         "total_return_pct", "sharpe_ratio", "max_drawdown_pct"
     ] = "sharpe_ratio"
+    validation: "EvaluationWindowRequest | None" = None
+    test: "EvaluationWindowRequest | None" = None
+
+    @model_validator(mode="after")
+    def validate_research_windows(self) -> "ExperimentRequest":
+        if self.test is not None and self.validation is None:
+            raise ValueError("测试区间需要先配置验证区间。")
+        if self.validation is not None and self.validation.start <= self.base.end:
+            raise ValueError("验证区间必须晚于训练区间。")
+        if self.test is not None and self.test.start <= self.validation.end:
+            raise ValueError("测试区间必须晚于验证区间。")
+        return self
 
     def to_spec(self) -> ExperimentSpec:
         return ExperimentSpec(
@@ -73,7 +86,23 @@ class ExperimentRequest(BaseModel):
                 name: list(values) for name, values in self.parameter_grid.items()
             },
             objective=self.objective,
+            validation=self.validation.to_window() if self.validation else None,
+            test=self.test.to_window() if self.test else None,
         )
+
+
+class EvaluationWindowRequest(BaseModel):
+    start: date
+    end: date
+
+    @model_validator(mode="after")
+    def validate_period(self) -> "EvaluationWindowRequest":
+        if self.end < self.start:
+            raise ValueError("区间结束日期不能早于开始日期。")
+        return self
+
+    def to_window(self) -> EvaluationWindow:
+        return EvaluationWindow(start=self.start, end=self.end)
 
 
 class StrategyCreateRequest(BaseModel):
