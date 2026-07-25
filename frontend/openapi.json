@@ -1133,6 +1133,57 @@
         }
       }
     },
+    "/api/portfolios": {
+      "post": {
+        "tags": [
+          "portfolios"
+        ],
+        "summary": "Run Portfolio",
+        "operationId": "run_portfolio_api_portfolios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cache": {
       "get": {
         "tags": [
@@ -2464,6 +2515,197 @@
           "port"
         ],
         "title": "OpenDHealth"
+      },
+      "PortfolioRequest": {
+        "properties": {
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "maxProperties": 12,
+            "minProperties": 2,
+            "title": "Weights"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "initial_cash": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Initial Cash",
+            "default": 100000
+          },
+          "commission_bps": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Commission Bps",
+            "default": 3
+          },
+          "min_commission": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Min Commission",
+            "default": 1
+          },
+          "slippage_bps": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Slippage Bps",
+            "default": 5
+          },
+          "rebalance": {
+            "type": "string",
+            "enum": [
+              "buy_and_hold",
+              "monthly",
+              "quarterly"
+            ],
+            "title": "Rebalance",
+            "default": "monthly"
+          },
+          "ktype": {
+            "type": "string",
+            "const": "K_DAY",
+            "title": "Ktype",
+            "default": "K_DAY"
+          },
+          "autype": {
+            "type": "string",
+            "enum": [
+              "QFQ",
+              "HFQ",
+              "NONE"
+            ],
+            "title": "Autype",
+            "default": "QFQ"
+          },
+          "session": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "RTH",
+              "ETH"
+            ],
+            "title": "Session",
+            "default": "ALL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weights",
+          "start",
+          "end"
+        ],
+        "title": "PortfolioRequest"
+      },
+      "PortfolioResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "source": {
+            "type": "string",
+            "const": "opend",
+            "title": "Source"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request"
+          },
+          "market_data_sha256": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Market Data Sha256"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "period": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Period"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "positions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Positions"
+          },
+          "cash": {
+            "type": "number",
+            "title": "Cash"
+          },
+          "transactions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Transactions"
+          },
+          "equity_curve": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Equity Curve"
+          },
+          "engine_contract": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Engine Contract"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "source",
+          "request",
+          "market_data_sha256",
+          "metrics",
+          "period",
+          "weights",
+          "positions",
+          "cash",
+          "transactions",
+          "equity_curve",
+          "engine_contract"
+        ],
+        "title": "PortfolioResponse"
       },
       "PricePoint": {
         "properties": {

@@ -680,6 +680,135 @@ export type OpenDHealth = {
 };
 
 /**
+ * PortfolioRequest
+ */
+export type PortfolioRequest = {
+    /**
+     * Weights
+     */
+    weights: {
+        [key: string]: number;
+    };
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     */
+    end: string;
+    /**
+     * Initial Cash
+     */
+    initial_cash?: number;
+    /**
+     * Commission Bps
+     */
+    commission_bps?: number;
+    /**
+     * Min Commission
+     */
+    min_commission?: number;
+    /**
+     * Slippage Bps
+     */
+    slippage_bps?: number;
+    /**
+     * Rebalance
+     */
+    rebalance?: 'buy_and_hold' | 'monthly' | 'quarterly';
+    /**
+     * Ktype
+     */
+    ktype?: 'K_DAY';
+    /**
+     * Autype
+     */
+    autype?: 'QFQ' | 'HFQ' | 'NONE';
+    /**
+     * Session
+     */
+    session?: 'ALL' | 'RTH' | 'ETH';
+};
+
+/**
+ * PortfolioResponse
+ */
+export type PortfolioResponse = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Source
+     */
+    source: 'opend';
+    /**
+     * Request
+     */
+    request: {
+        [key: string]: unknown;
+    };
+    /**
+     * Market Data Sha256
+     */
+    market_data_sha256: {
+        [key: string]: string;
+    };
+    /**
+     * Metrics
+     */
+    metrics: {
+        [key: string]: number;
+    };
+    /**
+     * Period
+     */
+    period: {
+        [key: string]: unknown;
+    };
+    /**
+     * Weights
+     */
+    weights: {
+        [key: string]: number;
+    };
+    /**
+     * Positions
+     */
+    positions: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Cash
+     */
+    cash: number;
+    /**
+     * Transactions
+     */
+    transactions: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Equity Curve
+     */
+    equity_curve: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Engine Contract
+     */
+    engine_contract: {
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+};
+
+/**
  * PricePoint
  */
 export type PricePoint = {
@@ -1699,6 +1828,35 @@ export type GetExperimentApiExperimentsExperimentIdGetResponses = {
 };
 
 export type GetExperimentApiExperimentsExperimentIdGetResponse = GetExperimentApiExperimentsExperimentIdGetResponses[keyof GetExperimentApiExperimentsExperimentIdGetResponses];
+
+export type RunPortfolioApiPortfoliosPostData = {
+    body: PortfolioRequest;
+    path?: never;
+    query?: never;
+    url: '/api/portfolios';
+};
+
+export type RunPortfolioApiPortfoliosPostErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type RunPortfolioApiPortfoliosPostError = RunPortfolioApiPortfoliosPostErrors[keyof RunPortfolioApiPortfoliosPostErrors];
+
+export type RunPortfolioApiPortfoliosPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PortfolioResponse;
+};
+
+export type RunPortfolioApiPortfoliosPostResponse = RunPortfolioApiPortfoliosPostResponses[keyof RunPortfolioApiPortfoliosPostResponses];
 
 export type ListCacheApiCacheGetData = {
     body?: never;

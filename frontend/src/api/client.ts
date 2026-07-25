@@ -11,6 +11,8 @@ import type {
   HealthResponse,
   JobsResponse,
   PriceWindow,
+  PortfolioRequest,
+  PortfolioResult,
   StrategiesResponse,
   StrategyDocument,
   StrategyVersionsResponse,
@@ -38,6 +40,7 @@ import {
   readStrategyApiStrategiesStrategyPathGet,
   resolveSymbolsApiSymbolsResolveGet,
   resultApiJobsJobIdResultGet,
+  runPortfolioApiPortfoliosPost,
   retryJobApiJobsJobIdRetryPost,
   restoreStrategyVersionApiStrategiesVersionsRestorePost,
   saveStrategyApiStrategiesStrategyPathPut,
@@ -47,6 +50,7 @@ import { client as generatedClient } from "./generated/client.gen";
 import type {
   BacktestRequest as GeneratedBacktestRequest,
   ExperimentRequest as GeneratedExperimentRequest,
+  PortfolioRequest as GeneratedPortfolioRequest,
 } from "./generated/types.gen";
 
 const ACCESS_TOKEN_KEY = "strategy-lab-api-token";
@@ -272,6 +276,13 @@ export const api = {
       createExperimentApiExperimentsPost({
         headers: requestHeaders(),
         body: payload as GeneratedExperimentRequest,
+      }),
+    ),
+  runPortfolio: (payload: PortfolioRequest) =>
+    unwrap<PortfolioResult>(
+      runPortfolioApiPortfoliosPost({
+        headers: requestHeaders(),
+        body: payload as GeneratedPortfolioRequest,
       }),
     ),
   cache: () =>

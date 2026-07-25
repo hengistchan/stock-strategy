@@ -20,6 +20,7 @@ from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
 from .job_store import JobStore, last_error as _last_error
 from .opend import OpenDSymbolDirectory
+from .portfolio import PortfolioService
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
 from .result_reader import (
     read_downsampled_equity_curve as _read_downsampled_equity_curve,
@@ -29,6 +30,7 @@ from .web_cache import create_cache_router
 from .web_events import create_events_router
 from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
+from .web_portfolios import create_portfolios_router
 from .web_strategies import create_strategies_router
 from .web_symbols import create_symbols_router
 from .web_system import create_system_router
@@ -43,12 +45,18 @@ def create_app(
     diagnostics_service: DiagnosticsService | None = None,
     frontend_root: Path | None = None,
     api_token: str | None = None,
+    portfolio_service: PortfolioService | None = None,
 ) -> FastAPI:
     root = project_root.resolve()
     store = job_store or JobStore(root)
     experiments = experiment_store or ExperimentStore(root, store)
     strategies = StrategyRepository(root)
     execution = ExecutionService(strategies, store, experiments)
+    portfolios = portfolio_service or PortfolioService(
+        root,
+        host=store.opend_host,
+        port=store.opend_port,
+    )
     web_root = (frontend_root or FRONTEND_ROOT).resolve()
     probe = opend_probe or is_opend_available
     directory = symbol_directory or OpenDSymbolDirectory(
@@ -73,6 +81,7 @@ def create_app(
     app.state.experiment_store = experiments
     app.state.strategy_repository = strategies
     app.state.execution_service = execution
+    app.state.portfolio_service = portfolios
     app.state.symbol_directory = directory
     app.state.diagnostics_service = diagnostics
     app.state.api_auth_enabled = api_token is not None
@@ -119,6 +128,7 @@ def create_app(
     app.include_router(create_strategies_router(strategies, store, experiments))
     app.include_router(create_jobs_router(store, execution))
     app.include_router(create_experiments_router(experiments, execution))
+    app.include_router(create_portfolios_router(portfolios))
     app.include_router(create_cache_router(store))
 
     @app.get("/")

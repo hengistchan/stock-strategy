@@ -17,6 +17,7 @@ from .application_models import (
     ParameterValue,
 )
 from .strategy_repository import MAX_STRATEGY_BYTES
+from .portfolio import PortfolioConfig
 
 
 class BacktestRequest(BaseModel):
@@ -164,3 +165,55 @@ class StrategyRestoreRequest(BaseModel):
     strategy_path: str = Field(min_length=1, max_length=200)
     revision: str = Field(pattern=r"^[0-9a-f]{64}$")
     expected_revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class PortfolioRequest(BaseModel):
+    weights: dict[str, float] = Field(min_length=2, max_length=12)
+    start: date
+    end: date
+    initial_cash: float = Field(default=100_000, gt=0)
+    commission_bps: float = Field(default=3, ge=0, le=1_000)
+    min_commission: float = Field(default=1, ge=0)
+    slippage_bps: float = Field(default=5, ge=0, le=1_000)
+    rebalance: Literal["buy_and_hold", "monthly", "quarterly"] = "monthly"
+    ktype: Literal["K_DAY"] = "K_DAY"
+    autype: Literal["QFQ", "HFQ", "NONE"] = "QFQ"
+    session: Literal["ALL", "RTH", "ETH"] = "ALL"
+
+    @model_validator(mode="after")
+    def validate_portfolio(self) -> "PortfolioRequest":
+        if self.end < self.start:
+            raise ValueError("组合结束日期不能早于开始日期。")
+        normalized = {symbol.strip().upper(): weight for symbol, weight in self.weights.items()}
+        if any(not re.fullmatch(SYMBOL_PATTERN, symbol) for symbol in normalized):
+            raise ValueError("组合包含无效的标的代码。")
+        self.weights = normalized
+        PortfolioConfig(
+            weights=self.weights,
+            start=self.start.isoformat(),
+            end=self.end.isoformat(),
+            initial_cash=self.initial_cash,
+            commission_bps=self.commission_bps,
+            min_commission=self.min_commission,
+            slippage_bps=self.slippage_bps,
+            rebalance=self.rebalance,
+            ktype=self.ktype,
+            autype=self.autype,
+            session=self.session,
+        )
+        return self
+
+    def to_config(self) -> PortfolioConfig:
+        return PortfolioConfig(
+            weights=self.weights,
+            start=self.start.isoformat(),
+            end=self.end.isoformat(),
+            initial_cash=self.initial_cash,
+            commission_bps=self.commission_bps,
+            min_commission=self.min_commission,
+            slippage_bps=self.slippage_bps,
+            rebalance=self.rebalance,
+            ktype=self.ktype,
+            autype=self.autype,
+            session=self.session,
+        )

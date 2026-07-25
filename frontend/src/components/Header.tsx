@@ -33,6 +33,10 @@ export function Header({ health }: HeaderProps) {
           {t("header.strategies")}
           <small>{t("header.strategiesHint")}</small>
         </NavLink>
+        <NavLink to={workspacePaths.portfolios}>
+          {t("header.portfolio")}
+          <small>{t("header.portfolioHint")}</small>
+        </NavLink>
       </nav>
 
       <SystemStatusPanel health={health} />

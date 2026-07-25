@@ -7,6 +7,7 @@ export const workspacePaths = {
   experimentDetail: (experimentId: string) =>
     `/experiments/${encodeURIComponent(experimentId)}`,
   strategies: "/strategies",
+  portfolios: "/portfolios",
   strategyDetail: (path: string) =>
     `/strategies/${path.split("/").map(encodeURIComponent).join("/")}`,
 } as const;

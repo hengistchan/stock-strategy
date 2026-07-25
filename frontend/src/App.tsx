@@ -28,6 +28,12 @@ const IterationWorkspace = lazy(() =>
   })),
 );
 
+const PortfolioWorkspace = lazy(() =>
+  import("./components/PortfolioWorkspace").then((module) => ({
+    default: module.PortfolioWorkspace,
+  })),
+);
+
 export function App() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -135,6 +141,14 @@ export function App() {
         />
         <Route path={workspacePaths.experimentNew} element={iterationWorkspace} />
         <Route path="/experiments/:experimentId" element={iterationWorkspace} />
+        <Route
+          path={workspacePaths.portfolios}
+          element={(
+            <Suspense fallback={<div className="workspace-loading">{t("portfolio.loading")}</div>}>
+              <PortfolioWorkspace opendConnected={opendConnected} />
+            </Suspense>
+          )}
+        />
         <Route
           path="/strategies/*"
           element={(

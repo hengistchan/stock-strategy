@@ -244,3 +244,19 @@ class CacheResponse(BaseModel):
 
 class CacheDeleteResponse(BaseModel):
     deleted: str
+
+
+class PortfolioResponse(ApiModel):
+    id: str
+    created_at: str
+    source: Literal["opend"]
+    request: dict[str, Any]
+    market_data_sha256: dict[str, str]
+    metrics: dict[str, float]
+    period: dict[str, Any]
+    weights: dict[str, float]
+    positions: list[dict[str, Any]]
+    cash: float
+    transactions: list[dict[str, Any]]
+    equity_curve: list[dict[str, Any]]
+    engine_contract: dict[str, Any]

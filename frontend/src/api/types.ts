@@ -385,6 +385,55 @@ export interface CacheEntry {
   updated_at: string;
 }
 
+export interface PortfolioRequest {
+  weights: Record<string, number>;
+  start: string;
+  end: string;
+  initial_cash: number;
+  commission_bps: number;
+  min_commission: number;
+  slippage_bps: number;
+  rebalance: "buy_and_hold" | "monthly" | "quarterly";
+  ktype: "K_DAY";
+  autype: "QFQ" | "HFQ" | "NONE";
+  session: "ALL" | "RTH" | "ETH";
+}
+
+export interface PortfolioResult {
+  id: string;
+  created_at: string;
+  source: "opend";
+  request: PortfolioRequest;
+  market_data_sha256: Record<string, string>;
+  metrics: BacktestMetrics;
+  period: { start: string; end: string; bars: number };
+  weights: Record<string, number>;
+  positions: Array<{
+    symbol: string;
+    quantity: number;
+    mark_price: number;
+    market_value: number;
+  }>;
+  cash: number;
+  transactions: Array<{
+    date: string;
+    symbol: string;
+    side: "BUY" | "SELL";
+    quantity: number;
+    price: number;
+    fee: number;
+    notional: number;
+  }>;
+  equity_curve: EquityPoint[];
+  engine_contract: {
+    shared_cash: boolean;
+    unified_clock: string;
+    integer_shares: boolean;
+    execution: string;
+    currency: string;
+  };
+}
+
 export interface CacheResponse {
   entries: CacheEntry[];
   total_bytes: number;

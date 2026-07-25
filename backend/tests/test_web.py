@@ -644,6 +644,49 @@ class Strategy(StrategyBase):
             self.assertEqual(readonly.status_code, 403)
             self.assertEqual(example.read_text(encoding="utf-8"), "class Strategy:\n    pass\n")
 
+    def test_portfolio_api_preserves_shared_cash_contract(self):
+        class FakePortfolioService:
+            def run(self, config):
+                return {
+                    "id": "portfolio-test",
+                    "created_at": "2026-07-25T12:00:00+08:00",
+                    "source": "opend",
+                    "request": {
+                        "weights": dict(config.weights),
+                        "start": config.start,
+                        "end": config.end,
+                    },
+                    "market_data_sha256": {
+                        symbol: "a" * 64 for symbol in config.weights
+                    },
+                    "metrics": {"total_return_pct": 5.0},
+                    "period": {"start": config.start, "end": config.end, "bars": 30},
+                    "weights": dict(config.weights),
+                    "positions": [],
+                    "cash": config.initial_cash,
+                    "transactions": [],
+                    "equity_curve": [],
+                    "engine_contract": {"shared_cash": True},
+                }
+
+        app = create_app(
+            opend_probe=lambda host, port: True,
+            portfolio_service=FakePortfolioService(),
+        )
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/portfolios",
+                json={
+                    "weights": {"US.AAPL": 60, "US.MSFT": 40},
+                    "start": "2025-01-01",
+                    "end": "2025-12-31",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["engine_contract"]["shared_cash"])
+        self.assertEqual(response.json()["weights"], {"US.AAPL": 0.6, "US.MSFT": 0.4})
+
 
 if __name__ == "__main__":
     unittest.main()

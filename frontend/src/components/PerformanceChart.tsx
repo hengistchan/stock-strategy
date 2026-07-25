@@ -15,7 +15,7 @@ interface PerformanceChartProps {
   equityCount: number;
   trades: Trade[];
   ktype: string;
-  reportUrl: string;
+  reportUrl?: string;
 }
 
 interface HoverState {
@@ -91,7 +91,7 @@ export function PerformanceChart({ equity, equityCount, trades, ktype, reportUrl
           <h3 id="performanceTitle">{t("performance.title")}</h3>
           <p>{t("performance.summary", { points: formatNumber(equityCount, 0, locale), trades: formatNumber(trades.length, 0, locale) })}</p>
         </div>
-        <a href={reportUrl} target="_blank" rel="noreferrer">{t("performance.staticReport")} ↗</a>
+        {reportUrl ? <a href={reportUrl} target="_blank" rel="noreferrer">{t("performance.staticReport")} ↗</a> : null}
       </div>
       <div className="performance-legend" aria-label={t("chart.legend")}>
         <span><i className="legend-equity" />{t("performance.strategyEquity")}</span>
