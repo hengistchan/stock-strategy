@@ -35,6 +35,9 @@ make serve
 
 打开 [http://127.0.0.1:8000/backtests](http://127.0.0.1:8000/backtests)。参数实验和策略管理分别位于 `/experiments` 与 `/strategies`。
 
+服务默认只绑定本机。远程绑定必须同时提供 `--allow-remote` 和至少 32 字符的
+`STRATEGY_LAB_API_TOKEN`；启用前请阅读 [SECURITY.md](SECURITY.md)。
+
 无需 OpenD 也可以运行确定性的工程示例：
 
 ```bash

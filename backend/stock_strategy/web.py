@@ -4,10 +4,13 @@ import argparse
 import os
 from pathlib import Path
 import re
+import secrets
 import sys
 from typing import Any, Callable
+from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +54,7 @@ def create_app(
     symbol_directory: OpenDSymbolDirectory | None = None,
     diagnostics_service: DiagnosticsService | None = None,
     frontend_root: Path | None = None,
+    api_token: str | None = None,
 ) -> FastAPI:
     root = project_root.resolve()
     store = job_store or JobStore(root)
@@ -78,12 +82,36 @@ def create_app(
     app.state.execution_service = execution
     app.state.symbol_directory = directory
     app.state.diagnostics_service = diagnostics
+    app.state.api_auth_enabled = api_token is not None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Authorization", "Content-Type"],
     )
+
+    if api_token is not None:
+        if len(api_token) < 32:
+            raise ValueError("API token must contain at least 32 characters")
+
+        @app.middleware("http")
+        async def require_api_token(request: Request, call_next):
+            if request.url.path == "/api" or request.url.path.startswith("/api/"):
+                authorization = request.headers.get("Authorization", "")
+                bearer = (
+                    authorization[7:]
+                    if authorization.startswith("Bearer ")
+                    else ""
+                )
+                cookie = unquote(request.cookies.get("strategy_lab_token", ""))
+                supplied = bearer or cookie
+                if not supplied or not secrets.compare_digest(supplied, api_token):
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "Strategy Lab API token is required."},
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+            return await call_next(request)
 
     assets_root = web_root / "assets"
     if assets_root.is_dir():
@@ -331,11 +359,27 @@ def main(argv: list[str] | None = None) -> int:
         help="Bind locally by default; use 0.0.0.0 only behind an explicit host firewall.",
     )
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="Explicitly allow a non-loopback bind; requires STRATEGY_LAB_API_TOKEN.",
+    )
     parser.add_argument("--opend-host", default=os.environ.get("OPEND_HOST", "127.0.0.1"))
     parser.add_argument(
         "--opend-port", type=int, default=int(os.environ.get("OPEND_PORT", "11111"))
     )
     args = parser.parse_args(argv)
+    api_token = os.environ.get("STRATEGY_LAB_API_TOKEN")
+    try:
+        validate_server_exposure(args.host, args.allow_remote, api_token)
+    except ValueError as error:
+        parser.error(str(error))
+    if not _is_loopback_host(args.host):
+        print(
+            "WARNING: Strategy Lab is accepting remote connections. "
+            "Keep it behind a trusted firewall and never expose it directly to the Internet.",
+            file=sys.stderr,
+        )
     try:
         import uvicorn
     except ImportError:
@@ -348,12 +392,36 @@ def main(argv: list[str] | None = None) -> int:
         PROJECT_ROOT, opend_host=args.opend_host, opend_port=args.opend_port
     )
     uvicorn.run(
-        create_app(job_store=store),
+        create_app(job_store=store, api_token=api_token),
         host=args.host,
         port=args.port,
         log_level="info",
     )
     return 0
+
+
+def validate_server_exposure(
+    host: str,
+    allow_remote: bool,
+    api_token: str | None,
+) -> None:
+    if _is_loopback_host(host):
+        if api_token is not None and len(api_token) < 32:
+            raise ValueError("STRATEGY_LAB_API_TOKEN must contain at least 32 characters")
+        return
+    if not allow_remote:
+        raise ValueError(
+            "non-loopback binding requires the explicit --allow-remote flag"
+        )
+    if api_token is None or len(api_token) < 32:
+        raise ValueError(
+            "non-loopback binding requires STRATEGY_LAB_API_TOKEN "
+            "with at least 32 characters"
+        )
+
+
+def _is_loopback_host(host: str) -> bool:
+    return host.strip().lower() in {"127.0.0.1", "localhost", "::1"}
 
 
 if __name__ == "__main__":

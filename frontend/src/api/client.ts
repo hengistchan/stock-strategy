@@ -18,6 +18,28 @@ import type {
 } from "./types";
 import { translations } from "../i18n/translations";
 
+const ACCESS_TOKEN_KEY = "strategy-lab-api-token";
+
+export function initializeApiTokenFromFragment(): void {
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const token = fragment.get("access_token");
+  if (!token) return;
+  if (token.length >= 32) {
+    window.sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `strategy_lab_token=${encodeURIComponent(token)}; Path=/; SameSite=Strict${secure}`;
+  }
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${window.location.search}`,
+  );
+}
+
+function accessToken(): string | null {
+  return window.sessionStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -29,10 +51,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = accessToken();
   const response = await fetch(path, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });

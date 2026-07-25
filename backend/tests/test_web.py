@@ -10,7 +10,12 @@ from fastapi.testclient import TestClient
 from stock_strategy.diagnostics import DiagnosticsService
 from stock_strategy.job_store import JobStore, last_error
 from stock_strategy.result_reader import read_downsampled_equity_curve
-from stock_strategy.web import create_app, list_strategies, resolve_strategy
+from stock_strategy.web import (
+    create_app,
+    list_strategies,
+    resolve_strategy,
+    validate_server_exposure,
+)
 from stock_strategy.web_models import BacktestRequest
 
 
@@ -31,6 +36,36 @@ class FakeSymbolDirectory:
 
 
 class WebTest(unittest.TestCase):
+    def test_api_token_protects_every_api_route_but_not_the_app_shell(self):
+        token = "test-token-" + "x" * 32
+        app = create_app(
+            opend_probe=lambda host, port: True,
+            api_token=token,
+        )
+        with TestClient(app) as client:
+            shell = client.get("/")
+            unauthorized = client.get("/api/health")
+            authorized = client.get(
+                "/api/health",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            client.cookies.set("strategy_lab_token", token)
+            cookie_authorized = client.get("/api/health")
+
+        self.assertNotEqual(shell.status_code, 401)
+        self.assertEqual(unauthorized.status_code, 401)
+        self.assertEqual(unauthorized.headers["www-authenticate"], "Bearer")
+        self.assertEqual(authorized.status_code, 200)
+        self.assertEqual(cookie_authorized.status_code, 200)
+
+    def test_non_loopback_binding_requires_opt_in_and_strong_token(self):
+        with self.assertRaisesRegex(ValueError, "--allow-remote"):
+            validate_server_exposure("0.0.0.0", False, None)
+        with self.assertRaisesRegex(ValueError, "at least 32"):
+            validate_server_exposure("0.0.0.0", True, "short")
+        validate_server_exposure("0.0.0.0", True, "x" * 32)
+        validate_server_exposure("127.0.0.1", False, None)
+
     def test_job_executes_an_immutable_strategy_and_market_data_snapshot(self):
         request = BacktestRequest(
             strategy="strategies/snapshot.py",

@@ -37,6 +37,10 @@ make serve
 
 Open [http://127.0.0.1:8000/backtests](http://127.0.0.1:8000/backtests).
 
+The server binds to loopback by default. A remote bind requires both
+`--allow-remote` and a 32+ character `STRATEGY_LAB_API_TOKEN`; read
+[SECURITY.md](SECURITY.md) before enabling it.
+
 The workbench also provides stable routes for `/experiments` and `/strategies`. To run the deterministic sample without OpenD:
 
 ```bash

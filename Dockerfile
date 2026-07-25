@@ -19,4 +19,4 @@ COPY strategies ./strategies
 COPY --from=frontend-builder /app/backend/stock_strategy/web_dist ./backend/stock_strategy/web_dist
 RUN python -m pip install --no-cache-dir './backend[opend,web]'
 EXPOSE 8000
-CMD ["python", "-m", "stock_strategy.web", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "stock_strategy.web", "--host", "0.0.0.0", "--port", "8000", "--allow-remote"]

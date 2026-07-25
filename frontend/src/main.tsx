@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
+import { initializeApiTokenFromFragment } from "./api/client";
 import { I18nProvider } from "./i18n/I18nProvider";
 import "./styles.css";
 
@@ -13,6 +14,7 @@ declare global {
 }
 
 window.__consoleErrors = [];
+initializeApiTokenFromFragment();
 window.addEventListener("error", (event) => window.__consoleErrors.push(String(event.message)));
 window.addEventListener("unhandledrejection", (event) => window.__consoleErrors.push(String(event.reason)));
 

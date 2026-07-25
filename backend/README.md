@@ -30,6 +30,8 @@ cd ..
 
 生产服务会为 `/backtests`、`/experiments` 和 `/strategies` 返回同一份 SPA 入口，使各工作区可以直接访问和刷新；未知 `/api/*` 路径仍返回 JSON `404`，不会误返回前端 HTML。
 
+服务默认只接受 loopback 连接。绑定 `0.0.0.0` 必须显式增加 `--allow-remote`，并设置至少 32 字符的 `STRATEGY_LAB_API_TOKEN`；远程浏览器首次通过 `#access_token=<token>` 注入会话令牌。该机制不是公网部署或多租户沙箱。
+
 `GET /api/symbols?q=腾讯&limit=8` 会从 OpenD `get_stock_basicinfo()` 读取美股和港股股票代码及名称，并在五分钟缓存内完成后续模糊查询；`GET /api/symbols/resolve?codes=US.AAPL` 用于批量补齐已有回测记录的名称。这些接口只读，不访问交易账户。
 
 `GET /api/diagnostics` 与 `stock-doctor` 共用 `DiagnosticsService`，检查 Python、Futu SDK、工作区目录、OpenD TCP 和股票目录读取权限。Web 状态面板只展示这份真实结果，不自行推断行情权限。
