@@ -1,5 +1,10 @@
 # Architecture review — 2026-07-19
 
+> Historical baseline: the follow-up program has been completed. See
+> [Architecture review completion — 2026-07-26](ARCHITECTURE_REVIEW_COMPLETION_2026-07-26.md)
+> for the current architecture, verification gates, and intentionally retained
+> product boundaries.
+
 ## 结论
 
 当前项目已经形成清晰的本机量化工作台边界：React 负责交互，FastAPI 负责本地 API，Python 回测运行时负责 Futu/OpenD 兼容与撮合。核心问题不是技术选型，而是 Web 总控模块持续吸收业务职责。本轮已优先处理这类结构性耦合，现有 HTTP、策略脚本和回测产物契约保持不变。

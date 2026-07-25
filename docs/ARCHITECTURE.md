@@ -1,5 +1,8 @@
 # Architecture
 
+The implementation status of the full review program is recorded in
+[Architecture review completion — 2026-07-26](ARCHITECTURE_REVIEW_COMPLETION_2026-07-26.md).
+
 ## 目标
 
 Strategy Lab 是本机优先、面向开源协作的 OpenD 量化策略工作台。核心边界是：OpenD 提供历史行情，Python 运行策略与撮合，React 提供策略迭代和结果检查界面。
