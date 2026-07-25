@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Mapping, TypeAlias
+from typing import Literal, Mapping, TypeAlias
 
 
 SYMBOL_PATTERN = r"^[A-Z]{2,8}\.[A-Z0-9.-]{1,24}$"
@@ -74,6 +74,17 @@ class ExperimentSpec:
     validation: "EvaluationWindow | None" = None
     test: "EvaluationWindow | None" = None
     walk_forward_folds: int = 0
+    constraints: tuple["MetricConstraint", ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class MetricConstraint:
+    metric: str
+    op: Literal[">=", "<="]
+    value: float
+
+    def to_dict(self) -> dict[str, str | float]:
+        return {"metric": self.metric, "op": self.op, "value": self.value}
 
 
 @dataclass(frozen=True, slots=True)

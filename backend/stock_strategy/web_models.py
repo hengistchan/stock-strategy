@@ -12,6 +12,7 @@ from .application_models import (
     BacktestSpec,
     EvaluationWindow,
     ExperimentSpec,
+    MetricConstraint,
     ParameterValue,
 )
 from .strategy_repository import MAX_STRATEGY_BYTES
@@ -68,6 +69,7 @@ class ExperimentRequest(BaseModel):
     validation: "EvaluationWindowRequest | None" = None
     test: "EvaluationWindowRequest | None" = None
     walk_forward_folds: int = Field(default=0, ge=0, le=5)
+    constraints: list["MetricConstraintRequest"] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def validate_research_windows(self) -> "ExperimentRequest":
@@ -96,6 +98,7 @@ class ExperimentRequest(BaseModel):
             validation=self.validation.to_window() if self.validation else None,
             test=self.test.to_window() if self.test else None,
             walk_forward_folds=self.walk_forward_folds,
+            constraints=tuple(constraint.to_constraint() for constraint in self.constraints),
         )
 
 
@@ -111,6 +114,22 @@ class EvaluationWindowRequest(BaseModel):
 
     def to_window(self) -> EvaluationWindow:
         return EvaluationWindow(start=self.start, end=self.end)
+
+
+class MetricConstraintRequest(BaseModel):
+    metric: Literal[
+        "total_return_pct",
+        "sharpe_ratio",
+        "max_drawdown_pct",
+        "total_trades",
+        "total_fees",
+        "exposure_pct",
+    ]
+    op: Literal[">=", "<="]
+    value: float
+
+    def to_constraint(self) -> MetricConstraint:
+        return MetricConstraint(metric=self.metric, op=self.op, value=self.value)
 
 
 class StrategyCreateRequest(BaseModel):

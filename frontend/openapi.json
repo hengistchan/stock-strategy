@@ -1866,6 +1866,14 @@
             "minimum": 0.0,
             "title": "Walk Forward Folds",
             "default": 0
+          },
+          "constraints": {
+            "items": {
+              "$ref": "#/components/schemas/MetricConstraintRequest"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Constraints"
           }
         },
         "type": "object",
@@ -1918,6 +1926,14 @@
           "objective": {
             "type": "string",
             "title": "Objective"
+          },
+          "constraints": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Constraints"
           },
           "base_request": {
             "$ref": "#/components/schemas/BacktestRequest"
@@ -2125,6 +2141,30 @@
             },
             "type": "object",
             "title": "Phases"
+          },
+          "constraints_satisfied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraints Satisfied"
+          },
+          "constraint_violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Constraint Violations"
+          },
+          "pareto_optimal": {
+            "type": "boolean",
+            "title": "Pareto Optimal",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -2202,6 +2242,41 @@
           "jobs"
         ],
         "title": "JobsResponse"
+      },
+      "MetricConstraintRequest": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "total_return_pct",
+              "sharpe_ratio",
+              "max_drawdown_pct",
+              "total_trades",
+              "total_fees",
+              "exposure_pct"
+            ],
+            "title": "Metric"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              ">=",
+              "<="
+            ],
+            "title": "Op"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "op",
+          "value"
+        ],
+        "title": "MetricConstraintRequest"
       },
       "OpenDHealth": {
         "properties": {

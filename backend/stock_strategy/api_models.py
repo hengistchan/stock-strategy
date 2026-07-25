@@ -167,6 +167,9 @@ class ExperimentRun(ApiModel):
     rank: int | None
     error: str | None
     phases: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    constraints_satisfied: bool | None = None
+    constraint_violations: list[dict[str, Any]] = Field(default_factory=list)
+    pareto_optimal: bool = False
 
 
 class ExperimentResponse(ApiModel):
@@ -177,6 +180,7 @@ class ExperimentResponse(ApiModel):
     started_at: str | None
     finished_at: str | None
     objective: str
+    constraints: list[dict[str, Any]] = Field(default_factory=list)
     base_request: BacktestRequest
     validation_window: dict[str, str] | None = None
     test_window: dict[str, str] | None = None

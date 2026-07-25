@@ -39,6 +39,7 @@ export function ExperimentBoard({
   const comparableRuns = orderedRuns.filter(
     (run) => run.job_id && selectedJobIds.includes(run.job_id),
   );
+  const paretoRuns = orderedRuns.filter((run) => run.pareto_optimal);
 
   function toggleComparison(run: ExperimentRun) {
     if (!run.job_id || run.status !== "succeeded") return;
@@ -113,6 +114,22 @@ export function ExperimentBoard({
               <ParameterHeatmap experiment={experiment} />
             ) : null}
 
+            {paretoRuns.length ? (
+              <section className="pareto-summary" aria-label={t("experiment.paretoFrontier")}>
+                <div>
+                  <span className="section-code">MULTI-OBJECTIVE</span>
+                  <h3>{t("experiment.paretoFrontier")}</h3>
+                  <p>{t("experiment.paretoHelp", { count: paretoRuns.length })}</p>
+                </div>
+                <div>{paretoRuns.map((run) => (
+                  <button key={run.index} type="button" disabled={!run.job_id} onClick={() => run.job_id && onOpenRun(run.job_id)}>
+                    <strong>#{run.rank}</strong>
+                    <ParameterSet parameters={run.parameters} />
+                  </button>
+                ))}</div>
+              </section>
+            ) : null}
+
             {comparableRuns.length > 0 ? (
               <section className="comparison-strip" aria-label={t("experiment.comparisonAria")}>
                 <div className="comparison-heading"><span>COMPARE</span><strong>{comparableRuns.length} / 3</strong></div>
@@ -124,7 +141,7 @@ export function ExperimentBoard({
 
             <div className="experiment-table-wrap">
               <table className="experiment-table">
-                <thead><tr><th>{t("experiment.compare")}</th><th>{t("experiment.rank")}</th><th>{t("experiment.parameters")}</th><th>{t("metrics.return")}</th><th>Sharpe</th><th>{t("metrics.drawdown")}</th><th>{t("metrics.trades")}</th><th>{t("experiment.result")}</th></tr></thead>
+                <thead><tr><th>{t("experiment.compare")}</th><th>{t("experiment.rank")}</th><th>{t("experiment.parameters")}</th><th>{t("metrics.return")}</th><th>Sharpe</th><th>{t("metrics.drawdown")}</th><th>{t("metrics.trades")}</th><th>{t("experiment.eligibility")}</th><th>{t("experiment.result")}</th></tr></thead>
                 <tbody>
                   {orderedRuns.map((run) => {
                     const selected = Boolean(run.job_id && selectedJobIds.includes(run.job_id));
@@ -137,6 +154,13 @@ export function ExperimentBoard({
                         <td className={tone(run.metrics?.sharpe_ratio)}>{metricNumber(run.metrics?.sharpe_ratio, locale)}</td>
                         <td className={tone(run.metrics?.max_drawdown_pct)}>{metricPercent(run.metrics?.max_drawdown_pct, locale)}</td>
                         <td>{run.metrics?.total_trades ?? "—"}</td>
+                        <td>
+                          {run.constraints_satisfied === false
+                            ? <span className="constraint-failed" title={formatViolations(run)}>{t("experiment.constraintFailed")}</span>
+                            : run.status === "succeeded"
+                              ? <span className="constraint-passed">{run.pareto_optimal ? "Pareto" : t("experiment.eligible")}</span>
+                              : "—"}
+                        </td>
                         <td>{run.job_id && run.status === "succeeded" ? <button type="button" onClick={() => onOpenRun(run.job_id!)}>{t("experiment.fullReport")}</button> : <span>{run.status === "failed" ? run.error : t(`status.${run.status}`)}</span>}</td>
                       </tr>
                     );
@@ -185,4 +209,10 @@ function metricNumber(value: number | undefined, locale: Locale): string {
 function tone(value: number | undefined): string {
   if (value === undefined || value === 0) return "";
   return value > 0 ? "positive" : "negative";
+}
+
+function formatViolations(run: ExperimentRun): string {
+  return (run.constraint_violations ?? [])
+    .map((item) => `${item.metric} ${item.op} ${item.value} (${item.actual ?? "—"})`)
+    .join("\n");
 }

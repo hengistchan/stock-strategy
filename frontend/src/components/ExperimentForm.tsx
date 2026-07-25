@@ -3,6 +3,7 @@ import type {
   AppConfig,
   ExperimentObjective,
   ExperimentRequest,
+  MetricConstraint,
   ParameterValue,
   StrategyParameterDefinition,
 } from "../api/types";
@@ -47,6 +48,7 @@ export function ExperimentForm({
   const [includeTest, setIncludeTest] = useState(false);
   const [walkForward, setWalkForward] = useState(false);
   const [walkForwardFolds, setWalkForwardFolds] = useState(3);
+  const [constraints, setConstraints] = useState<MetricConstraint[]>([]);
   const combinationCount = parameterDefinitions.reduce(
     (count, definition) => count * parseGridValues(gridText[definition.name] ?? "", definition).length,
     1,
@@ -83,6 +85,7 @@ export function ExperimentForm({
       validation,
       test,
       walk_forward_folds: walkForward ? walkForwardFolds : 0,
+      constraints,
       base: {
         strategy: selectedStrategy,
         symbol: String(data.get("symbol")).trim().toUpperCase(),
@@ -212,6 +215,64 @@ export function ExperimentForm({
         <small>{t("experiment.plannedJobs", { count: walkForward ? combinationCount * walkForwardFolds * 2 : combinationCount * (outOfSample ? 2 : 1) + (includeTest ? 1 : 0) })}</small>
       </section>
 
+      <section className="grid-editor constraint-editor" aria-labelledby="constraintEditorTitle">
+        <div className="grid-editor-heading">
+          <h3 id="constraintEditorTitle">{t("experiment.constraints")}</h3>
+          <button
+            type="button"
+            onClick={() => setConstraints((current) => [
+              ...current,
+              { metric: "max_drawdown_pct", op: ">=", value: -15 },
+            ])}
+          >
+            {t("experiment.addConstraint")}
+          </button>
+        </div>
+        {constraints.length === 0 ? <p>{t("experiment.constraintsHelp")}</p> : null}
+        {constraints.map((constraint, index) => (
+          <div className="constraint-row" key={`${index}-${constraint.metric}`}>
+            <select
+              aria-label={t("experiment.constraintMetric", { index: index + 1 })}
+              value={constraint.metric}
+              onChange={(event) => updateConstraint(index, {
+                metric: event.target.value as MetricConstraint["metric"],
+              })}
+            >
+              <option value="max_drawdown_pct">{t("metrics.drawdown")}</option>
+              <option value="total_trades">{t("metrics.trades")}</option>
+              <option value="sharpe_ratio">Sharpe</option>
+              <option value="total_return_pct">{t("metrics.return")}</option>
+              <option value="total_fees">{t("metrics.fees")}</option>
+              <option value="exposure_pct">{t("metrics.exposure")}</option>
+            </select>
+            <select
+              aria-label={t("experiment.constraintOperator", { index: index + 1 })}
+              value={constraint.op}
+              onChange={(event) => updateConstraint(index, {
+                op: event.target.value as MetricConstraint["op"],
+              })}
+            >
+              <option value=">=">≥</option>
+              <option value="<=">≤</option>
+            </select>
+            <input
+              aria-label={t("experiment.constraintValue", { index: index + 1 })}
+              type="number"
+              step="any"
+              value={constraint.value}
+              onChange={(event) => updateConstraint(index, { value: Number(event.target.value) })}
+            />
+            <button
+              type="button"
+              aria-label={t("experiment.removeConstraint", { index: index + 1 })}
+              onClick={() => setConstraints((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </section>
+
       <section className="grid-editor" aria-labelledby="gridEditorTitle">
         <div className="grid-editor-heading">
           <h3 id="gridEditorTitle">{t("experiment.candidates")}</h3>
@@ -253,6 +314,14 @@ export function ExperimentForm({
       <p className="experiment-safety">{t("experiment.safety")}</p>
     </form>
   );
+
+  function updateConstraint(index: number, patch: Partial<MetricConstraint>) {
+    setConstraints((current) =>
+      current.map((constraint, itemIndex) =>
+        itemIndex === index ? { ...constraint, ...patch } : constraint,
+      ),
+    );
+  }
 }
 
 function parseGridValues(

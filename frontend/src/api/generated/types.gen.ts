@@ -415,6 +415,10 @@ export type ExperimentRequest = {
      * Walk Forward Folds
      */
     walk_forward_folds?: number;
+    /**
+     * Constraints
+     */
+    constraints?: Array<MetricConstraintRequest>;
 };
 
 /**
@@ -449,6 +453,12 @@ export type ExperimentResponse = {
      * Objective
      */
     objective: string;
+    /**
+     * Constraints
+     */
+    constraints?: Array<{
+        [key: string]: unknown;
+    }>;
     base_request: BacktestRequest;
     /**
      * Validation Window
@@ -559,6 +569,20 @@ export type ExperimentRun = {
             [key: string]: unknown;
         };
     };
+    /**
+     * Constraints Satisfied
+     */
+    constraints_satisfied?: boolean | null;
+    /**
+     * Constraint Violations
+     */
+    constraint_violations?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Pareto Optimal
+     */
+    pareto_optimal?: boolean;
     [key: string]: unknown;
 };
 
@@ -601,6 +625,24 @@ export type JobsResponse = {
      * Jobs
      */
     jobs: Array<BacktestJob>;
+};
+
+/**
+ * MetricConstraintRequest
+ */
+export type MetricConstraintRequest = {
+    /**
+     * Metric
+     */
+    metric: 'total_return_pct' | 'sharpe_ratio' | 'max_drawdown_pct' | 'total_trades' | 'total_fees' | 'exposure_pct';
+    /**
+     * Op
+     */
+    op: '>=' | '<=';
+    /**
+     * Value
+     */
+    value: number;
 };
 
 /**

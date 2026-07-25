@@ -21,6 +21,22 @@ MAX_EXPERIMENT_JOBS = 72
 EXPERIMENT_OBJECTIVES = frozenset(
     {"total_return_pct", "sharpe_ratio", "max_drawdown_pct"}
 )
+CONSTRAINT_METRICS = frozenset(
+    {
+        "total_return_pct",
+        "sharpe_ratio",
+        "max_drawdown_pct",
+        "total_trades",
+        "total_fees",
+        "exposure_pct",
+    }
+)
+PARETO_OBJECTIVES = {
+    "total_return_pct": "maximize",
+    "sharpe_ratio": "maximize",
+    "max_drawdown_pct": "maximize",
+    "total_fees": "minimize",
+}
 
 
 class JobStoreProtocol(Protocol):
@@ -87,10 +103,12 @@ class ExperimentStore:
         validation_window: Mapping[str, str] | None = None,
         test_window: Mapping[str, str] | None = None,
         walk_forward_folds: int = 0,
+        constraints: Sequence[Mapping[str, Any]] = (),
     ) -> dict[str, Any]:
         if objective not in EXPERIMENT_OBJECTIVES:
             raise ValueError(f"unsupported experiment objective: {objective}")
         combinations = expand_parameter_grid(parameter_grid)
+        normalized_constraints = _validate_constraints(constraints)
         walk_forward_windows = (
             build_walk_forward_windows(base_request, walk_forward_folds)
             if walk_forward_folds
@@ -132,6 +150,7 @@ class ExperimentStore:
             "started_at": None,
             "finished_at": None,
             "objective": objective,
+            "constraints": normalized_constraints,
             "base_request": dict(base_request),
             "validation_window": (
                 dict(validation_window) if validation_window else None
@@ -153,6 +172,9 @@ class ExperimentStore:
                     "metrics": None,
                     "score": None,
                     "rank": None,
+                    "constraints_satisfied": None,
+                    "constraint_violations": [],
+                    "pareto_optimal": False,
                     "error": None,
                     "phases": {},
                 }
@@ -294,10 +316,10 @@ class ExperimentStore:
             except Exception as error:
                 run.update(status="failed", error=str(error))
             experiment["progress"]["completed"] += 1
-            self._rank(experiment)
+            self._evaluate_candidates(experiment)
             self._write(experiment)
 
-        self._rank(experiment)
+        self._evaluate_candidates(experiment)
         selected = next(
             (run for run in experiment["runs"] if run.get("rank") == 1),
             None,
@@ -343,7 +365,7 @@ class ExperimentStore:
             finished_at=_now(),
             research_summary=self._research_summary(experiment, selected),
         )
-        self._rank(experiment)
+        self._evaluate_candidates(experiment)
         self._write(experiment)
 
     async def _run_phase(
@@ -503,17 +525,33 @@ class ExperimentStore:
             raise KeyError(experiment_id)
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def _rank(self, experiment: dict[str, Any]) -> None:
+    def _evaluate_candidates(self, experiment: dict[str, Any]) -> None:
+        constraints = experiment.get("constraints") or []
+        for run in experiment["runs"]:
+            if run.get("status") != "succeeded" or not run.get("metrics"):
+                run["constraints_satisfied"] = None
+                run["constraint_violations"] = []
+                run["pareto_optimal"] = False
+                continue
+            violations = _constraint_violations(run["metrics"], constraints)
+            run["constraint_violations"] = violations
+            run["constraints_satisfied"] = not violations
+
         succeeded = [
             run
             for run in experiment["runs"]
-            if run.get("status") == "succeeded" and run.get("score") is not None
+            if (
+                run.get("status") == "succeeded"
+                and run.get("score") is not None
+                and run.get("constraints_satisfied") is not False
+            )
         ]
         succeeded.sort(key=lambda run: float(run["score"]), reverse=True)
         for run in experiment["runs"]:
             run["rank"] = None
         for rank, run in enumerate(succeeded, start=1):
             run["rank"] = rank
+        _mark_pareto_frontier(succeeded)
 
     def _directory(self, experiment_id: str) -> Path:
         if not EXPERIMENT_ID_PATTERN.fullmatch(experiment_id):
@@ -613,3 +651,84 @@ def _aggregate_metrics(phases: Sequence[Mapping[str, Any]]) -> dict[str, float]:
         )
         for name in names
     }
+
+
+def _validate_constraints(
+    constraints: Sequence[Mapping[str, Any]],
+) -> list[dict[str, str | float]]:
+    normalized: list[dict[str, str | float]] = []
+    for constraint in constraints:
+        metric = str(constraint.get("metric") or "")
+        op = str(constraint.get("op") or "")
+        if metric not in CONSTRAINT_METRICS:
+            raise ValueError(f"unsupported constraint metric: {metric}")
+        if op not in {">=", "<="}:
+            raise ValueError(f"unsupported constraint operator: {op}")
+        try:
+            value = float(constraint["value"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("constraint value must be numeric") from error
+        normalized.append({"metric": metric, "op": op, "value": value})
+    return normalized
+
+
+def _constraint_violations(
+    metrics: Mapping[str, Any],
+    constraints: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    violations: list[dict[str, Any]] = []
+    for constraint in constraints:
+        metric = str(constraint["metric"])
+        actual = metrics.get(metric)
+        expected = float(constraint["value"])
+        op = str(constraint["op"])
+        satisfied = isinstance(actual, (int, float)) and (
+            float(actual) >= expected if op == ">=" else float(actual) <= expected
+        )
+        if not satisfied:
+            violations.append(
+                {
+                    "metric": metric,
+                    "op": op,
+                    "value": expected,
+                    "actual": actual,
+                }
+            )
+    return violations
+
+
+def _mark_pareto_frontier(runs: Sequence[dict[str, Any]]) -> None:
+    complete = [
+        run
+        for run in runs
+        if all(
+            isinstance(run.get("metrics", {}).get(metric), (int, float))
+            for metric in PARETO_OBJECTIVES
+        )
+    ]
+    for run in runs:
+        run["pareto_optimal"] = False
+    for candidate in complete:
+        candidate["pareto_optimal"] = not any(
+            _dominates(other["metrics"], candidate["metrics"])
+            for other in complete
+            if other is not candidate
+        )
+
+
+def _dominates(
+    left: Mapping[str, Any],
+    right: Mapping[str, Any],
+) -> bool:
+    at_least_as_good = True
+    strictly_better = False
+    for metric, direction in PARETO_OBJECTIVES.items():
+        left_value = float(left[metric])
+        right_value = float(right[metric])
+        if direction == "maximize":
+            at_least_as_good &= left_value >= right_value
+            strictly_better |= left_value > right_value
+        else:
+            at_least_as_good &= left_value <= right_value
+            strictly_better |= left_value < right_value
+    return at_least_as_good and strictly_better

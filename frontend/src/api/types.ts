@@ -248,6 +248,20 @@ export type ExperimentObjective =
   | "sharpe_ratio"
   | "max_drawdown_pct";
 
+export type ConstraintMetric =
+  | "total_return_pct"
+  | "sharpe_ratio"
+  | "max_drawdown_pct"
+  | "total_trades"
+  | "total_fees"
+  | "exposure_pct";
+
+export interface MetricConstraint {
+  metric: ConstraintMetric;
+  op: ">=" | "<=";
+  value: number;
+}
+
 export interface ExperimentRequest {
   name: string;
   base: BacktestRequest;
@@ -256,6 +270,7 @@ export interface ExperimentRequest {
   validation?: EvaluationWindow;
   test?: EvaluationWindow;
   walk_forward_folds?: number;
+  constraints?: MetricConstraint[];
 }
 
 export interface EvaluationWindow {
@@ -281,6 +296,9 @@ export interface ExperimentRun {
   rank: number | null;
   error: string | null;
   phases?: Record<string, ExperimentPhase>;
+  constraints_satisfied?: boolean | null;
+  constraint_violations?: Array<MetricConstraint & { actual?: number | null }>;
+  pareto_optimal?: boolean;
 }
 
 export interface Experiment {
@@ -291,6 +309,7 @@ export interface Experiment {
   started_at: string | null;
   finished_at: string | null;
   objective: ExperimentObjective;
+  constraints?: MetricConstraint[];
   base_request: BacktestRequest;
   validation_window?: EvaluationWindow | null;
   test_window?: EvaluationWindow | null;

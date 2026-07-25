@@ -74,6 +74,7 @@ class ExecutionService:
             ),
             test_window=request.test.to_dict() if request.test else None,
             walk_forward_folds=request.walk_forward_folds,
+            constraints=[constraint.to_dict() for constraint in request.constraints],
         )
         self.experiments.launch(experiment["id"])
         return experiment

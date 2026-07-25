@@ -47,6 +47,9 @@ class FakeJobStore:
                     "total_return_pct": fast * 2,
                     "sharpe_ratio": fast / 10,
                     "max_drawdown_pct": -fast,
+                    "total_trades": fast,
+                    "total_fees": fast / 10,
+                    "exposure_pct": 50,
                 }
             }
         }
@@ -72,6 +75,9 @@ class WindowAwareJobStore(FakeJobStore):
                     "total_return_pct": sharpe * 5,
                     "sharpe_ratio": sharpe,
                     "max_drawdown_pct": -fast,
+                    "total_trades": fast,
+                    "total_fees": fast / 10,
+                    "exposure_pct": 50,
                 }
             }
         }
@@ -153,6 +159,38 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
                 for _source, revision in jobs.strategy_sources
             )
         )
+
+    async def test_constraints_filter_ranking_and_pareto_marks_tradeoffs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = ExperimentStore(root, FakeJobStore(root))
+            experiment = store.create(
+                name="constrained search",
+                base_request={"symbol": "US.AAPL", "parameters": {}},
+                parameter_grid={"fast": [10, 20]},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+                constraints=[
+                    {"metric": "max_drawdown_pct", "op": ">=", "value": -15}
+                ],
+            )
+
+            await store._run(experiment["id"])
+            completed = store.get(experiment["id"])
+
+        eligible = next(run for run in completed["runs"] if run["rank"] == 1)
+        constrained = next(run for run in completed["runs"] if run["rank"] is None)
+        self.assertEqual(eligible["parameters"], {"fast": 10})
+        self.assertTrue(eligible["constraints_satisfied"])
+        self.assertFalse(constrained["constraints_satisfied"])
+        self.assertEqual(
+            constrained["constraint_violations"][0]["metric"],
+            "max_drawdown_pct",
+        )
+        self.assertTrue(eligible["pareto_optimal"])
 
     async def test_experiment_writes_publish_progress_events(self):
         async def connected() -> bool:

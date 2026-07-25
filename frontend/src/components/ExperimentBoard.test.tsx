@@ -27,8 +27,8 @@ const experiment: Experiment = {
     worst_window_drawdown_pct: -10,
   },
   runs: [
-    { index: 1, parameters: { fast_period: 10 }, job_id: "job-1", status: "succeeded", score: 1.2, rank: 2, error: null, metrics: { total_return_pct: 20, benchmark_return_pct: 10, max_drawdown_pct: -12, sharpe_ratio: 1.2, total_trades: 3, total_fees: 20, exposure_pct: 60 } },
-    { index: 2, parameters: { fast_period: 20 }, job_id: "job-2", status: "succeeded", score: 1.8, rank: 1, error: null, metrics: { total_return_pct: 30, benchmark_return_pct: 10, max_drawdown_pct: -10, sharpe_ratio: 1.8, total_trades: 4, total_fees: 25, exposure_pct: 65 } },
+    { index: 1, parameters: { fast_period: 10 }, job_id: "job-1", status: "succeeded", score: 1.2, rank: 2, error: null, constraints_satisfied: true, pareto_optimal: false, metrics: { total_return_pct: 20, benchmark_return_pct: 10, max_drawdown_pct: -12, sharpe_ratio: 1.2, total_trades: 3, total_fees: 20, exposure_pct: 60 } },
+    { index: 2, parameters: { fast_period: 20 }, job_id: "job-2", status: "succeeded", score: 1.8, rank: 1, error: null, constraints_satisfied: true, pareto_optimal: true, metrics: { total_return_pct: 30, benchmark_return_pct: 10, max_drawdown_pct: -10, sharpe_ratio: 1.8, total_trades: 4, total_fees: 25, exposure_pct: 65 } },
   ],
 };
 
@@ -50,6 +50,7 @@ describe("ExperimentBoard", () => {
     expect(screen.getAllByText("#1").length).toBeGreaterThan(0);
     expect(screen.getByText("验证 Sharpe")).toBeInTheDocument();
     expect(screen.getByText("1.40")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Pareto 前沿" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("比较第 2 组"));
     fireEvent.click(screen.getByRole("button", { name: /查看回测证据/ }));
     expect(onOpenRun).toHaveBeenCalledWith("job-2");

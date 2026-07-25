@@ -146,4 +146,31 @@ describe("ExperimentForm", () => {
       }),
     );
   });
+
+  it("submits explicit candidate constraints", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ExperimentForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        parameterDefinitions={definitions}
+        onStrategyChange={() => undefined}
+        onSubmit={onSubmit}
+        running={false}
+        opendConnected
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "添加约束" }));
+    fireEvent.change(screen.getByLabelText("第 1 条约束值"), { target: { value: "-12" } });
+    fireEvent.click(screen.getByRole("button", { name: /运行 4 组参数/ }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        constraints: [
+          { metric: "max_drawdown_pct", op: ">=", value: -12 },
+        ],
+      }),
+    );
+  });
 });
