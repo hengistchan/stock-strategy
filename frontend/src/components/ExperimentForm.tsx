@@ -49,6 +49,9 @@ export function ExperimentForm({
   const [walkForward, setWalkForward] = useState(false);
   const [walkForwardFolds, setWalkForwardFolds] = useState(3);
   const [constraints, setConstraints] = useState<MetricConstraint[]>([]);
+  const [batchValidation, setBatchValidation] = useState(false);
+  const [batchSymbols, setBatchSymbols] = useState("US.AAPL, US.MSFT, US.NVDA");
+  const parsedBatchSymbols = parseSymbols(batchSymbols);
   const combinationCount = parameterDefinitions.reduce(
     (count, definition) => count * parseGridValues(gridText[definition.name] ?? "", definition).length,
     1,
@@ -57,7 +60,7 @@ export function ExperimentForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const parameterGrid = Object.fromEntries(
+    const parameterGrid = batchValidation ? {} : Object.fromEntries(
       parameterDefinitions.map((definition) => [
         definition.name,
         parseGridValues(gridText[definition.name] ?? "", definition),
@@ -82,13 +85,16 @@ export function ExperimentForm({
       name: String(data.get("name")).trim(),
       objective: String(data.get("objective")) as ExperimentObjective,
       parameter_grid: parameterGrid,
+      symbols: batchValidation ? parsedBatchSymbols : [],
       validation,
       test,
       walk_forward_folds: walkForward ? walkForwardFolds : 0,
       constraints,
       base: {
         strategy: selectedStrategy,
-        symbol: String(data.get("symbol")).trim().toUpperCase(),
+        symbol: batchValidation
+          ? parsedBatchSymbols[0] ?? ""
+          : String(data.get("symbol")).trim().toUpperCase(),
         start: String(data.get("start")),
         end: String(data.get("end")),
         ktype: String(data.get("ktype")),
@@ -111,10 +117,10 @@ export function ExperimentForm({
     running
     || !opendConnected
     || !selectedStrategy
-    || parameterDefinitions.length === 0
-    || combinationCount < 1
-    || combinationCount > 36
-    || (walkForward && combinationCount * walkForwardFolds * 2 > 72);
+    || (!batchValidation && parameterDefinitions.length === 0)
+    || (!batchValidation && (combinationCount < 1 || combinationCount > 36))
+    || (batchValidation && (parsedBatchSymbols.length < 2 || parsedBatchSymbols.length > 36))
+    || (!batchValidation && walkForward && combinationCount * walkForwardFolds * 2 > 72);
 
   return (
     <form className="experiment-form" onSubmit={handleSubmit}>
@@ -122,6 +128,24 @@ export function ExperimentForm({
         <span className="section-code">SEARCH SPACE</span>
         <h2>{t("experiment.matrix")}</h2>
         <p>{t("experiment.intro")}</p>
+      </div>
+
+      <div className="experiment-mode-switch" role="group" aria-label={t("experiment.mode")}>
+        <button type="button" aria-pressed={!batchValidation} onClick={() => setBatchValidation(false)}>
+          {t("experiment.parameterMode")}
+        </button>
+        <button
+          type="button"
+          aria-pressed={batchValidation}
+          onClick={() => {
+            setBatchValidation(true);
+            setOutOfSample(false);
+            setIncludeTest(false);
+            setWalkForward(false);
+          }}
+        >
+          {t("experiment.batchMode")}
+        </button>
       </div>
 
       <label className="field">
@@ -138,7 +162,18 @@ export function ExperimentForm({
       </label>
 
       <div className="field-pair experiment-symbol-row">
-        <SymbolSearchField searchEnabled={opendConnected} />
+        {batchValidation ? (
+          <label className="field batch-symbols-field">
+            <span>{t("experiment.symbolPool")}</span>
+            <textarea
+              aria-label={t("experiment.symbolPool")}
+              value={batchSymbols}
+              onChange={(event) => setBatchSymbols(event.target.value)}
+              rows={3}
+            />
+            <small>{t("experiment.symbolPoolHelp", { count: parsedBatchSymbols.length })}</small>
+          </label>
+        ) : <SymbolSearchField searchEnabled={opendConnected} />}
         <label className="field"><span>{t("experiment.objective")}</span><select name="objective" defaultValue="sharpe_ratio">{objectives.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
       </div>
       <div className="field-pair">
@@ -150,7 +185,7 @@ export function ExperimentForm({
         <label className="field"><span>{t("form.session")}</span><select name="session" defaultValue="ALL">{(config?.session_types ?? ["ALL"]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div>
 
-      <section className="grid-editor research-window-editor">
+      {!batchValidation ? <section className="grid-editor research-window-editor">
         <label className="check-field">
           <input
             type="checkbox"
@@ -213,7 +248,7 @@ export function ExperimentForm({
           </label>
         ) : null}
         <small>{t("experiment.plannedJobs", { count: walkForward ? combinationCount * walkForwardFolds * 2 : combinationCount * (outOfSample ? 2 : 1) + (includeTest ? 1 : 0) })}</small>
-      </section>
+      </section> : null}
 
       <section className="grid-editor constraint-editor" aria-labelledby="constraintEditorTitle">
         <div className="grid-editor-heading">
@@ -273,7 +308,7 @@ export function ExperimentForm({
         ))}
       </section>
 
-      <section className="grid-editor" aria-labelledby="gridEditorTitle">
+      {!batchValidation ? <section className="grid-editor" aria-labelledby="gridEditorTitle">
         <div className="grid-editor-heading">
           <h3 id="gridEditorTitle">{t("experiment.candidates")}</h3>
           <span className={combinationCount > 36 ? "negative" : ""}>{t("experiment.combinations", { count: combinationCount })}</span>
@@ -297,7 +332,7 @@ export function ExperimentForm({
             </label>
           );
         })}
-      </section>
+      </section> : null}
 
       <details className="execution-sheet">
         <summary>{t("experiment.options")}</summary>
@@ -308,7 +343,9 @@ export function ExperimentForm({
       </details>
 
       <button className="experiment-run-button" type="submit" disabled={disabled}>
-        <span>{running ? t("experiment.running") : t("experiment.run", { count: combinationCount })}</span>
+        <span>{running ? t("experiment.running") : batchValidation
+          ? t("experiment.runSymbols", { count: parsedBatchSymbols.length })
+          : t("experiment.run", { count: combinationCount })}</span>
         <span aria-hidden="true">→</span>
       </button>
       <p className="experiment-safety">{t("experiment.safety")}</p>
@@ -343,4 +380,13 @@ function formatRange(definition: StrategyParameterDefinition, freeValue: string)
     return `${definition.min ?? "−∞"} — ${definition.max ?? "+∞"}`;
   }
   return freeValue;
+}
+
+function parseSymbols(text: string): string[] {
+  return [...new Set(
+    text
+      .split(/[\s,;]+/)
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean),
+  )];
 }

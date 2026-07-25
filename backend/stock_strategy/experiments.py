@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import re
 import shutil
-from statistics import fmean, pstdev
+from statistics import fmean, median, pstdev
 from typing import Any, Mapping, Protocol, Sequence
 import uuid
 
@@ -104,10 +104,16 @@ class ExperimentStore:
         test_window: Mapping[str, str] | None = None,
         walk_forward_folds: int = 0,
         constraints: Sequence[Mapping[str, Any]] = (),
+        symbols: Sequence[str] = (),
     ) -> dict[str, Any]:
         if objective not in EXPERIMENT_OBJECTIVES:
             raise ValueError(f"unsupported experiment objective: {objective}")
-        combinations = expand_parameter_grid(parameter_grid)
+        normalized_symbols = list(dict.fromkeys(symbols))
+        combinations = (
+            [{} for _symbol in normalized_symbols]
+            if normalized_symbols
+            else expand_parameter_grid(parameter_grid)
+        )
         normalized_constraints = _validate_constraints(constraints)
         walk_forward_windows = (
             build_walk_forward_windows(base_request, walk_forward_folds)
@@ -150,7 +156,9 @@ class ExperimentStore:
             "started_at": None,
             "finished_at": None,
             "objective": objective,
+            "kind": "batch_validation" if normalized_symbols else "parameter_search",
             "constraints": normalized_constraints,
+            "symbols": normalized_symbols,
             "base_request": dict(base_request),
             "validation_window": (
                 dict(validation_window) if validation_window else None
@@ -166,6 +174,9 @@ class ExperimentStore:
             "runs": [
                 {
                     "index": index + 1,
+                    "symbol": (
+                        normalized_symbols[index] if normalized_symbols else None
+                    ),
                     "parameters": parameters,
                     "job_id": None,
                     "status": "queued",
@@ -205,6 +216,8 @@ class ExperimentStore:
         for run in experiment["runs"]:
             try:
                 request = dict(experiment["base_request"])
+                if run.get("symbol"):
+                    request["symbol"] = run["symbol"]
                 request["parameters"] = {
                     **dict(request.get("parameters") or {}),
                     **dict(run["parameters"]),
@@ -418,6 +431,8 @@ class ExperimentStore:
         experiment: Mapping[str, Any],
         selected: Mapping[str, Any] | None,
     ) -> dict[str, Any]:
+        if experiment.get("kind") == "batch_validation":
+            return _batch_research_summary(experiment)
         if selected is None:
             return {
                 "mode": "in_sample",
@@ -732,3 +747,44 @@ def _dominates(
             at_least_as_good &= left_value <= right_value
             strictly_better |= left_value < right_value
     return at_least_as_good and strictly_better
+
+
+def _batch_research_summary(
+    experiment: Mapping[str, Any],
+) -> dict[str, Any]:
+    successful = [
+        run
+        for run in experiment.get("runs", [])
+        if run.get("status") == "succeeded" and run.get("metrics")
+    ]
+    returns = [
+        float(run["metrics"]["total_return_pct"])
+        for run in successful
+        if isinstance(run["metrics"].get("total_return_pct"), (int, float))
+    ]
+    sharpes = [
+        float(run["metrics"]["sharpe_ratio"])
+        for run in successful
+        if isinstance(run["metrics"].get("sharpe_ratio"), (int, float))
+    ]
+    worst = min(
+        successful,
+        key=lambda run: float(run["metrics"].get("total_return_pct", float("inf"))),
+        default=None,
+    )
+    return {
+        "mode": "batch_validation",
+        "selected_parameters": None,
+        "out_of_sample": True,
+        "symbol_count": len(experiment.get("symbols") or []),
+        "successful_symbol_count": len(successful),
+        "positive_symbol_ratio": (
+            sum(value > 0 for value in returns) / len(returns) if returns else None
+        ),
+        "median_return_pct": median(returns) if returns else None,
+        "median_sharpe_ratio": median(sharpes) if sharpes else None,
+        "worst_symbol": worst.get("symbol") if worst else None,
+        "worst_symbol_return_pct": (
+            worst["metrics"].get("total_return_pct") if worst else None
+        ),
+    }

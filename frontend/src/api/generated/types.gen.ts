@@ -419,6 +419,10 @@ export type ExperimentRequest = {
      * Constraints
      */
     constraints?: Array<MetricConstraintRequest>;
+    /**
+     * Symbols
+     */
+    symbols?: Array<string>;
 };
 
 /**
@@ -454,11 +458,19 @@ export type ExperimentResponse = {
      */
     objective: string;
     /**
+     * Kind
+     */
+    kind?: string;
+    /**
      * Constraints
      */
     constraints?: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * Symbols
+     */
+    symbols?: Array<string>;
     base_request: BacktestRequest;
     /**
      * Validation Window
@@ -583,6 +595,10 @@ export type ExperimentRun = {
      * Pareto Optimal
      */
     pareto_optimal?: boolean;
+    /**
+     * Symbol
+     */
+    symbol?: string | null;
     [key: string]: unknown;
 };
 

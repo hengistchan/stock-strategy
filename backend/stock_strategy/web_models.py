@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -70,9 +71,24 @@ class ExperimentRequest(BaseModel):
     test: "EvaluationWindowRequest | None" = None
     walk_forward_folds: int = Field(default=0, ge=0, le=5)
     constraints: list["MetricConstraintRequest"] = Field(default_factory=list, max_length=8)
+    symbols: list[str] = Field(default_factory=list, max_length=36)
 
     @model_validator(mode="after")
     def validate_research_windows(self) -> "ExperimentRequest":
+        normalized_symbols = [symbol.strip().upper() for symbol in self.symbols]
+        if len(set(normalized_symbols)) != len(normalized_symbols):
+            raise ValueError("批量验证的标的代码不能重复。")
+        if any(not re.fullmatch(SYMBOL_PATTERN, symbol) for symbol in normalized_symbols):
+            raise ValueError("批量验证包含无效的标的代码。")
+        if normalized_symbols and len(normalized_symbols) < 2:
+            raise ValueError("批量验证至少需要 2 个标的。")
+        if normalized_symbols and self.parameter_grid:
+            raise ValueError("批量标的验证不能同时运行参数网格。")
+        if normalized_symbols and (
+            self.walk_forward_folds or self.validation is not None or self.test is not None
+        ):
+            raise ValueError("批量标的验证不能同时配置样本外区间。")
+        self.symbols = normalized_symbols
         if self.walk_forward_folds == 1:
             raise ValueError("Walk-forward 至少需要 2 折。")
         if self.walk_forward_folds and (
@@ -99,6 +115,7 @@ class ExperimentRequest(BaseModel):
             test=self.test.to_window() if self.test else None,
             walk_forward_folds=self.walk_forward_folds,
             constraints=tuple(constraint.to_constraint() for constraint in self.constraints),
+            symbols=tuple(self.symbols),
         )
 
 

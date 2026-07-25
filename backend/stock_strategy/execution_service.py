@@ -40,26 +40,27 @@ class ExecutionService:
 
     def create_experiment(self, request: ExperimentSpec) -> dict[str, Any]:
         prepared = self.prepare_backtest(request.base)
-        if not prepared.definitions:
+        if not prepared.definitions and not request.symbols:
             raise ValueError(
                 "该策略没有声明 STRATEGY_PARAMETERS，无法创建参数实验"
             )
 
-        known = {definition["name"] for definition in prepared.definitions}
-        unknown = sorted(set(request.parameter_grid) - known)
-        if unknown:
-            raise ValueError("unknown strategy parameters: " + ", ".join(unknown))
-
         normalized_grid: dict[str, list[Any]] = {}
-        for name, candidates in request.parameter_grid.items():
-            normalized_grid[name] = [
-                resolve_parameter_values(
-                    prepared.definitions,
-                    {**dict(prepared.request.parameters), name: candidate},
-                )[name]
-                for candidate in candidates
-            ]
-        expand_parameter_grid(normalized_grid)
+        if not request.symbols:
+            known = {definition["name"] for definition in prepared.definitions}
+            unknown = sorted(set(request.parameter_grid) - known)
+            if unknown:
+                raise ValueError("unknown strategy parameters: " + ", ".join(unknown))
+
+            for name, candidates in request.parameter_grid.items():
+                normalized_grid[name] = [
+                    resolve_parameter_values(
+                        prepared.definitions,
+                        {**dict(prepared.request.parameters), name: candidate},
+                    )[name]
+                    for candidate in candidates
+                ]
+            expand_parameter_grid(normalized_grid)
 
         experiment = self.experiments.create(
             name=request.name,
@@ -75,6 +76,7 @@ class ExecutionService:
             test_window=request.test.to_dict() if request.test else None,
             walk_forward_folds=request.walk_forward_folds,
             constraints=[constraint.to_dict() for constraint in request.constraints],
+            symbols=request.symbols,
         )
         self.experiments.launch(experiment["id"])
         return experiment

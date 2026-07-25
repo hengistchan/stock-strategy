@@ -271,6 +271,7 @@ export interface ExperimentRequest {
   test?: EvaluationWindow;
   walk_forward_folds?: number;
   constraints?: MetricConstraint[];
+  symbols?: string[];
 }
 
 export interface EvaluationWindow {
@@ -299,6 +300,7 @@ export interface ExperimentRun {
   constraints_satisfied?: boolean | null;
   constraint_violations?: Array<MetricConstraint & { actual?: number | null }>;
   pareto_optimal?: boolean;
+  symbol?: string | null;
 }
 
 export interface Experiment {
@@ -309,7 +311,9 @@ export interface Experiment {
   started_at: string | null;
   finished_at: string | null;
   objective: ExperimentObjective;
+  kind?: "parameter_search" | "batch_validation";
   constraints?: MetricConstraint[];
+  symbols?: string[];
   base_request: BacktestRequest;
   validation_window?: EvaluationWindow | null;
   test_window?: EvaluationWindow | null;
@@ -323,7 +327,7 @@ export interface Experiment {
   progress: { completed: number; total: number };
   runs: ExperimentRun[];
   research_summary?: {
-    mode: "in_sample" | "train_validation_test" | "walk_forward";
+    mode: "in_sample" | "train_validation_test" | "walk_forward" | "batch_validation";
     selected_parameters: Record<string, ParameterValue> | null;
     out_of_sample: boolean;
     validation_metrics?: BacktestMetrics | null;
@@ -335,6 +339,13 @@ export interface Experiment {
       window: EvaluationWindow;
       metrics: BacktestMetrics;
     }>;
+    symbol_count?: number;
+    successful_symbol_count?: number;
+    positive_symbol_ratio?: number | null;
+    median_return_pct?: number | null;
+    median_sharpe_ratio?: number | null;
+    worst_symbol?: string | null;
+    worst_symbol_return_pct?: number | null;
   };
 }
 

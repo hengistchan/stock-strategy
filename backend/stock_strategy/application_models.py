@@ -75,6 +75,7 @@ class ExperimentSpec:
     test: "EvaluationWindow | None" = None
     walk_forward_folds: int = 0
     constraints: tuple["MetricConstraint", ...] = ()
+    symbols: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

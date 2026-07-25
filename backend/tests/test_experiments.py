@@ -83,6 +83,24 @@ class WindowAwareJobStore(FakeJobStore):
         }
 
 
+class BatchJobStore(FakeJobStore):
+    def load_result(self, job_id):
+        symbol = self.jobs[job_id]["request"]["symbol"]
+        score = {"US.AAPL": 2.0, "US.MSFT": 1.0, "US.TSLA": -0.5}[symbol]
+        return {
+            "summary": {
+                "metrics": {
+                    "total_return_pct": score * 10,
+                    "sharpe_ratio": score,
+                    "max_drawdown_pct": -abs(score * 3),
+                    "total_trades": 12,
+                    "total_fees": 5,
+                    "exposure_pct": 50,
+                }
+            }
+        }
+
+
 class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
     def test_grid_expansion_is_deterministic_and_bounded(self):
         self.assertEqual(
@@ -191,6 +209,35 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
             "max_drawdown_pct",
         )
         self.assertTrue(eligible["pareto_optimal"])
+
+    async def test_batch_validation_runs_symbols_independently_and_aggregates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            jobs = BatchJobStore(root)
+            store = ExperimentStore(root, jobs)
+            experiment = store.create(
+                name="stock pool",
+                base_request={"symbol": "US.AAPL", "parameters": {}},
+                parameter_grid={},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+                symbols=["US.AAPL", "US.MSFT", "US.TSLA"],
+            )
+
+            await store._run(experiment["id"])
+            completed = store.get(experiment["id"])
+
+        self.assertEqual(
+            [jobs.jobs[f"job-{index}"]["request"]["symbol"] for index in range(1, 4)],
+            ["US.AAPL", "US.MSFT", "US.TSLA"],
+        )
+        self.assertEqual(completed["kind"], "batch_validation")
+        self.assertEqual(completed["research_summary"]["positive_symbol_ratio"], 2 / 3)
+        self.assertEqual(completed["research_summary"]["median_return_pct"], 10)
+        self.assertEqual(completed["research_summary"]["worst_symbol"], "US.TSLA")
 
     async def test_experiment_writes_publish_progress_events(self):
         async def connected() -> bool:

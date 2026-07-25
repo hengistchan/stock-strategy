@@ -1874,6 +1874,14 @@
             "type": "array",
             "maxItems": 8,
             "title": "Constraints"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 36,
+            "title": "Symbols"
           }
         },
         "type": "object",
@@ -1927,6 +1935,11 @@
             "type": "string",
             "title": "Objective"
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "parameter_search"
+          },
           "constraints": {
             "items": {
               "additionalProperties": true,
@@ -1934,6 +1947,13 @@
             },
             "type": "array",
             "title": "Constraints"
+          },
+          "symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Symbols"
           },
           "base_request": {
             "$ref": "#/components/schemas/BacktestRequest"
@@ -2165,6 +2185,17 @@
             "type": "boolean",
             "title": "Pareto Optimal",
             "default": false
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
           }
         },
         "additionalProperties": true,

@@ -173,4 +173,33 @@ describe("ExperimentForm", () => {
       }),
     );
   });
+
+  it("submits a stock pool as independent symbol validation", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ExperimentForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        parameterDefinitions={definitions}
+        onStrategyChange={() => undefined}
+        onSubmit={onSubmit}
+        running={false}
+        opendConnected
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "多标的验证" }));
+    fireEvent.change(screen.getByLabelText("股票池代码"), {
+      target: { value: "US.AAPL\nUS.MSFT, us.tsla" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "验证 3 个标的" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        symbols: ["US.AAPL", "US.MSFT", "US.TSLA"],
+        parameter_grid: {},
+        base: expect.objectContaining({ symbol: "US.AAPL" }),
+      }),
+    );
+  });
 });

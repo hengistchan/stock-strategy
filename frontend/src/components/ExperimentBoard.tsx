@@ -40,6 +40,7 @@ export function ExperimentBoard({
     (run) => run.job_id && selectedJobIds.includes(run.job_id),
   );
   const paretoRuns = orderedRuns.filter((run) => run.pareto_optimal);
+  const isBatch = experiment?.kind === "batch_validation";
 
   function toggleComparison(run: ExperimentRun) {
     if (!run.job_id || run.status !== "succeeded") return;
@@ -67,7 +68,7 @@ export function ExperimentBoard({
               onClick={() => onSelectExperiment(item.id)}
             >
               <span className={`history-mark ${item.status}`} aria-hidden="true" />
-              <span><strong>{item.name}</strong><small>{formatSymbolLabel(item.base_request.symbol, symbolNames)} · {item.progress.completed}/{item.progress.total} · {objectiveLabels[item.objective]}</small></span>
+              <span><strong>{item.name}</strong><small>{item.kind === "batch_validation" ? t("experiment.symbolCount", { count: item.symbols?.length ?? item.progress.total }) : formatSymbolLabel(item.base_request.symbol, symbolNames)} · {item.progress.completed}/{item.progress.total} · {objectiveLabels[item.objective]}</small></span>
               <time>{formatDateTime(item.created_at, locale)}</time>
             </button>
           ))}
@@ -87,7 +88,7 @@ export function ExperimentBoard({
               <div>
                 <span className="section-code">RANKING TAPE</span>
                 <h2>{experiment.name}</h2>
-                <p>{experiment.strategy_path} · {formatSymbolLabel(experiment.base_request.symbol, symbolNames)} · {t("experiment.priority", { objective: objectiveLabels[experiment.objective] })}</p>
+                <p>{experiment.strategy_path} · {isBatch ? t("experiment.symbolCount", { count: experiment.symbols?.length ?? 0 }) : formatSymbolLabel(experiment.base_request.symbol, symbolNames)} · {t("experiment.priority", { objective: objectiveLabels[experiment.objective] })}</p>
               </div>
               <div className="experiment-progress" data-status={experiment.status}>
                 <strong>{experiment.progress.completed}/{experiment.progress.total}</strong>
@@ -99,7 +100,7 @@ export function ExperimentBoard({
               <span style={{ width: `${experiment.progress.total ? experiment.progress.completed / experiment.progress.total * 100 : 0}%` }} />
             </div>
 
-            {experiment.research_summary?.out_of_sample ? (
+            {experiment.research_summary?.out_of_sample && !isBatch ? (
               <section className="comparison-strip" aria-label={t("experiment.outOfSampleSummary")}>
                 <div className="comparison-heading"><span>OUT OF SAMPLE</span><strong>{t("experiment.robustness")}</strong></div>
                 <ResearchMetric label={t("experiment.validationSharpe")} value={metricNumber(experiment.research_summary.validation_metrics?.sharpe_ratio ?? undefined, locale)} />
@@ -110,7 +111,17 @@ export function ExperimentBoard({
               </section>
             ) : null}
 
-            {experiment.status === "succeeded" || experiment.status === "completed_with_errors" ? (
+            {isBatch && experiment.research_summary ? (
+              <section className="comparison-strip batch-summary" aria-label={t("experiment.batchSummary")}>
+                <div className="comparison-heading"><span>STOCK POOL</span><strong>{t("experiment.robustness")}</strong></div>
+                <ResearchMetric label={t("experiment.positiveSymbols")} value={experiment.research_summary.positive_symbol_ratio == null ? "—" : formatSignedPercent(experiment.research_summary.positive_symbol_ratio * 100, locale)} />
+                <ResearchMetric label={t("experiment.medianReturn")} value={metricPercent(experiment.research_summary.median_return_pct ?? undefined, locale)} />
+                <ResearchMetric label={t("experiment.medianSharpe")} value={metricNumber(experiment.research_summary.median_sharpe_ratio ?? undefined, locale)} />
+                <ResearchMetric label={t("experiment.worstSymbol")} value={experiment.research_summary.worst_symbol ? `${experiment.research_summary.worst_symbol} ${metricPercent(experiment.research_summary.worst_symbol_return_pct ?? undefined, locale)}` : "—"} />
+              </section>
+            ) : null}
+
+            {!isBatch && (experiment.status === "succeeded" || experiment.status === "completed_with_errors") ? (
               <ParameterHeatmap experiment={experiment} />
             ) : null}
 
@@ -149,7 +160,7 @@ export function ExperimentBoard({
                       <tr key={run.index} data-status={run.status}>
                         <td><input aria-label={t("experiment.compareRun", { index: run.index })} type="checkbox" checked={selected} disabled={run.status !== "succeeded"} onChange={() => toggleComparison(run)} /></td>
                         <td className="rank-cell">{run.rank ? `#${run.rank}` : "—"}</td>
-                        <td><ParameterSet parameters={run.parameters} /></td>
+                        <td>{run.symbol ? formatSymbolLabel(run.symbol, symbolNames) : <ParameterSet parameters={run.parameters} />}</td>
                         <td className={tone(run.metrics?.total_return_pct)}>{metricPercent(run.metrics?.total_return_pct, locale)}</td>
                         <td className={tone(run.metrics?.sharpe_ratio)}>{metricNumber(run.metrics?.sharpe_ratio, locale)}</td>
                         <td className={tone(run.metrics?.max_drawdown_pct)}>{metricPercent(run.metrics?.max_drawdown_pct, locale)}</td>
