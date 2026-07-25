@@ -8,10 +8,10 @@ import os
 from pathlib import Path
 import re
 import shutil
-import sys
 from typing import Any, Mapping
 import uuid
 
+from .backtest_command import build_backtest_command
 from .market_cache import MarketDataCache
 from .job_lifecycle import InvalidJobTransition, JobStatus, TERMINAL_JOB_STATUSES
 from .paths import BACKEND_ROOT, PROJECT_ROOT
@@ -339,59 +339,16 @@ class JobStore:
 
     def build_command(self, job: dict[str, Any]) -> list[str]:
         request = job["request"]
-        session = request.get("session") or "ALL"
         job_dir = self._job_dir(job["id"])
         cache_path = self.cache.descriptor(request)["path"]
-        command = [
-            sys.executable,
-            "-P",
-            "-m",
-            "stock_strategy",
-            "--strategy",
-            str(self._strategy_execution_path(job)),
-            "--opend",
-            "--symbol",
-            request["symbol"],
-            "--start",
-            request["start"],
-            "--end",
-            request["end"],
-            "--ktype",
-            request["ktype"],
-            "--autype",
-            request["autype"],
-            "--session",
-            session,
-            "--initial-cash",
-            str(request["initial_cash"]),
-            "--commission-bps",
-            str(request["commission_bps"]),
-            "--min-commission",
-            str(request["min_commission"]),
-            "--slippage-bps",
-            str(request["slippage_bps"]),
-            "--warmup-bars",
-            str(request["warmup_bars"]),
-            "--opend-cache",
-            str(cache_path),
-            "--opend-host",
-            self.opend_host,
-            "--opend-port",
-            str(self.opend_port),
-            "--output",
-            str(job_dir / "output"),
-        ]
-        for name, value in sorted((request.get("parameters") or {}).items()):
-            command.extend(
-                ["--parameter", f"{name}={json.dumps(value, ensure_ascii=False)}"]
-            )
-        if request.get("refresh_cache", False):
-            command.append("--refresh-opend-cache")
-        if request["allow_short"]:
-            command.append("--allow-short")
-        if request.get("liquidate_on_end", False):
-            command.append("--liquidate-on-end")
-        return command
+        return build_backtest_command(
+            job,
+            strategy_path=self._strategy_execution_path(job),
+            cache_path=cache_path,
+            output_path=job_dir / "output",
+            opend_host=self.opend_host,
+            opend_port=self.opend_port,
+        )
 
     def list_jobs(self) -> list[dict[str, Any]]:
         return self.repository.list()

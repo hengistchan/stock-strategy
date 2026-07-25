@@ -33,6 +33,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
   │                      └─ strategies/ (可写、原子保存)
   ├── ExperimentStore ── 参数组合 / 排名 ── runs/experiments/
   ├── JobStore ── 作业生命周期 / 不可变输入快照 / 串行 Python 子进程
+  ├── backtest_command ── CLI 参数与兼容默认值的纯构建器
   ├── SqliteJobRepository ── SQLite WAL 权威状态 / job.json 兼容镜像
   ├── result_reader ── 大型 CSV 索引、窗口读取、降采样
   └── MarketDataCache ── data/opend/cache/
