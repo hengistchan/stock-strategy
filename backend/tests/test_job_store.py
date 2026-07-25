@@ -125,7 +125,7 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             (run_dir / "report.svg").write_text("<svg/>", encoding="utf-8")
 
             with patch(
-                "stock_strategy.job_store.asyncio.create_subprocess_exec",
+                "stock_strategy.strategy_process.asyncio.create_subprocess_exec",
                 new=AsyncMock(return_value=FakeProcess()),
             ):
                 await store.run_job(job["id"])
@@ -211,7 +211,7 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             store = JobStore(root)
             job = store.create_job(request, strategy)
             with patch(
-                "stock_strategy.job_store.asyncio.create_subprocess_exec",
+                "stock_strategy.strategy_process.asyncio.create_subprocess_exec",
                 new=AsyncMock(return_value=FakeProcess()),
             ):
                 with patch.object(store.cache, "record", return_value=None):

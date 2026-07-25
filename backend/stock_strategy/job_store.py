@@ -30,10 +30,9 @@ from .run_manifest import (
     update_run_manifest,
 )
 from .strategy_process import (
+    StrategyProcessRunner,
+    StrategyProcessTimeout,
     TRUSTED_EXECUTION_PROFILE,
-    build_strategy_environment,
-    subprocess_isolation_options,
-    terminate_process_tree,
 )
 from .state_repository import SqliteJobRepository
 
@@ -63,7 +62,11 @@ class JobStore:
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
         self.cache = MarketDataCache(self.project_root)
         self._tasks: dict[str, asyncio.Task[None]] = {}
-        self._processes: dict[str, asyncio.subprocess.Process] = {}
+        self.process_runner = StrategyProcessRunner(
+            backend_root=BACKEND_ROOT,
+            working_directory=self.project_root,
+            timeout_seconds=timeout_seconds,
+        )
         self._execution_lock = asyncio.Lock()
         self._reconcile_interrupted_jobs()
 
@@ -159,9 +162,7 @@ class JobStore:
                 return await self.cancel(job_id)
         if status == JobStatus.RUNNING:
             job = self._transition_job(job_id, JobStatus.CANCELLING)
-            process = self._processes.get(job_id)
-            if process is not None:
-                terminate_process_tree(process)
+            self.process_runner.cancel(job_id)
             return job
         return job
 
@@ -200,31 +201,14 @@ class JobStore:
             started_at=_now(),
         )
         command = self.build_command(job)
-        environment = build_strategy_environment(BACKEND_ROOT)
         try:
-            process = await asyncio.create_subprocess_exec(
-                *command,
-                cwd=str(self.project_root),
-                env=environment,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                **subprocess_isolation_options(),
-            )
-            self._processes[job_id] = process
-            try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout_seconds
-                )
-            finally:
-                self._processes.pop(job_id, None)
-        except asyncio.TimeoutError:
-            terminate_process_tree(process)
-            await process.communicate()
+            outcome = await self.process_runner.run(job_id, command)
+        except StrategyProcessTimeout as error:
             self._transition_job(
                 job_id,
                 JobStatus.FAILED,
                 finished_at=_now(),
-                error=f"回测超过 {self.timeout_seconds} 秒，已终止。",
+                error=str(error),
             )
             return
         except Exception as error:
@@ -236,9 +220,9 @@ class JobStore:
             )
             return
 
-        stdout = stdout_bytes.decode("utf-8", errors="replace")
-        stderr = stderr_bytes.decode("utf-8", errors="replace")
-        job.update(stdout=stdout[-12_000:], stderr=stderr[-12_000:], finished_at=_now())
+        stdout = outcome.stdout
+        stderr = outcome.stderr
+        job.update(stdout=stdout, stderr=stderr, finished_at=_now())
         if self.get_job(job_id)["status"] == JobStatus.CANCELLING.value:
             self._transition_job(
                 job_id,
@@ -256,7 +240,7 @@ class JobStore:
                 self._snapshot_market_data(job, cache_entry)
         except (OSError, ValueError, csv.Error) as error:
             cache_error = error
-        if process.returncode != 0:
+        if outcome.returncode != 0:
             self._transition_job(
                 job_id,
                 JobStatus.FAILED,
