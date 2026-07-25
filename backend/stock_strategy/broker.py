@@ -3,8 +3,11 @@ from __future__ import annotations
 import math
 
 from .execution_models import (
+    BarExecutionModel,
     BpsCommissionModel,
     BpsSlippageModel,
+    DeterministicOHLCExecutionModel,
+    FeeBreakdown,
     FeeModel,
     SlippageModel,
 )
@@ -54,6 +57,7 @@ class Broker:
         *,
         fee_model: FeeModel | None = None,
         slippage_model: SlippageModel | None = None,
+        execution_model: BarExecutionModel | None = None,
     ) -> None:
         if initial_cash <= 0:
             raise ValueError("initial_cash must be positive")
@@ -66,6 +70,7 @@ class Broker:
         self.slippage_model = slippage_model or BpsSlippageModel(
             slippage_bps=slippage_bps
         )
+        self.execution_model = execution_model or DeterministicOHLCExecutionModel()
         # Keep these public attributes for strategy/runtime compatibility.
         self.commission_rate = commission_bps / 10_000
         self.min_commission = float(min_commission)
@@ -80,6 +85,7 @@ class Broker:
         self.trades: list[Trade] = []
         self.logs: list[LogEntry] = []
         self.total_fees = 0.0
+        self.fee_attribution: dict[str, float] = {}
         self._next_order_id = 1
         self._next_trade_id = 1
         self._next_execution_id = 1
@@ -175,11 +181,29 @@ class Broker:
                 order.status = OrderStatus.DISABLED
                 self._log(bar.date, "INFO", f"expired {order.order_id} at trading-day boundary")
                 continue
-            price = self._fill_price(order, bar)
-            if price is None:
+            candidate_price = self._fill_price(order, bar)
+            if candidate_price is None:
                 remaining.append(order)
                 continue
-            self._execute(order, bar.date, index, price)
+            remaining_quantity = order.quantity - order.filled_quantity
+            decision = self.execution_model.decide(
+                order=order,
+                bar=bar,
+                candidate_price=candidate_price,
+                remaining_quantity=remaining_quantity,
+            )
+            if decision is None:
+                remaining.append(order)
+                continue
+            self._execute(
+                order,
+                bar.date,
+                index,
+                decision.price,
+                decision.quantity,
+            )
+            if order.status == OrderStatus.FILLED_PART:
+                remaining.append(order)
         self.pending_orders = remaining
         for symbol, side, quantity, group_id in self._deferred_submissions:
             try:
@@ -270,6 +294,8 @@ class Broker:
             raise ValueError(f"order {order_id} is no longer modifiable")
         if not math.isfinite(quantity) or quantity <= 0:
             raise ValueError("order quantity must be a positive finite number")
+        if quantity + 1e-9 < order.filled_quantity:
+            raise ValueError("modified quantity cannot be below already filled quantity")
         next_limit_price = order.limit_price if price is None else float(price)
         next_stop_price = order.stop_price if aux_price is None else float(aux_price)
         if next_limit_price is not None and (
@@ -284,11 +310,17 @@ class Broker:
         next_reserved_cash = old_reserved_cash
         if order.side in (OrderSide.BUY, OrderSide.BUY_BACK):
             if next_limit_price is None and next_stop_price is None:
-                next_reserved_cash = old_reserved_cash * float(quantity) / order.quantity
+                old_remaining = order.quantity - order.filled_quantity
+                next_remaining = float(quantity) - order.filled_quantity
+                next_reserved_cash = (
+                    old_reserved_cash * next_remaining / old_remaining
+                    if old_remaining > 0
+                    else 0.0
+                )
             else:
                 next_reserved_cash = self._estimate_reserved_cash(
                     side=order.side,
-                    quantity=float(quantity),
+                    quantity=float(quantity) - order.filled_quantity,
                     order_type=order.order_type,
                     current_price=None,
                     limit_price=next_limit_price,
@@ -297,8 +329,10 @@ class Broker:
             if next_reserved_cash > self.available_cash + old_reserved_cash + 1e-9:
                 raise ValueError("modified order exceeds cash available")
         elif order.side == OrderSide.SELL:
-            available = self.max_sell_quantity() + order.quantity
-            if float(quantity) > available + 1e-9:
+            current_remaining = order.quantity - order.filled_quantity
+            available_remaining = self.max_sell_quantity() + current_remaining
+            next_remaining = float(quantity) - order.filled_quantity
+            if next_remaining > available_remaining + 1e-9:
                 raise ValueError("modified order exceeds available long position")
         order.quantity = float(quantity)
         order.limit_price = next_limit_price
@@ -348,7 +382,11 @@ class Broker:
 
     @property
     def reserved_buy_cash(self) -> float:
-        return sum(order.reserved_cash for order in self.pending_orders)
+        return sum(
+            order.reserved_cash
+            for order in self.pending_orders
+            if order.side in (OrderSide.BUY, OrderSide.BUY_BACK)
+        )
 
     @property
     def available_cash(self) -> float:
@@ -357,7 +395,7 @@ class Broker:
     @property
     def pending_sell_quantity(self) -> float:
         return sum(
-            order.quantity
+            order.quantity - order.filled_quantity
             for order in self.pending_orders
             if order.side == OrderSide.SELL
         )
@@ -517,31 +555,66 @@ class Broker:
             raise ValueError("slippage model returned a non-positive or non-finite price")
         return result
 
+    def _calculate_fee_breakdown(
+        self, price: float, quantity: float, side: OrderSide
+    ) -> FeeBreakdown:
+        calculator = getattr(self.fee_model, "calculate_breakdown", None)
+        if callable(calculator):
+            breakdown = calculator(price=price, quantity=quantity, side=side)
+            if not isinstance(breakdown, FeeBreakdown):
+                raise ValueError("fee model returned an invalid breakdown")
+        else:
+            breakdown = FeeBreakdown(
+                {
+                    "commission": self.fee_model.calculate(
+                        price=price,
+                        quantity=quantity,
+                        side=side,
+                    )
+                }
+            )
+        if not math.isfinite(breakdown.total) or breakdown.total < 0:
+            raise ValueError("fee model returned a negative or non-finite fee")
+        return breakdown
+
     def _calculate_fee(
         self, price: float, quantity: float, side: OrderSide
     ) -> float:
-        fee = self.fee_model.calculate(
-            price=price,
-            quantity=quantity,
-            side=side,
-        )
-        if not math.isfinite(fee) or fee < 0:
-            raise ValueError("fee model returned a negative or non-finite fee")
-        return fee
+        return self._calculate_fee_breakdown(price, quantity, side).total
 
-    def _execute(self, order: Order, date: str, index: int, price: float) -> None:
-        if not self._validate_position_change(order, date, price):
+    def _execute(
+        self,
+        order: Order,
+        date: str,
+        index: int,
+        price: float,
+        quantity: float | None = None,
+    ) -> None:
+        remaining_before = order.quantity - order.filled_quantity
+        fill_quantity = remaining_before if quantity is None else quantity
+        if fill_quantity <= 0 or fill_quantity > remaining_before + 1e-9:
+            raise ValueError("execution model returned an invalid fill quantity")
+        if not self._validate_position_change(order, date, price, fill_quantity):
             return
 
-        fee = self._calculate_fee(price, order.quantity, order.side)
-        signed_delta = order.quantity if order.side in (OrderSide.BUY, OrderSide.BUY_BACK) else -order.quantity
+        fee_breakdown = self._calculate_fee_breakdown(
+            price, fill_quantity, order.side
+        )
+        fee = fee_breakdown.total
+        signed_delta = (
+            fill_quantity
+            if order.side in (OrderSide.BUY, OrderSide.BUY_BACK)
+            else -fill_quantity
+        )
         old_quantity = self.position.quantity
 
         if signed_delta > 0:
-            self.cash -= order.quantity * price + fee
+            self.cash -= fill_quantity * price + fee
         else:
-            self.cash += order.quantity * price - fee
+            self.cash += fill_quantity * price - fee
         self.total_fees += fee
+        for name, amount in fee_breakdown.components.items():
+            self.fee_attribution[name] = self.fee_attribution.get(name, 0.0) + amount
 
         if old_quantity == 0 or old_quantity * signed_delta > 0:
             self._increase_position(signed_delta, price, fee, date, index)
@@ -550,15 +623,46 @@ class Broker:
 
         execution_id = f"SIM-EXEC-{self._next_execution_id:06d}"
         self._next_execution_id += 1
-        order.filled_quantity += order.quantity
-        order.filled_avg_price = price
-        order.execution_ids.append(execution_id)
-        order.status = OrderStatus.FILLED_ALL
-        self.fills.append(
-            Fill(execution_id, order.order_id, date, price, order.quantity, order.side, fee)
+        previous_filled = order.filled_quantity
+        order.filled_quantity += fill_quantity
+        order.filled_avg_price = (
+            (order.filled_avg_price * previous_filled + price * fill_quantity)
+            / order.filled_quantity
         )
-        self._log(date, "FILL", f"filled {order.order_id} at {price:.4f}; fee {fee:.2f}")
-        if order.follow_up_side is not None and order.follow_up_quantity:
+        order.execution_ids.append(execution_id)
+        remaining_after = max(0.0, order.quantity - order.filled_quantity)
+        if remaining_before > 0:
+            order.reserved_cash *= remaining_after / remaining_before
+        order.status = (
+            OrderStatus.FILLED_ALL
+            if remaining_after <= 1e-9
+            else OrderStatus.FILLED_PART
+        )
+        self.fills.append(
+            Fill(
+                execution_id,
+                order.order_id,
+                date,
+                price,
+                fill_quantity,
+                order.side,
+                fee,
+                dict(fee_breakdown.components),
+            )
+        )
+        self._log(
+            date,
+            "FILL",
+            (
+                f"filled {fill_quantity:g}/{order.quantity:g} "
+                f"{order.order_id} at {price:.4f}; fee {fee:.2f}"
+            ),
+        )
+        if (
+            order.status == OrderStatus.FILLED_ALL
+            and order.follow_up_side is not None
+            and order.follow_up_quantity
+        ):
             self._deferred_submissions.append(
                 (
                     order.symbol,
@@ -568,9 +672,10 @@ class Broker:
                 )
             )
 
-    def _validate_position_change(self, order: Order, date: str, price: float) -> bool:
+    def _validate_position_change(
+        self, order: Order, date: str, price: float, quantity: float
+    ) -> bool:
         position = self.position.quantity
-        quantity = order.quantity
         reason: str | None = None
         if order.side == OrderSide.BUY:
             if position < 0:

@@ -1555,6 +1555,63 @@
             "title": "Slippage Bps",
             "default": 5
           },
+          "fee_model": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "futu_auto",
+              "futu_us",
+              "futu_hk"
+            ],
+            "title": "Fee Model",
+            "default": "simple"
+          },
+          "slippage_model": {
+            "type": "string",
+            "enum": [
+              "bps",
+              "spread"
+            ],
+            "title": "Slippage Model",
+            "default": "bps"
+          },
+          "execution_model": {
+            "type": "string",
+            "enum": [
+              "deterministic",
+              "volume",
+              "conservative"
+            ],
+            "title": "Execution Model",
+            "default": "deterministic"
+          },
+          "max_volume_participation": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Volume Participation",
+            "default": 0.1
+          },
+          "spread_bps": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Spread Bps",
+            "default": 0
+          },
+          "impact_bps": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Impact Bps",
+            "default": 0
+          },
+          "fixed_tick": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Fixed Tick",
+            "default": 0
+          },
           "warmup_bars": {
             "type": "integer",
             "maximum": 100000.0,

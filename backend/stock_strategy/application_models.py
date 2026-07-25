@@ -38,6 +38,13 @@ class BacktestSpec:
     commission_bps: float = 3
     min_commission: float = 1
     slippage_bps: float = 5
+    fee_model: str = "simple"
+    slippage_model: str = "bps"
+    execution_model: str = "deterministic"
+    max_volume_participation: float = 0.1
+    spread_bps: float = 0
+    impact_bps: float = 0
+    fixed_tick: float = 0
     warmup_bars: int = 0
     allow_short: bool = False
     liquidate_on_end: bool = False
@@ -57,6 +64,13 @@ class BacktestSpec:
             "commission_bps": self.commission_bps,
             "min_commission": self.min_commission,
             "slippage_bps": self.slippage_bps,
+            "fee_model": self.fee_model,
+            "slippage_model": self.slippage_model,
+            "execution_model": self.execution_model,
+            "max_volume_participation": self.max_volume_participation,
+            "spread_bps": self.spread_bps,
+            "impact_bps": self.impact_bps,
+            "fixed_tick": self.fixed_tick,
             "warmup_bars": self.warmup_bars,
             "allow_short": self.allow_short,
             "liquidate_on_end": self.liquidate_on_end,

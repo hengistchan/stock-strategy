@@ -1,8 +1,19 @@
 import unittest
 
 from stock_strategy.broker import Broker
-from stock_strategy.execution_models import FeeModel, SlippageModel
-from stock_strategy.models import Bar, BarType, Contract, OrderSide, TimeInForce
+from stock_strategy.execution_models import (
+    FeeModel,
+    SlippageModel,
+    VolumeParticipationExecutionModel,
+)
+from stock_strategy.models import (
+    Bar,
+    BarType,
+    Contract,
+    OrderSide,
+    OrderStatus,
+    TimeInForce,
+)
 
 
 class FlatFeeModel(FeeModel):
@@ -23,6 +34,39 @@ class FixedSlippageModel(SlippageModel):
 
 
 class BrokerTest(unittest.TestCase):
+    def test_volume_participation_keeps_remainder_pending(self):
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            execution_model=VolumeParticipationExecutionModel(0.1),
+        )
+        order_id = broker.submit(
+            symbol=Contract("US.TEST"),
+            side=OrderSide.BUY,
+            quantity=10,
+            order_type="MARKET",
+            current_index=0,
+            current_date="2025-01-02",
+            current_price=100,
+            time_in_force=TimeInForce.GTC,
+        )
+
+        broker.process_bar(Bar("2025-01-03", 100, 101, 99, 100, 30), 1)
+        order = broker.get_order(order_id)
+        self.assertEqual(order.status, OrderStatus.FILLED_PART)
+        self.assertEqual(order.filled_quantity, 3)
+        self.assertEqual(len(broker.pending_orders), 1)
+        self.assertEqual(broker.fills[0].quantity, 3)
+
+        broker.process_bar(Bar("2025-01-06", 101, 102, 100, 101, 100), 2)
+        self.assertEqual(order.status, OrderStatus.FILLED_ALL)
+        self.assertEqual(order.filled_quantity, 10)
+        self.assertEqual(len(broker.pending_orders), 0)
+        self.assertEqual(broker.position.quantity, 10)
+
     def test_custom_fee_and_slippage_models_drive_reservation_and_fill(self):
         broker = Broker(
             1_100,

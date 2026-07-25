@@ -11,6 +11,11 @@ from typing import Any
 from . import futu
 from .broker import Broker
 from .context import ExecutionContext, activate_context
+from .execution_models import (
+    build_bar_execution_model,
+    build_fee_model,
+    build_slippage_model,
+)
 from .models import (
     BacktestResult,
     Bar,
@@ -33,7 +38,7 @@ class StrategyExecutionError(RuntimeError):
     pass
 
 
-ENGINE_CONTRACT_VERSION = 4
+ENGINE_CONTRACT_VERSION = 5
 MIN_ANNUALIZATION_TRADING_DAYS = 20
 
 
@@ -45,6 +50,13 @@ class BacktestConfig:
     commission_bps: float = 3.0
     min_commission: float = 1.0
     slippage_bps: float = 5.0
+    fee_model: str = "simple"
+    slippage_model: str = "bps"
+    execution_model: str = "deterministic"
+    max_volume_participation: float = 0.1
+    spread_bps: float = 0.0
+    impact_bps: float = 0.0
+    fixed_tick: float = 0.0
     warmup_bars: int = 0
     allow_short: bool = False
     bar_type: BarType | str = BarType.K_DAY
@@ -67,6 +79,13 @@ class BacktestConfig:
         if normalized_autype not in {"QFQ", "HFQ", "NONE"}:
             raise ValueError(f"unsupported autype: {self.autype}")
         object.__setattr__(self, "autype", normalized_autype)
+        if not 0 < self.max_volume_participation <= 1:
+            raise ValueError("max_volume_participation must be in (0, 1]")
+        if any(
+            not math.isfinite(value) or value < 0
+            for value in (self.spread_bps, self.impact_bps, self.fixed_tick)
+        ):
+            raise ValueError("spread, impact and tick assumptions must be non-negative")
         object.__setattr__(self, "strategy_parameters", dict(self.strategy_parameters))
         object.__setattr__(self, "market_metadata", dict(self.market_metadata))
 
@@ -91,6 +110,23 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         slippage_bps=config.slippage_bps,
         allow_short=config.allow_short,
         bar_type=config.bar_type,
+        fee_model=build_fee_model(
+            config.fee_model,
+            symbol=config.symbol,
+            commission_bps=config.commission_bps,
+            min_commission=config.min_commission,
+        ),
+        slippage_model=build_slippage_model(
+            config.slippage_model,
+            slippage_bps=config.slippage_bps,
+            spread_bps=config.spread_bps,
+            impact_bps=config.impact_bps,
+            fixed_tick=config.fixed_tick,
+        ),
+        execution_model=build_bar_execution_model(
+            config.execution_model,
+            max_volume_participation=config.max_volume_participation,
+        ),
     )
     context = ExecutionContext(
         bars=bars,
@@ -170,7 +206,9 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "execution_models": {
                 "fee": broker.fee_model.manifest(),
                 "slippage": broker.slippage_model.manifest(),
+                "bar_execution": broker.execution_model.manifest(),
             },
+            "fee_attribution": dict(sorted(broker.fee_attribution.items())),
             "data_window": {
                 "input_start": bars[0].date,
                 "input_end": bars[-1].date,

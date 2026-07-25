@@ -45,6 +45,15 @@ class BacktestRequest(BaseModel):
     commission_bps: float = Field(default=3, ge=0, le=1_000)
     min_commission: float = Field(default=1, ge=0)
     slippage_bps: float = Field(default=5, ge=0, le=1_000)
+    fee_model: Literal["simple", "futu_auto", "futu_us", "futu_hk"] = "simple"
+    slippage_model: Literal["bps", "spread"] = "bps"
+    execution_model: Literal["deterministic", "volume", "conservative"] = (
+        "deterministic"
+    )
+    max_volume_participation: float = Field(default=0.1, gt=0, le=1)
+    spread_bps: float = Field(default=0, ge=0, le=1_000)
+    impact_bps: float = Field(default=0, ge=0, le=1_000)
+    fixed_tick: float = Field(default=0, ge=0)
     warmup_bars: int = Field(default=0, ge=0, le=100_000)
     allow_short: bool = False
     liquidate_on_end: bool = False

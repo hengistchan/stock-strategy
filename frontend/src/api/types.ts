@@ -124,6 +124,13 @@ export interface BacktestRequest {
   commission_bps: number;
   min_commission: number;
   slippage_bps: number;
+  fee_model?: "simple" | "futu_auto" | "futu_us" | "futu_hk";
+  slippage_model?: "bps" | "spread";
+  execution_model?: "deterministic" | "volume" | "conservative";
+  max_volume_participation?: number;
+  spread_bps?: number;
+  impact_bps?: number;
+  fixed_tick?: number;
   warmup_bars: number;
   allow_short: boolean;
   liquidate_on_end?: boolean;

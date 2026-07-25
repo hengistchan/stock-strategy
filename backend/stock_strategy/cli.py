@@ -34,6 +34,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-commission", type=float, default=1.0)
     parser.add_argument("--slippage-bps", type=float, default=5.0)
     parser.add_argument(
+        "--fee-model",
+        choices=("simple", "futu_auto", "futu_us", "futu_hk"),
+        default="simple",
+    )
+    parser.add_argument(
+        "--slippage-model", choices=("bps", "spread"), default="bps"
+    )
+    parser.add_argument(
+        "--execution-model",
+        choices=("deterministic", "volume", "conservative"),
+        default="deterministic",
+    )
+    parser.add_argument("--max-volume-participation", type=float, default=0.1)
+    parser.add_argument("--spread-bps", type=float, default=0.0)
+    parser.add_argument("--impact-bps", type=float, default=0.0)
+    parser.add_argument("--fixed-tick", type=float, default=0.0)
+    parser.add_argument(
         "--warmup-bars",
         type=int,
         default=0,
@@ -148,6 +165,13 @@ def main(argv: list[str] | None = None) -> int:
             commission_bps=args.commission_bps,
             min_commission=args.min_commission,
             slippage_bps=args.slippage_bps,
+            fee_model=args.fee_model,
+            slippage_model=args.slippage_model,
+            execution_model=args.execution_model,
+            max_volume_participation=args.max_volume_participation,
+            spread_bps=args.spread_bps,
+            impact_bps=args.impact_bps,
+            fixed_tick=args.fixed_tick,
             warmup_bars=args.warmup_bars,
             allow_short=args.allow_short,
             bar_type=args.ktype,

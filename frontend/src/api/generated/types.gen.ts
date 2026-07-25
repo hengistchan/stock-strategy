@@ -121,6 +121,34 @@ export type BacktestRequest = {
      */
     slippage_bps?: number;
     /**
+     * Fee Model
+     */
+    fee_model?: 'simple' | 'futu_auto' | 'futu_us' | 'futu_hk';
+    /**
+     * Slippage Model
+     */
+    slippage_model?: 'bps' | 'spread';
+    /**
+     * Execution Model
+     */
+    execution_model?: 'deterministic' | 'volume' | 'conservative';
+    /**
+     * Max Volume Participation
+     */
+    max_volume_participation?: number;
+    /**
+     * Spread Bps
+     */
+    spread_bps?: number;
+    /**
+     * Impact Bps
+     */
+    impact_bps?: number;
+    /**
+     * Fixed Tick
+     */
+    fixed_tick?: number;
+    /**
      * Warmup Bars
      */
     warmup_bars?: number;

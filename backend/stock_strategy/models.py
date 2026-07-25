@@ -417,6 +417,7 @@ class Fill:
     quantity: float
     side: OrderSide
     fee: float
+    fee_components: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

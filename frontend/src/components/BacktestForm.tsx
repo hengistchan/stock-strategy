@@ -47,6 +47,13 @@ export function BacktestForm({
       commission_bps: Number(data.get("commission_bps")),
       min_commission: Number(data.get("min_commission")),
       slippage_bps: Number(data.get("slippage_bps")),
+      fee_model: String(data.get("fee_model")) as BacktestRequest["fee_model"],
+      slippage_model: String(data.get("slippage_model")) as BacktestRequest["slippage_model"],
+      execution_model: String(data.get("execution_model")) as BacktestRequest["execution_model"],
+      max_volume_participation: Number(data.get("max_volume_participation")),
+      spread_bps: Number(data.get("spread_bps")),
+      impact_bps: Number(data.get("impact_bps")),
+      fixed_tick: Number(data.get("fixed_tick")),
       warmup_bars: Number(data.get("warmup_bars")),
       allow_short: data.get("allow_short") === "on",
       liquidate_on_end: data.get("liquidate_on_end") === "on",
@@ -164,6 +171,34 @@ export function BacktestForm({
           <label className="field"><span>{t("form.commission")}</span><input type="number" name="commission_bps" defaultValue="3" min="0" step="0.1" /></label>
           <label className="field"><span>{t("form.minCommission")}</span><input type="number" name="min_commission" defaultValue="1" min="0" step="0.1" /></label>
           <label className="field"><span>{t("form.slippage")}</span><input type="number" name="slippage_bps" defaultValue="5" min="0" step="0.1" /></label>
+          <label className="field">
+            <span>{t("form.feeModel")}</span>
+            <select name="fee_model" defaultValue="simple">
+              <option value="simple">{t("form.feeSimple")}</option>
+              <option value="futu_auto">{t("form.feeFutuAuto")}</option>
+              <option value="futu_us">{t("form.feeFutuUs")}</option>
+              <option value="futu_hk">{t("form.feeFutuHk")}</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>{t("form.slippageModel")}</span>
+            <select name="slippage_model" defaultValue="bps">
+              <option value="bps">{t("form.slippageFixed")}</option>
+              <option value="spread">{t("form.slippageSpread")}</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>{t("form.executionModel")}</span>
+            <select name="execution_model" defaultValue="deterministic">
+              <option value="deterministic">{t("form.executionDeterministic")}</option>
+              <option value="volume">{t("form.executionVolume")}</option>
+              <option value="conservative">{t("form.executionConservative")}</option>
+            </select>
+          </label>
+          <label className="field"><span>{t("form.maxParticipation")}</span><input type="number" name="max_volume_participation" defaultValue="0.1" min="0.001" max="1" step="0.001" /></label>
+          <label className="field"><span>{t("form.spreadBps")}</span><input type="number" name="spread_bps" defaultValue="0" min="0" step="0.1" /></label>
+          <label className="field"><span>{t("form.impactBps")}</span><input type="number" name="impact_bps" defaultValue="0" min="0" step="0.1" /></label>
+          <label className="field"><span>{t("form.fixedTick")}</span><input type="number" name="fixed_tick" defaultValue="0" min="0" step="0.001" /></label>
           <label className="check-field"><input type="checkbox" name="allow_short" /><span>{t("form.allowShort")}</span></label>
           <label className="check-field"><input type="checkbox" name="liquidate_on_end" /><span>{t("form.liquidate")}</span></label>
           <label className="check-field"><input type="checkbox" name="refresh_cache" /><span>{t("form.refreshCache")}</span></label>
