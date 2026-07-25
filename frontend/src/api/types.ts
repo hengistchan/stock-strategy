@@ -172,7 +172,8 @@ export interface BacktestMetrics {
   total_trades: number;
   total_fees: number;
   exposure_pct: number;
-  [key: string]: number;
+  annualized_return_pct?: number | null;
+  [key: string]: number | null | undefined;
 }
 
 export interface BacktestSummary {

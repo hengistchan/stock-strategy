@@ -69,6 +69,8 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - `MarketDataCache` 用行情请求的六个维度生成稳定 key；同条件实验只由第一组访问 OpenD。
 - 行情命令固定使用 `--opend`；没有网页行情或模拟行情回退。
 - `ktype`、`session` 和 `autype` 会贯穿 OpenD 请求、作业记录、执行上下文与结果；Futu 行情/指标接口对不一致输入 fail-fast。
+- 回测运行时将输入窗口拆成 warmup 与 evaluation：预热数据可供增量指标读取，但不会进入收益、基准、回撤或资金使用率。`summary.settings.data_window` 同时记录输入和评估边界。
+- 绩效收益率先按交易日最后一根 K 线聚合，再计算 Sharpe；少于 20 个交易日时不输出 CAGR，避免分钟级短样本产生误导性年化值。
 - `engine_contract` 为回测语义提供版本边界；缺少版本的历史结果只作为 legacy 工程证据展示。
 
 ## 依赖方向

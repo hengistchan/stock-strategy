@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ElementTree
 MINIMUM_PYTHON = (3, 11)
 ACCEPTANCE_SYMBOL = "US.ACCEPT"
 BAR_COUNT = 300
+WARMUP_BARS = 30
 
 
 def build_parser():
@@ -78,6 +79,8 @@ def main(argv=None):
                 "examples/ma_cross.py",
                 "--data",
                 str(data_path),
+                "--warmup-bars",
+                str(WARMUP_BARS),
                 "--output",
                 str(output_base),
             ],
@@ -175,7 +178,18 @@ def verify_run(run_dir):
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["symbol"] == ACCEPTANCE_SYMBOL, "OpenD symbol inference mismatch"
-    assert summary["period"]["bars"] == BAR_COUNT, "OpenD bar count mismatch"
+    assert summary["period"]["bars"] == BAR_COUNT - WARMUP_BARS, (
+        "evaluation bar count mismatch"
+    )
+    assert summary["settings"]["data_window"] == {
+        "input_start": "2024-01-02 16:00:00",
+        "input_end": "2025-02-24 16:00:00",
+        "input_bars": BAR_COUNT,
+        "warmup_bars": WARMUP_BARS,
+        "evaluation_start": "2024-02-13 16:00:00",
+        "evaluation_end": "2025-02-24 16:00:00",
+        "evaluation_bars": BAR_COUNT - WARMUP_BARS,
+    }, "warmup/evaluation boundary mismatch"
     assert summary["settings"]["data_source_format"] == "opend", "format not detected"
     assert summary["metrics"]["total_trades"] > 0, "strategy produced no trades"
 
@@ -185,7 +199,7 @@ def verify_run(run_dir):
 
     with equity_path.open("r", encoding="utf-8", newline="") as handle:
         equity = list(csv.DictReader(handle))
-    assert len(equity) == BAR_COUNT, "equity curve length mismatch"
+    assert len(equity) == BAR_COUNT - WARMUP_BARS, "equity curve length mismatch"
     final_equity = float(equity[-1]["equity"])
     expected_equity = float(summary["metrics"]["final_equity"])
     assert math.isclose(final_equity, expected_equity, rel_tol=1e-12), (

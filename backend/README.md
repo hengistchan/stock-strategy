@@ -36,6 +36,8 @@ cd ..
 
 新建 Web 回测时，`JobStore` 会先冻结 `strategy.py`、`request.json` 和 `manifest.json`，执行命令只读取任务内的策略快照。OpenD 数据完成后会复制为任务内的 `market-data.csv` 并校验 SHA-256；共享缓存被清理或原始策略被修改都不会改变既有结果。旧版任务缺少快照字段时仍可按原路径读取。
 
+`warmup_bars` 只建立策略历史，不属于回测评估区间。收益、基准、回撤和资金使用率从第一根 evaluation K 线开始计算；Sharpe 统一使用每日收盘权益收益，少于 20 个交易日的结果将 `annualized_return_pct` 记录为 `null`。完整输入/评估边界位于 `summary.settings.data_window`。
+
 构建包含当前 React 生产资源的 wheel，并检查不存在陈旧哈希文件：
 
 ```bash

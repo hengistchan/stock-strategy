@@ -446,7 +446,7 @@ class Metrics:
     final_equity: float
     total_return_pct: float
     benchmark_return_pct: float
-    annualized_return_pct: float
+    annualized_return_pct: float | None
     max_drawdown_pct: float
     sharpe_ratio: float
     win_rate_pct: float

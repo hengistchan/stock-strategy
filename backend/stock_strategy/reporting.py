@@ -57,13 +57,18 @@ def write_artifacts(
 def print_summary(result: BacktestResult) -> None:
     metrics = result.metrics
     profit_factor = "∞" if metrics.profit_factor is None else f"{metrics.profit_factor:.2f}"
+    annualized_return = (
+        "N/A"
+        if metrics.annualized_return_pct is None
+        else f"{metrics.annualized_return_pct:+.2f}%"
+    )
     rows = [
         ("策略", result.strategy_name),
         ("标的 / 区间", f"{result.symbol} · {result.start_date} → {result.end_date}"),
         ("期末权益", f"{metrics.final_equity:,.2f}"),
         ("策略收益", f"{metrics.total_return_pct:+.2f}%"),
         ("买入持有", f"{metrics.benchmark_return_pct:+.2f}%"),
-        ("年化收益", f"{metrics.annualized_return_pct:+.2f}%"),
+        ("年化收益", annualized_return),
         ("最大回撤", f"{metrics.max_drawdown_pct:.2f}%"),
         ("Sharpe", f"{metrics.sharpe_ratio:.2f}"),
         ("胜率 / 交易", f"{metrics.win_rate_pct:.1f}% / {metrics.total_trades}"),

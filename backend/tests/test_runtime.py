@@ -4,9 +4,14 @@ import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 from stock_strategy.data import generate_sample_bars
-from stock_strategy.models import Bar, BarType, THType
+from stock_strategy.models import Bar, BarType, EquityPoint, THType
 from stock_strategy.reporting import write_artifacts
-from stock_strategy.runtime import ENGINE_CONTRACT_VERSION, BacktestConfig, run_backtest
+from stock_strategy.runtime import (
+    ENGINE_CONTRACT_VERSION,
+    BacktestConfig,
+    calculate_metrics,
+    run_backtest,
+)
 
 
 class RuntimeTest(unittest.TestCase):
@@ -16,10 +21,13 @@ class RuntimeTest(unittest.TestCase):
             BacktestConfig(strategy_path=strategy, warmup_bars=60),
             generate_sample_bars(400),
         )
-        self.assertEqual(result.bar_count, 400)
+        self.assertEqual(result.bar_count, 340)
         self.assertGreater(result.metrics.final_equity, 0)
         self.assertGreaterEqual(result.metrics.total_trades, 1)
-        self.assertEqual(len(result.equity_curve), 400)
+        self.assertEqual(len(result.equity_curve), 340)
+        self.assertEqual(result.start_date, generate_sample_bars(400)[60].date)
+        self.assertEqual(result.settings["data_window"]["input_bars"], 400)
+        self.assertEqual(result.settings["data_window"]["evaluation_bars"], 340)
         self.assertEqual(
             result.settings["engine_contract"]["version"],
             ENGINE_CONTRACT_VERSION,
@@ -71,6 +79,65 @@ class Strategy(StrategyBase):
             )
 
         self.assertEqual(result.trades[0].entry_date, bars[6].date)
+        self.assertEqual(result.start_date, bars[5].date)
+        self.assertEqual(result.bar_count, 15)
+        self.assertEqual(len(result.equity_curve), 15)
+        self.assertEqual(result.equity_curve[0].benchmark, result.metrics.initial_equity)
+
+    def test_intraday_metrics_use_daily_returns_and_hide_short_period_cagr(self):
+        curve = [
+            EquityPoint("2025-01-02 09:30:00", 100_000, 100_000, 0),
+            EquityPoint("2025-01-02 16:00:00", 101_000, 101_000, 0),
+            EquityPoint("2025-01-03 09:30:00", 100_500, 100_500, -0.005),
+            EquityPoint("2025-01-03 16:00:00", 102_000, 102_000, 0),
+        ]
+
+        metrics = calculate_metrics(
+            equity_curve=curve,
+            trades=[],
+            initial_cash=100_000,
+            exposed_bars=0,
+            total_fees=0,
+            bar_type=BarType.K_1M,
+        )
+
+        daily_returns = [0.01, 102_000 / 101_000 - 1]
+        expected_sharpe = (
+            sum(daily_returns) / len(daily_returns)
+            / (
+                (sum((value - sum(daily_returns) / 2) ** 2 for value in daily_returns))
+                ** 0.5
+            )
+            * (252 * (len(daily_returns) - 1)) ** 0.5
+        )
+        self.assertAlmostEqual(metrics.sharpe_ratio, expected_sharpe)
+        self.assertIsNone(metrics.annualized_return_pct)
+
+    def test_cagr_is_available_after_minimum_trading_history(self):
+        curve = [
+            EquityPoint(
+                f"2025-01-{day:02d}",
+                100_000 * (1.001**day),
+                100_000,
+                0,
+            )
+            for day in range(1, 21)
+        ]
+
+        metrics = calculate_metrics(
+            equity_curve=curve,
+            trades=[],
+            initial_cash=100_000,
+            exposed_bars=0,
+            total_fees=0,
+            bar_type=BarType.K_DAY,
+        )
+
+        self.assertIsNotNone(metrics.annualized_return_pct)
+        self.assertAlmostEqual(
+            metrics.annualized_return_pct or 0,
+            ((curve[-1].equity / 100_000) ** (252 / 20) - 1) * 100,
+        )
 
     def test_injected_futu_names_work_without_import(self):
         with tempfile.TemporaryDirectory() as directory:

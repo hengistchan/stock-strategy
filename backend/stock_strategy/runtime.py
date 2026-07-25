@@ -5,7 +5,6 @@ import math
 import statistics
 import types
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +23,8 @@ class StrategyExecutionError(RuntimeError):
     pass
 
 
-ENGINE_CONTRACT_VERSION = 3
+ENGINE_CONTRACT_VERSION = 4
+MIN_ANNUALIZATION_TRADING_DAYS = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +94,8 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
     )
     equity_curve: list[EquityPoint] = []
     exposed_bars = 0
-    first_close = bars[0].close
+    evaluation_bars = bars[config.warmup_bars :]
+    first_close = evaluation_bars[0].close
     peak_equity = config.initial_cash
 
     with activate_context(context):
@@ -116,13 +117,14 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
                         f"handle_data() failed on {bar.date} (bar {index}): {error}"
                     ) from error
 
-            equity = broker.equity(bar.close)
-            benchmark = config.initial_cash * bar.close / first_close
-            peak_equity = max(peak_equity, equity)
-            drawdown = equity / peak_equity - 1 if peak_equity else 0.0
-            equity_curve.append(EquityPoint(bar.date, equity, benchmark, drawdown))
-            if broker.position.quantity != 0:
-                exposed_bars += 1
+            if index >= config.warmup_bars:
+                equity = broker.equity(bar.close)
+                benchmark = config.initial_cash * bar.close / first_close
+                peak_equity = max(peak_equity, equity)
+                drawdown = equity / peak_equity - 1 if peak_equity else 0.0
+                equity_curve.append(EquityPoint(bar.date, equity, benchmark, drawdown))
+                if broker.position.quantity != 0:
+                    exposed_bars += 1
 
         context.current_index = len(bars) - 1
         if config.liquidate_on_end:
@@ -144,9 +146,9 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
     return BacktestResult(
         strategy_name=path.stem,
         symbol=str(symbol),
-        start_date=bars[0].date,
-        end_date=bars[-1].date,
-        bar_count=len(bars),
+        start_date=evaluation_bars[0].date,
+        end_date=evaluation_bars[-1].date,
+        bar_count=len(evaluation_bars),
         metrics=metrics,
         settings={
             **asdict(config),
@@ -154,12 +156,26 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "strategy_parameter_definitions": parameter_definitions,
             "strategy_path": str(path),
             "ending_position": ending_position,
+            "data_window": {
+                "input_start": bars[0].date,
+                "input_end": bars[-1].date,
+                "input_bars": len(bars),
+                "warmup_bars": config.warmup_bars,
+                "evaluation_start": evaluation_bars[0].date,
+                "evaluation_end": evaluation_bars[-1].date,
+                "evaluation_bars": len(evaluation_bars),
+            },
             "engine_contract": {
                 "version": ENGINE_CONTRACT_VERSION,
                 "strict_single_period": False,
                 "driver_bar_type": config.bar_type.value,
                 "coarser_periods": "incremental-no-lookahead",
                 "day_order_scope": "trading-day",
+                "evaluation_window": "excludes-warmup-bars",
+                "performance_frequency": "daily",
+                "minimum_annualization_trading_days": (
+                    MIN_ANNUALIZATION_TRADING_DAYS
+                ),
                 "end_position_policy": (
                     "liquidate" if config.liquidate_on_end else "mark-to-market"
                 ),
@@ -216,30 +232,33 @@ def calculate_metrics(
     total_fees: float,
     bar_type: BarType,
 ) -> Metrics:
+    del bar_type  # Metrics are normalized from daily closing equity for every K-line.
     final_equity = equity_curve[-1].equity
     total_return = final_equity / initial_cash - 1
     benchmark_return = equity_curve[-1].benchmark / initial_cash - 1
-    start = datetime.fromisoformat(equity_curve[0].date.replace(" ", "T"))
-    end = datetime.fromisoformat(equity_curve[-1].date.replace(" ", "T"))
-    elapsed_days = (end - start).total_seconds() / 86_400
-    years = max(elapsed_days / 365.25, 1 / 365.25)
-    annualized = (final_equity / initial_cash) ** (1 / years) - 1 if final_equity > 0 else -1.0
-
-    returns: list[float] = []
-    previous = initial_cash
-    for point in equity_curve:
-        returns.append(point.equity / previous - 1 if previous else 0.0)
-        previous = point.equity
-    return_std = statistics.stdev(returns) if len(returns) > 1 else 0.0
-    sharpe = (
-        statistics.fmean(returns)
-        / return_std
-        * math.sqrt(
-            _observed_periods_per_year(
-                bar_type,
-                [point.date for point in equity_curve],
-            )
+    daily_equity = _daily_closing_equity(equity_curve)
+    trading_days = len(daily_equity)
+    if trading_days >= MIN_ANNUALIZATION_TRADING_DAYS:
+        annualized: float | None = (
+            (final_equity / initial_cash) ** (252 / trading_days) - 1
+            if final_equity > 0
+            else -1.0
         )
+    else:
+        annualized = None
+
+    daily_returns: list[float] = []
+    previous = initial_cash
+    for point in daily_equity:
+        daily_returns.append(point.equity / previous - 1 if previous else 0.0)
+        previous = point.equity
+    return_std = (
+        statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
+    )
+    sharpe = (
+        statistics.fmean(daily_returns)
+        / return_std
+        * math.sqrt(252)
         if return_std
         else 0.0
     )
@@ -258,7 +277,7 @@ def calculate_metrics(
         final_equity=final_equity,
         total_return_pct=total_return * 100,
         benchmark_return_pct=benchmark_return * 100,
-        annualized_return_pct=annualized * 100,
+        annualized_return_pct=annualized * 100 if annualized is not None else None,
         max_drawdown_pct=min(point.drawdown for point in equity_curve) * 100,
         sharpe_ratio=sharpe,
         win_rate_pct=(len(wins) / len(trades) * 100) if trades else 0.0,
@@ -267,6 +286,13 @@ def calculate_metrics(
         exposure_pct=exposed_bars / len(equity_curve) * 100,
         total_fees=total_fees,
     )
+
+
+def _daily_closing_equity(equity_curve: list[EquityPoint]) -> list[EquityPoint]:
+    by_date: dict[str, EquityPoint] = {}
+    for point in equity_curve:
+        by_date[point.date.strip()[:10]] = point
+    return list(by_date.values())
 
 
 def _ending_position(broker: Broker, mark_price: float) -> dict[str, float | str]:
@@ -285,14 +311,3 @@ def _ending_position(broker: Broker, mark_price: float) -> dict[str, float | str
         "mark_price": mark_price,
         "unrealized_pnl": unrealized_pnl,
     }
-
-
-def _observed_periods_per_year(bar_type: BarType, dates: list[str]) -> float:
-    if bar_type == BarType.K_WEEK:
-        return 52.0
-    if bar_type == BarType.K_DAY:
-        return 252.0
-    trading_dates = {value.strip()[:10] for value in dates if value.strip()}
-    if not trading_dates:
-        return 252.0
-    return max(1.0, len(dates) / len(trading_dates)) * 252.0
