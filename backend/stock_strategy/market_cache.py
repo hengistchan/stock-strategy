@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from datetime import datetime
 import hashlib
+from importlib.metadata import PackageNotFoundError, version
 import json
 from pathlib import Path
 import re
@@ -10,15 +11,25 @@ from typing import Any, Mapping
 
 
 CACHE_ID_PATTERN = re.compile(r"^[a-f0-9]{16}$")
+CACHE_SCHEMA_VERSION = 1
+DATA_ADAPTER_VERSION = 1
+REQUESTED_FIELD_SET = "code,time_key,open,high,low,close,volume"
+TIMEZONE_SEMANTICS = "opend-time-key-market-local-v1"
 
 
 class MarketDataCache:
     """Deterministic OpenD history cache shared by single runs and experiments."""
 
-    def __init__(self, project_root: Path):
+    def __init__(
+        self,
+        project_root: Path,
+        *,
+        futu_sdk_version: str | None = None,
+    ):
         self.project_root = project_root.resolve()
         self.root = (self.project_root / "data" / "opend" / "cache").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self.futu_sdk_version = futu_sdk_version or _installed_futu_sdk_version()
 
     def descriptor(self, request: Mapping[str, Any]) -> dict[str, Any]:
         dimensions = {
@@ -28,6 +39,11 @@ class MarketDataCache:
             "ktype": str(request.get("ktype") or "K_DAY"),
             "autype": str(request.get("autype") or "QFQ").upper(),
             "session": str(request.get("session") or "ALL").upper(),
+            "cache_schema_version": CACHE_SCHEMA_VERSION,
+            "data_adapter_version": DATA_ADAPTER_VERSION,
+            "futu_sdk_version": self.futu_sdk_version,
+            "requested_fields": REQUESTED_FIELD_SET,
+            "timezone_semantics": TIMEZONE_SEMANTICS,
         }
         canonical = json.dumps(dimensions, sort_keys=True, separators=(",", ":"))
         cache_id = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
@@ -52,6 +68,7 @@ class MarketDataCache:
         payload.update(
             path=str(path.relative_to(self.project_root)),
             bytes=path.stat().st_size,
+            content_sha256=_sha256_file(path),
             rows=row_count,
             first_time=first_time,
             last_time=last_time,
@@ -110,3 +127,18 @@ def _atomic_json_write(path: Path, payload: Mapping[str, Any]) -> None:
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     temporary.replace(path)
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _installed_futu_sdk_version() -> str:
+    try:
+        return version("futu-api")
+    except PackageNotFoundError:
+        return "unavailable"
