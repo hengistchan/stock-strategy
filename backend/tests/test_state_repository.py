@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from stock_strategy.state_repository import STATE_SCHEMA_VERSION, SqliteJobRepository
+from stock_strategy.state_repository import (
+    STATE_SCHEMA_VERSION,
+    SqliteExperimentRepository,
+    SqliteJobRepository,
+)
 from stock_strategy.job_lifecycle import InvalidJobTransition
 
 
@@ -116,6 +120,90 @@ class SqliteJobRepositoryTest(unittest.TestCase):
 
         self.assertEqual(running["status"], "running")
         self.assertEqual(succeeded["status"], "succeeded")
+
+
+class SqliteExperimentRepositoryTest(unittest.TestCase):
+    def test_normalizes_run_phase_and_job_relations_in_wal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy_root = root / "experiments"
+            legacy_root.mkdir()
+            repository = SqliteExperimentRepository(
+                root / "state.sqlite3",
+                legacy_root,
+            )
+            payload = {
+                "id": "exp-1",
+                "status": "running",
+                "created_at": "2026-07-25T10:00:00+08:00",
+                "strategy_path": "strategies/demo.py",
+                "objective": "sharpe_ratio",
+                "runs": [
+                    {
+                        "index": 1,
+                        "symbol": "US.AAPL",
+                        "job_id": "job-2",
+                        "status": "running",
+                        "rank": None,
+                        "phases": {
+                            "train": {
+                                "job_id": "job-1",
+                                "status": "succeeded",
+                            },
+                            "validation": {
+                                "job_id": "job-2",
+                                "status": "running",
+                            },
+                        },
+                    }
+                ],
+            }
+
+            repository.upsert(payload)
+            with sqlite3.connect(root / "state.sqlite3") as connection:
+                run_count = connection.execute(
+                    "SELECT COUNT(*) FROM experiment_runs"
+                ).fetchone()[0]
+                phase_count = connection.execute(
+                    "SELECT COUNT(*) FROM experiment_phases"
+                ).fetchone()[0]
+            journal_mode = repository.journal_mode()
+            loaded = repository.get("exp-1")
+            related_jobs = repository.related_jobs("exp-1")
+
+        self.assertEqual(journal_mode, "wal")
+        self.assertEqual(loaded, payload)
+        self.assertEqual(related_jobs, ["job-1", "job-2"])
+        self.assertEqual(run_count, 1)
+        self.assertEqual(phase_count, 2)
+
+    def test_imports_legacy_experiment_json_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy_root = root / "experiments"
+            experiment_dir = legacy_root / "exp-legacy"
+            experiment_dir.mkdir(parents=True)
+            payload = {
+                "id": "exp-legacy",
+                "status": "succeeded",
+                "created_at": "2025-01-01T00:00:00+08:00",
+                "strategy_path": "examples/ma_cross.py",
+                "objective": "sharpe_ratio",
+                "runs": [],
+            }
+            (experiment_dir / "experiment.json").write_text(
+                json.dumps(payload),
+                encoding="utf-8",
+            )
+
+            repository = SqliteExperimentRepository(
+                root / "state.sqlite3",
+                legacy_root,
+            )
+            (experiment_dir / "experiment.json").unlink()
+
+            self.assertEqual(repository.get("exp-legacy"), payload)
+            self.assertEqual(repository.import_legacy_experiments(), 0)
 
 
 if __name__ == "__main__":

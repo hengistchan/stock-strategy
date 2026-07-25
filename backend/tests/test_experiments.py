@@ -160,8 +160,11 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
             strategy.write_text("class Strategy:\n    version = 2\n", encoding="utf-8")
             await store._run(experiment["id"])
             completed = store.get(experiment["id"])
+            (store._directory(experiment["id"]) / "experiment.json").unlink()
+            database_copy = store.get(experiment["id"])
 
         self.assertEqual(completed["status"], "succeeded")
+        self.assertEqual(database_copy, completed)
         self.assertEqual(completed["progress"], {"completed": 2, "total": 2})
         ranked = sorted(completed["runs"], key=lambda run: run["rank"])
         self.assertEqual(ranked[0]["parameters"], {"fast": 20})

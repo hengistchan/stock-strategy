@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime, timedelta
 from itertools import product
-import json
 from pathlib import Path
 import re
 import shutil
@@ -13,6 +12,7 @@ import uuid
 
 from .event_stream import EventBroker
 from .run_manifest import StrategySnapshot, atomic_write_json, atomic_write_text
+from .state_repository import SqliteExperimentRepository
 
 
 EXPERIMENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
@@ -85,6 +85,10 @@ class ExperimentStore:
         self.project_root = project_root.resolve()
         self.root = (self.project_root / "runs" / "experiments").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self.repository = SqliteExperimentRepository(
+            self.project_root / "runs" / "state.sqlite3",
+            self.root,
+        )
         self.job_store = job_store
         self.events = getattr(job_store, "events", EventBroker())
         self._tasks: dict[str, asyncio.Task[None]] = {}
@@ -524,21 +528,12 @@ class ExperimentStore:
         }
 
     def list(self) -> list[dict[str, Any]]:
-        experiments: list[dict[str, Any]] = []
-        for path in self.root.glob("*/experiment.json"):
-            try:
-                experiments.append(json.loads(path.read_text(encoding="utf-8")))
-            except (OSError, json.JSONDecodeError):
-                continue
-        return sorted(
-            experiments, key=lambda item: item.get("created_at", ""), reverse=True
-        )
+        return self.repository.list()
 
     def get(self, experiment_id: str) -> dict[str, Any]:
-        path = self._directory(experiment_id) / "experiment.json"
-        if not path.is_file():
+        if not EXPERIMENT_ID_PATTERN.fullmatch(experiment_id):
             raise KeyError(experiment_id)
-        return json.loads(path.read_text(encoding="utf-8"))
+        return self.repository.get(experiment_id)
 
     def _evaluate_candidates(self, experiment: dict[str, Any]) -> None:
         constraints = experiment.get("constraints") or []
@@ -577,6 +572,7 @@ class ExperimentStore:
         return path
 
     def _write(self, payload: Mapping[str, Any]) -> None:
+        self.repository.upsert(payload)
         path = self._directory(str(payload["id"])) / "experiment.json"
         atomic_write_json(path, payload)
         self.events.publish(
