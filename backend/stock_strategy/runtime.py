@@ -22,6 +22,7 @@ from .models import (
     THType,
 )
 from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
+from .market_data_quality import build_market_data_quality_report
 
 
 class StrategyLoadError(RuntimeError):
@@ -179,6 +180,13 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
                 "evaluation_end": evaluation_bars[-1].date,
                 "evaluation_bars": len(evaluation_bars),
             },
+            "market_data_quality": build_market_data_quality_report(
+                bars,
+                symbol=str(symbol),
+                bar_type=config.bar_type,
+                autype=config.autype,
+                source="opend",
+            ),
             "engine_contract": {
                 "version": ENGINE_CONTRACT_VERSION,
                 "strict_single_period": False,

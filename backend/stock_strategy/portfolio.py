@@ -12,6 +12,7 @@ import uuid
 
 from .data import bars_from_opend_records
 from .models import Bar
+from .market_data_quality import build_market_data_quality_report
 from .opend import OpenDHistory, fetch_history_kline
 from .run_manifest import atomic_write_json
 
@@ -222,6 +223,21 @@ def run_portfolio(
             "integer_shares": True,
             "execution": "rebalance-at-period-first-open",
             "currency": next(iter(config.weights)).split(".", 1)[0],
+            "fx_conversion": "rejected-unless-single-market-currency",
+        },
+        "data_quality": {
+            "symbols": {
+                symbol: build_market_data_quality_report(
+                    list(histories[symbol]),
+                    symbol=symbol,
+                    bar_type=config.ktype,
+                    autype=config.autype,
+                    source="opend",
+                )
+                for symbol in config.weights
+            },
+            "aligned_common_bars": len(common_dates),
+            "alignment": "intersection",
         },
     }
 

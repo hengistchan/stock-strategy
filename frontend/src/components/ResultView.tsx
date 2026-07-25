@@ -5,6 +5,7 @@ import { MetricsGrid } from "./MetricsGrid";
 import { PerformanceChart } from "./PerformanceChart";
 import { PriceChart } from "./PriceChart";
 import { TradeTable } from "./TradeTable";
+import { DataQualityPanel } from "./DataQualityPanel";
 
 interface ResultViewProps {
   job?: BacktestJob;
@@ -77,6 +78,9 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
       </div>
 
       <MetricsGrid metrics={summary.metrics} />
+      {summary.settings.market_data_quality ? (
+        <DataQualityPanel report={summary.settings.market_data_quality} />
+      ) : null}
       {strategyParameters && Object.keys(strategyParameters).length > 0 ? (
         <aside className="result-parameters" aria-label={t("result.parameterSnapshot")}>
           <span>PARAMETER SNAPSHOT</span>

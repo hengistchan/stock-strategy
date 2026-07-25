@@ -233,9 +233,31 @@ export interface BacktestSummary {
       name?: string;
       [key: string]: unknown;
     };
+    market_data_quality?: MarketDataQualityReport;
     [key: string]: unknown;
   };
   metrics: BacktestMetrics;
+}
+
+export interface MarketDataQualityReport {
+  rows: number;
+  duplicates: number;
+  missing_intervals: number;
+  missing_interval_samples: string[];
+  timezone: string;
+  calendar: string;
+  calendar_precision: "exact" | "approximate";
+  corporate_actions_applied: boolean;
+  corporate_action_mode: string;
+  adjustment: string;
+  suspicious_price_jumps: Array<{
+    from: string;
+    to: string;
+    change_pct: number;
+  }>;
+  source: string;
+  source_version: string;
+  fx_conversion: string;
 }
 
 export interface BacktestResult {
