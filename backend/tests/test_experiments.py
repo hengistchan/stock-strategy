@@ -48,6 +48,14 @@ class FakeJobStore:
         }
 
 
+class PartiallyFailingJobStore(FakeJobStore):
+    async def run_job(self, job_id):
+        fast = self.jobs[job_id]["request"]["parameters"]["fast"]
+        self.jobs[job_id]["status"] = "failed" if fast == 10 else "succeeded"
+        if fast == 10:
+            self.jobs[job_id]["error"] = "candidate failed"
+
+
 class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
     def test_grid_expansion_is_deterministic_and_bounded(self):
         self.assertEqual(
@@ -126,6 +134,30 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("event: experiment.updated", update)
         self.assertIn(f'"id":"{experiment["id"]}"', update)
         self.assertIn('"total":1', update)
+
+    async def test_partial_candidate_failure_is_not_reported_as_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = ExperimentStore(root, PartiallyFailingJobStore(root))
+            experiment = store.create(
+                name="partial experiment",
+                base_request={"symbol": "US.AAPL", "parameters": {}},
+                parameter_grid={"fast": [10, 20]},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+            )
+
+            await store._run(experiment["id"])
+            completed = store.get(experiment["id"])
+
+        self.assertEqual(completed["status"], "completed_with_errors")
+        self.assertEqual(
+            [run["status"] for run in completed["runs"]],
+            ["failed", "succeeded"],
+        )
 
 
 if __name__ == "__main__":

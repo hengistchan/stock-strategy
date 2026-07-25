@@ -188,9 +188,17 @@ class ExperimentStore:
             self._rank(experiment)
             self._write(experiment)
 
-        succeeded = any(run["status"] == "succeeded" for run in experiment["runs"])
+        succeeded_count = sum(
+            run["status"] == "succeeded" for run in experiment["runs"]
+        )
+        if succeeded_count == len(experiment["runs"]):
+            final_status = "succeeded"
+        elif succeeded_count:
+            final_status = "completed_with_errors"
+        else:
+            final_status = "failed"
         experiment.update(
-            status="succeeded" if succeeded else "failed",
+            status=final_status,
             finished_at=_now(),
         )
         self._rank(experiment)

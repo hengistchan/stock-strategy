@@ -58,7 +58,7 @@ export function useApiEvents(): void {
       if (
         event.status === "succeeded" ||
         event.status === "failed" ||
-        event.status === "partial"
+        event.status === "completed_with_errors"
       ) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.cache });
         void queryClient.invalidateQueries({ queryKey: queryKeys.jobs });

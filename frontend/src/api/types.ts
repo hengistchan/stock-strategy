@@ -5,6 +5,7 @@ export type JobStatus =
   | "succeeded"
   | "failed"
   | "cancelled";
+export type ExperimentStatus = JobStatus | "completed_with_errors";
 export type ParameterValue = boolean | number | string;
 
 export interface StrategyParameterDefinition {
@@ -268,7 +269,7 @@ export interface ExperimentRun {
 export interface Experiment {
   id: string;
   name: string;
-  status: JobStatus;
+  status: ExperimentStatus;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
