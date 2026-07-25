@@ -1,4 +1,4 @@
-.PHONY: install frontend-install doctor build package test acceptance dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test acceptance api-schema dev-api dev-web serve
 
 install:
 	python3.12 -m venv .venv
@@ -25,6 +25,10 @@ test:
 
 acceptance: build
 	.venv/bin/python backend/scripts/acceptance.py
+
+api-schema:
+	PYTHONPATH=backend .venv/bin/python backend/scripts/export_openapi.py frontend/openapi.json
+	cd frontend && npm run generate:api
 
 dev-api:
 	PYTHONPATH=backend .venv/bin/python -m uvicorn stock_strategy.web:create_app --factory --host 127.0.0.1 --port 8000 --reload

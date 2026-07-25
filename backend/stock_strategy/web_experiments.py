@@ -5,6 +5,11 @@ from typing import Any
 from fastapi import APIRouter
 
 from .api_errors import ApiProblem
+from .api_models import (
+    ExperimentResponse,
+    ExperimentsResponse,
+    error_responses,
+)
 from .execution_service import ExecutionService
 from .experiments import ExperimentStore
 from .strategy_parameters import StrategyParameterError
@@ -18,11 +23,16 @@ def create_experiments_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api/experiments", tags=["experiments"])
 
-    @router.get("")
+    @router.get("", response_model=ExperimentsResponse)
     async def list_experiments() -> dict[str, Any]:
         return {"experiments": experiments.list()[:50]}
 
-    @router.post("", status_code=202)
+    @router.post(
+        "",
+        status_code=202,
+        response_model=ExperimentResponse,
+        responses=error_responses(422),
+    )
     async def create_experiment(request: ExperimentRequest) -> dict[str, Any]:
         try:
             return execution.create_experiment(request.to_spec())
@@ -37,7 +47,11 @@ def create_experiments_router(
                 message=str(error),
             ) from error
 
-    @router.get("/{experiment_id}")
+    @router.get(
+        "/{experiment_id}",
+        response_model=ExperimentResponse,
+        responses=error_responses(404),
+    )
     async def get_experiment(experiment_id: str) -> dict[str, Any]:
         try:
             return experiments.get(experiment_id)

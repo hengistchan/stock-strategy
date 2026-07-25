@@ -42,14 +42,9 @@ describe("remote API token bootstrap", () => {
 
     await api.health();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/health",
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${token}`,
-        }),
-      }),
-    );
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(`${window.location.origin}/api/health`);
+    expect(request.headers.get("Authorization")).toBe(`Bearer ${token}`);
   });
 
   it("preserves structured API error codes and details", async () => {

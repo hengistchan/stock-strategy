@@ -4,7 +4,13 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "../backend/stock_strategy/web_dist"] },
+  {
+    ignores: [
+      "dist",
+      "src/api/generated",
+      "../backend/stock_strategy/web_dist",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

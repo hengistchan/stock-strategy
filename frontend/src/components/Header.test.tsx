@@ -34,19 +34,23 @@ describe("Header", () => {
   });
 
   it("loads detailed readiness checks when the OpenD status is opened", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      headers: { get: () => "application/json" },
-      json: async () => ({
-        ready: false,
-        host: "127.0.0.1",
-        port: 11111,
-        checks: [
-          { id: "python", status: "pass", detail: "Python 3.12.1", hint: null },
-          { id: "opend", status: "fail", detail: "OpenD is unreachable", hint: "Start OpenD" },
-        ],
-      }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ready: false,
+          host: "127.0.0.1",
+          port: 11111,
+          checks: [
+            { id: "python", status: "pass", detail: "Python 3.12.1", hint: null },
+            { id: "opend", status: "fail", detail: "OpenD is unreachable", hint: "Start OpenD" },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     renderHeader({ status: "ok", opend: { connected: false, host: "127.0.0.1", port: 11111 } });
@@ -55,6 +59,7 @@ describe("Header", () => {
     await waitFor(() => expect(screen.getByText("Python 3.12.1")).toBeInTheDocument());
     expect(screen.getByRole("region", { name: "系统诊断" })).toHaveTextContent("OpenD is unreachable");
     expect(screen.getByText("需要处理以下问题")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/diagnostics", expect.any(Object));
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(`${window.location.origin}/api/diagnostics`);
   });
 });

@@ -5,6 +5,11 @@ from typing import Any
 from fastapi import APIRouter
 
 from .api_errors import ApiProblem
+from .api_models import (
+    StrategiesResponse,
+    StrategyDocument,
+    error_responses,
+)
 from .strategy_repository import (
     StrategyConflictError,
     StrategyNotFoundError,
@@ -19,11 +24,16 @@ from .web_models import StrategyCreateRequest, StrategySaveRequest
 def create_strategies_router(strategies: StrategyRepository) -> APIRouter:
     router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
-    @router.get("")
+    @router.get("", response_model=StrategiesResponse)
     async def list_strategy_documents() -> dict[str, Any]:
         return {"strategies": strategies.list()}
 
-    @router.post("", status_code=201)
+    @router.post(
+        "",
+        status_code=201,
+        response_model=StrategyDocument,
+        responses=error_responses(400, 403, 409, 422),
+    )
     async def create_strategy(request: StrategyCreateRequest) -> dict[str, Any]:
         try:
             return strategies.create(
@@ -34,14 +44,22 @@ def create_strategies_router(strategies: StrategyRepository) -> APIRouter:
         except StrategyRepositoryError as error:
             raise strategy_http_error(error) from error
 
-    @router.get("/{strategy_path:path}")
+    @router.get(
+        "/{strategy_path:path}",
+        response_model=StrategyDocument,
+        responses=error_responses(403, 404),
+    )
     async def read_strategy(strategy_path: str) -> dict[str, Any]:
         try:
             return strategies.read(strategy_path)
         except StrategyRepositoryError as error:
             raise strategy_http_error(error) from error
 
-    @router.put("/{strategy_path:path}")
+    @router.put(
+        "/{strategy_path:path}",
+        response_model=StrategyDocument,
+        responses=error_responses(400, 403, 404, 409, 422),
+    )
     async def save_strategy(
         strategy_path: str,
         request: StrategySaveRequest,

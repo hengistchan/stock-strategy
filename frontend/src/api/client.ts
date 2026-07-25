@@ -17,8 +17,37 @@ import type {
   SymbolSearchResponse,
 } from "./types";
 import { translations } from "../i18n/translations";
+import {
+  cancelJobApiJobsJobIdDelete,
+  configApiConfigGet,
+  createExperimentApiExperimentsPost,
+  createJobApiJobsPost,
+  createStrategyApiStrategiesPost,
+  deleteCacheApiCacheCacheIdDelete,
+  diagnosticsReportApiDiagnosticsGet,
+  getExperimentApiExperimentsExperimentIdGet,
+  healthApiHealthGet,
+  jobApiJobsJobIdGet,
+  jobsApiJobsGet,
+  listCacheApiCacheGet,
+  listExperimentsApiExperimentsGet,
+  listStrategyDocumentsApiStrategiesGet,
+  pricesApiJobsJobIdPricesGet,
+  readStrategyApiStrategiesStrategyPathGet,
+  resolveSymbolsApiSymbolsResolveGet,
+  resultApiJobsJobIdResultGet,
+  retryJobApiJobsJobIdRetryPost,
+  saveStrategyApiStrategiesStrategyPathPut,
+  searchSymbolsApiSymbolsGet,
+} from "./generated";
+import { client as generatedClient } from "./generated/client.gen";
+import type {
+  BacktestRequest as GeneratedBacktestRequest,
+  ExperimentRequest as GeneratedExperimentRequest,
+} from "./generated/types.gen";
 
 const ACCESS_TOKEN_KEY = "strategy-lab-api-token";
+generatedClient.setConfig({ baseUrl: window.location.origin });
 
 export function initializeApiTokenFromFragment(): void {
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -54,101 +83,179 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+function requestHeaders(): Record<string, string> {
   const token = accessToken();
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-  });
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload: unknown = contentType.includes("application/json")
-    ? await response.json()
-    : null;
-  if (!response.ok) {
-    const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
-    let message = translations[locale]["common.requestFailed"].replace("{{status}}", String(response.status));
-    let code = "http_error";
-    let details: unknown = null;
-    if (payload && typeof payload === "object" && "error" in payload) {
-      const error = (payload as {
-        error?: { code?: unknown; message?: unknown; details?: unknown };
-      }).error;
-      if (error && typeof error === "object") {
-        if (typeof error.message === "string") message = error.message;
-        if (typeof error.code === "string") code = error.code;
-        details = error.details ?? null;
-      }
-    } else if (payload && typeof payload === "object" && "detail" in payload) {
-      const detail = (payload as { detail: unknown }).detail;
-      message = Array.isArray(detail)
-        ? detail.map((item) => String((item as { msg?: string }).msg ?? item)).join("；")
-        : String(detail);
-    }
-    throw new ApiError(message, response.status, code, details);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+type GeneratedResult = {
+  data?: unknown;
+  error?: unknown;
+  response?: Response;
+};
+
+async function unwrap<T>(
+  operation: PromiseLike<GeneratedResult>,
+): Promise<T> {
+  const result = await operation;
+  if (result.data !== undefined) {
+    return result.data as T;
   }
-  return payload as T;
+  const status = result.response?.status ?? 0;
+  const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
+  let message = translations[locale]["common.requestFailed"].replace(
+    "{{status}}",
+    String(status),
+  );
+  let code = "http_error";
+  let details: unknown = null;
+  const payload = result.error;
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const error = (payload as {
+      error?: { code?: unknown; message?: unknown; details?: unknown };
+    }).error;
+    if (error && typeof error === "object") {
+      if (typeof error.message === "string") message = error.message;
+      if (typeof error.code === "string") code = error.code;
+      details = error.details ?? null;
+    }
+  } else if (payload && typeof payload === "object" && "detail" in payload) {
+    const detail = (payload as { detail: unknown }).detail;
+    message = Array.isArray(detail)
+      ? detail
+          .map((item) => String((item as { msg?: string }).msg ?? item))
+          .join("；")
+      : String(detail);
+  }
+  throw new ApiError(message, status, code, details);
 }
 
 export const api = {
-  health: () => request<HealthResponse>("/api/health"),
-  diagnostics: () => request<DiagnosticsResponse>("/api/diagnostics"),
-  config: () => request<AppConfig>("/api/config"),
-  symbols: (query: string, limit = 8) => {
-    const parameters = new URLSearchParams({ q: query, limit: String(limit) });
-    return request<SymbolSearchResponse>(`/api/symbols?${parameters}`);
-  },
-  resolveSymbols: (codes: string[]) => {
-    const parameters = new URLSearchParams();
-    codes.forEach((code) => parameters.append("codes", code));
-    return request<SymbolResolveResponse>(`/api/symbols/resolve?${parameters}`);
-  },
-  jobs: () => request<JobsResponse>("/api/jobs"),
-  job: (jobId: string) => request<BacktestJob>(`/api/jobs/${jobId}`),
+  health: () =>
+    unwrap<HealthResponse>(healthApiHealthGet({ headers: requestHeaders() })),
+  diagnostics: () =>
+    unwrap<DiagnosticsResponse>(
+      diagnosticsReportApiDiagnosticsGet({ headers: requestHeaders() }),
+    ),
+  config: () =>
+    unwrap<AppConfig>(configApiConfigGet({ headers: requestHeaders() })),
+  symbols: (query: string, limit = 8) =>
+    unwrap<SymbolSearchResponse>(
+      searchSymbolsApiSymbolsGet({
+        headers: requestHeaders(),
+        query: { q: query, limit },
+      }),
+    ),
+  resolveSymbols: (codes: string[]) =>
+    unwrap<SymbolResolveResponse>(
+      resolveSymbolsApiSymbolsResolveGet({
+        headers: requestHeaders(),
+        query: { codes },
+      }),
+    ),
+  jobs: () =>
+    unwrap<JobsResponse>(jobsApiJobsGet({ headers: requestHeaders() })),
+  job: (jobId: string) =>
+    unwrap<BacktestJob>(
+      jobApiJobsJobIdGet({
+        headers: requestHeaders(),
+        path: { job_id: jobId },
+      }),
+    ),
   cancelJob: (jobId: string) =>
-    request<BacktestJob>(`/api/jobs/${jobId}`, { method: "DELETE" }),
+    unwrap<BacktestJob>(
+      cancelJobApiJobsJobIdDelete({
+        headers: requestHeaders(),
+        path: { job_id: jobId },
+      }),
+    ),
   retryJob: (jobId: string) =>
-    request<BacktestJob>(`/api/jobs/${jobId}/retry`, { method: "POST" }),
-  result: (jobId: string) => request<BacktestResult>(`/api/jobs/${jobId}/result`),
+    unwrap<BacktestJob>(
+      retryJobApiJobsJobIdRetryPost({
+        headers: requestHeaders(),
+        path: { job_id: jobId },
+      }),
+    ),
+  result: (jobId: string) =>
+    unwrap<BacktestResult>(
+      resultApiJobsJobIdResultGet({
+        headers: requestHeaders(),
+        path: { job_id: jobId },
+      }),
+    ),
   prices: (jobId: string, offset: number, limit: number) =>
-    request<PriceWindow>(`/api/jobs/${jobId}/prices?offset=${offset}&limit=${limit}`),
+    unwrap<PriceWindow>(
+      pricesApiJobsJobIdPricesGet({
+        headers: requestHeaders(),
+        path: { job_id: jobId },
+        query: { offset, limit },
+      }),
+    ),
   runBacktest: (payload: BacktestRequest) =>
-    request<BacktestJob>("/api/jobs", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  strategies: () => request<StrategiesResponse>("/api/strategies"),
+    unwrap<BacktestJob>(
+      createJobApiJobsPost({
+        headers: requestHeaders(),
+        body: payload as GeneratedBacktestRequest,
+      }),
+    ),
+  strategies: () =>
+    unwrap<StrategiesResponse>(
+      listStrategyDocumentsApiStrategiesGet({ headers: requestHeaders() }),
+    ),
   strategy: (path: string) =>
-    request<StrategyDocument>(`/api/strategies/${encodeURI(path)}`),
+    unwrap<StrategyDocument>(
+      readStrategyApiStrategiesStrategyPathGet({
+        headers: requestHeaders(),
+        path: { strategy_path: path },
+      }),
+    ),
   createStrategy: (payload: {
     name: string;
     content?: string;
     template_path?: string;
   }) =>
-    request<StrategyDocument>("/api/strategies", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  saveStrategy: (path: string, content: string, expectedRevision: string) =>
-    request<StrategyDocument>(`/api/strategies/${encodeURI(path)}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        content,
-        expected_revision: expectedRevision,
+    unwrap<StrategyDocument>(
+      createStrategyApiStrategiesPost({
+        headers: requestHeaders(),
+        body: payload,
       }),
-    }),
-  experiments: () => request<ExperimentsResponse>("/api/experiments"),
+    ),
+  saveStrategy: (path: string, content: string, expectedRevision: string) =>
+    unwrap<StrategyDocument>(
+      saveStrategyApiStrategiesStrategyPathPut({
+        headers: requestHeaders(),
+        path: { strategy_path: path },
+        body: {
+          content,
+          expected_revision: expectedRevision,
+        },
+      }),
+    ),
+  experiments: () =>
+    unwrap<ExperimentsResponse>(
+      listExperimentsApiExperimentsGet({ headers: requestHeaders() }),
+    ),
   experiment: (experimentId: string) =>
-    request<Experiment>(`/api/experiments/${experimentId}`),
+    unwrap<Experiment>(
+      getExperimentApiExperimentsExperimentIdGet({
+        headers: requestHeaders(),
+        path: { experiment_id: experimentId },
+      }),
+    ),
   runExperiment: (payload: ExperimentRequest) =>
-    request<Experiment>("/api/experiments", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  cache: () => request<CacheResponse>("/api/cache"),
+    unwrap<Experiment>(
+      createExperimentApiExperimentsPost({
+        headers: requestHeaders(),
+        body: payload as GeneratedExperimentRequest,
+      }),
+    ),
+  cache: () =>
+    unwrap<CacheResponse>(listCacheApiCacheGet({ headers: requestHeaders() })),
   deleteCache: (cacheId: string) =>
-    request<{ deleted: string }>(`/api/cache/${cacheId}`, { method: "DELETE" }),
+    unwrap<{ deleted: string }>(
+      deleteCacheApiCacheCacheIdDelete({
+        headers: requestHeaders(),
+        path: { cache_id: cacheId },
+      }),
+    ),
 };

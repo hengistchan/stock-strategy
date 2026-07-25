@@ -6,6 +6,11 @@ from typing import Any
 from fastapi import APIRouter, Query
 
 from .api_errors import ApiProblem
+from .api_models import (
+    SymbolResolveResponse,
+    SymbolSearchResponse,
+    error_responses,
+)
 from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
 from .web_models import SYMBOL_PATTERN
 
@@ -13,7 +18,11 @@ from .web_models import SYMBOL_PATTERN
 def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
     router = APIRouter(prefix="/api/symbols", tags=["symbols"])
 
-    @router.get("")
+    @router.get(
+        "",
+        response_model=SymbolSearchResponse,
+        responses=error_responses(422, 503),
+    )
     def search_symbols(
         q: str = Query(min_length=1, max_length=80),
         limit: int = Query(default=8, ge=1, le=20),
@@ -27,7 +36,11 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
                 message=f"OpenD 标的搜索暂不可用：{error}",
             ) from error
 
-    @router.get("/resolve")
+    @router.get(
+        "/resolve",
+        response_model=SymbolResolveResponse,
+        responses=error_responses(422, 503),
+    )
     def resolve_symbols(codes: list[str] = Query()) -> dict[str, Any]:
         normalized = list(
             dict.fromkeys(code.strip().upper() for code in codes if code.strip())

@@ -62,7 +62,12 @@ def create_app(
         quote_probe=lambda: _probe_quote_directory(directory),
     )
 
-    app = FastAPI(title="Strategy Lab", docs_url=None, redoc_url=None)
+    app = FastAPI(
+        title="Strategy Lab",
+        docs_url=None,
+        redoc_url=None,
+        servers=[{"url": "/"}],
+    )
     app.state.job_store = store
     app.state.experiment_store = experiments
     app.state.strategy_repository = strategies

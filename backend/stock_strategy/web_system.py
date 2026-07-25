@@ -4,6 +4,11 @@ from typing import Any, Callable
 
 from fastapi import APIRouter
 
+from .api_models import (
+    ConfigResponse,
+    DiagnosticsResponse,
+    HealthResponse,
+)
 from .diagnostics import DiagnosticsService
 from .job_store import JobStore
 from .strategy_repository import StrategyRepository
@@ -18,7 +23,7 @@ def create_system_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["system"])
 
-    @router.get("/health")
+    @router.get("/health", response_model=HealthResponse)
     async def health() -> dict[str, Any]:
         return {
             "status": "ok",
@@ -29,11 +34,11 @@ def create_system_router(
             },
         }
 
-    @router.get("/diagnostics")
+    @router.get("/diagnostics", response_model=DiagnosticsResponse)
     def diagnostics_report() -> dict[str, object]:
         return diagnostics.run().to_dict()
 
-    @router.get("/config")
+    @router.get("/config", response_model=ConfigResponse)
     async def config() -> dict[str, Any]:
         return {
             "strategies": strategies.list(),
