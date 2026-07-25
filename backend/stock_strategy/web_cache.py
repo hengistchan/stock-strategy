@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from .api_errors import ApiProblem
 from .job_store import JobStore
 
 
@@ -23,14 +24,16 @@ def create_cache_router(store: JobStore) -> APIRouter:
         try:
             deleted = store.cache.delete(cache_id)
         except KeyError as error:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=404,
-                detail="找不到这份 OpenD 缓存。",
+                code="market_cache_not_found",
+                message="找不到这份 OpenD 缓存。",
             ) from error
         if not deleted:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=404,
-                detail="找不到这份 OpenD 缓存。",
+                code="market_cache_not_found",
+                message="找不到这份 OpenD 缓存。",
             )
         return {"deleted": cache_id}
 

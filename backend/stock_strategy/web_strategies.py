@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from .api_errors import ApiProblem
 from .strategy_repository import (
     StrategyConflictError,
     StrategyNotFoundError,
@@ -57,13 +58,13 @@ def create_strategies_router(strategies: StrategyRepository) -> APIRouter:
     return router
 
 
-def strategy_http_error(error: StrategyRepositoryError) -> HTTPException:
+def strategy_http_error(error: StrategyRepositoryError) -> ApiProblem:
     if isinstance(error, StrategyNotFoundError):
-        return HTTPException(status_code=404, detail=str(error))
+        return ApiProblem(404, "strategy_not_found", str(error))
     if isinstance(error, StrategyConflictError):
-        return HTTPException(status_code=409, detail=str(error))
+        return ApiProblem(409, "strategy_revision_conflict", str(error))
     if isinstance(error, StrategyPermissionError):
-        return HTTPException(status_code=403, detail=str(error))
+        return ApiProblem(403, "strategy_write_forbidden", str(error))
     if isinstance(error, StrategyValidationError):
-        return HTTPException(status_code=422, detail=str(error))
-    return HTTPException(status_code=400, detail=str(error))
+        return ApiProblem(422, "invalid_strategy", str(error))
+    return ApiProblem(400, "strategy_repository_error", str(error))

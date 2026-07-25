@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from .api_errors import ApiProblem
 from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
 from .web_models import SYMBOL_PATTERN
 
@@ -20,9 +21,10 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
         try:
             return {"query": q, "symbols": directory.search(q, limit)}
         except (OpenDUnavailableError, OpenDRequestError, OSError) as error:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=503,
-                detail=f"OpenD 标的搜索暂不可用：{error}",
+                code="opend_symbol_search_unavailable",
+                message=f"OpenD 标的搜索暂不可用：{error}",
             ) from error
 
     @router.get("/resolve")
@@ -31,26 +33,34 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
             dict.fromkeys(code.strip().upper() for code in codes if code.strip())
         )
         if not normalized:
-            raise HTTPException(status_code=422, detail="至少需要一个标的代码。")
-        if len(normalized) > 100:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=422,
-                detail="单次最多解析 100 个标的代码。",
+                code="symbol_codes_required",
+                message="至少需要一个标的代码。",
+            )
+        if len(normalized) > 100:
+            raise ApiProblem(
+                status_code=422,
+                code="too_many_symbol_codes",
+                message="单次最多解析 100 个标的代码。",
             )
         invalid = [
             code for code in normalized if re.fullmatch(SYMBOL_PATTERN, code) is None
         ]
         if invalid:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=422,
-                detail=f"无效的 Futu 标的代码：{', '.join(invalid)}",
+                code="invalid_symbol_codes",
+                message=f"无效的 Futu 标的代码：{', '.join(invalid)}",
+                details={"codes": invalid},
             )
         try:
             return {"symbols": directory.resolve(normalized)}
         except (OpenDUnavailableError, OpenDRequestError, OSError) as error:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=503,
-                detail=f"OpenD 标的名称暂不可用：{error}",
+                code="opend_symbol_resolve_unavailable",
+                message=f"OpenD 标的名称暂不可用：{error}",
             ) from error
 
     return router

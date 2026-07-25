@@ -42,11 +42,15 @@ function accessToken(): string | null {
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: string;
+  readonly details: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code = "http_error", details: unknown = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -67,13 +71,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!response.ok) {
     const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
     let message = translations[locale]["common.requestFailed"].replace("{{status}}", String(response.status));
-    if (payload && typeof payload === "object" && "detail" in payload) {
+    let code = "http_error";
+    let details: unknown = null;
+    if (payload && typeof payload === "object" && "error" in payload) {
+      const error = (payload as {
+        error?: { code?: unknown; message?: unknown; details?: unknown };
+      }).error;
+      if (error && typeof error === "object") {
+        if (typeof error.message === "string") message = error.message;
+        if (typeof error.code === "string") code = error.code;
+        details = error.details ?? null;
+      }
+    } else if (payload && typeof payload === "object" && "detail" in payload) {
       const detail = (payload as { detail: unknown }).detail;
       message = Array.isArray(detail)
         ? detail.map((item) => String((item as { msg?: string }).msg ?? item)).join("；")
         : String(detail);
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, code, details);
   }
   return payload as T;
 }

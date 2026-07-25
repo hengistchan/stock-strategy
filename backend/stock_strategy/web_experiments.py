@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from .api_errors import ApiProblem
 from .execution_service import ExecutionService
 from .experiments import ExperimentStore
 from .strategy_parameters import StrategyParameterError
@@ -30,16 +31,21 @@ def create_experiments_router(
             StrategyParameterError,
             ValueError,
         ) as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
+            raise ApiProblem(
+                status_code=422,
+                code="invalid_experiment_request",
+                message=str(error),
+            ) from error
 
     @router.get("/{experiment_id}")
     async def get_experiment(experiment_id: str) -> dict[str, Any]:
         try:
             return experiments.get(experiment_id)
         except KeyError as error:
-            raise HTTPException(
+            raise ApiProblem(
                 status_code=404,
-                detail="找不到这次参数实验。",
+                code="experiment_not_found",
+                message="找不到这次参数实验。",
             ) from error
 
     return router

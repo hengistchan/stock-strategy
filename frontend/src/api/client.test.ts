@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, initializeApiTokenFromFragment } from "./client";
+import { ApiError, api, initializeApiTokenFromFragment } from "./client";
 
 describe("remote API token bootstrap", () => {
   beforeEach(() => {
@@ -50,5 +50,37 @@ describe("remote API token bootstrap", () => {
         }),
       }),
     );
+  });
+
+  it("preserves structured API error codes and details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail: "找不到这次回测。",
+            error: {
+              code: "backtest_not_found",
+              message: "找不到这次回测。",
+              details: { job_id: "missing" },
+            },
+          }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
+
+    const error = await api.job("missing").catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 404,
+      code: "backtest_not_found",
+      details: { job_id: "missing" },
+      message: "找不到这次回测。",
+    });
   });
 });

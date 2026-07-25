@@ -319,6 +319,11 @@ class WebTest(unittest.TestCase):
                 },
             )
         self.assertEqual(invalid_symbol.status_code, 422)
+        self.assertEqual(
+            invalid_symbol.json()["error"]["code"],
+            "request_validation_error",
+        )
+        self.assertIsInstance(invalid_symbol.json()["error"]["details"], list)
         self.assertEqual(invalid_range.status_code, 422)
         self.assertEqual(invalid_session.status_code, 422)
         self.assertEqual(unsupported_monthly.status_code, 422)
@@ -361,6 +366,10 @@ class Strategy(StrategyBase):
 
         self.assertEqual(response.status_code, 422)
         self.assertIn("future_previous_settle", response.json()["detail"])
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "invalid_backtest_request",
+        )
         self.assertEqual(jobs, [])
 
     def test_multi_period_stock_strategy_selects_smallest_opend_driver(self):
@@ -611,6 +620,10 @@ class Strategy(StrategyBase):
             self.assertIn("Python 语法错误", invalid.json()["detail"])
             self.assertEqual(saved.status_code, 200)
             self.assertEqual(stale.status_code, 409)
+            self.assertEqual(
+                stale.json()["error"]["code"],
+                "strategy_revision_conflict",
+            )
             self.assertEqual(readonly.status_code, 403)
             self.assertEqual(example.read_text(encoding="utf-8"), "class Strategy:\n    pass\n")
 

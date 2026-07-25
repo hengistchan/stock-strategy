@@ -8,12 +8,13 @@ import sys
 from typing import Any, Callable
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from .api_errors import ApiProblem, error_payload, install_api_error_handlers
 from .execution_service import ExecutionService
 from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
@@ -69,6 +70,7 @@ def create_app(
     app.state.symbol_directory = directory
     app.state.diagnostics_service = diagnostics
     app.state.api_auth_enabled = api_token is not None
+    install_api_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -94,7 +96,10 @@ def create_app(
                 if not supplied or not secrets.compare_digest(supplied, api_token):
                     return JSONResponse(
                         status_code=401,
-                        content={"detail": "Strategy Lab API token is required."},
+                        content=error_payload(
+                            code="authentication_required",
+                            message="Strategy Lab API token is required.",
+                        ),
                         headers={"WWW-Authenticate": "Bearer"},
                     )
             return await call_next(request)
@@ -123,7 +128,11 @@ def create_app(
     @app.get("/{frontend_path:path}")
     async def frontend_fallback(frontend_path: str):
         if frontend_path == "api" or frontend_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API endpoint not found")
+            raise ApiProblem(
+                status_code=404,
+                code="api_endpoint_not_found",
+                message="API endpoint not found",
+            )
         candidate = (web_root / frontend_path).resolve()
         if web_root in candidate.parents and candidate.is_file():
             return FileResponse(candidate)
