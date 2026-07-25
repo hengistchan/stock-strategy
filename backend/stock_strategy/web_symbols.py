@@ -45,9 +45,7 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
         codes: Annotated[list[str], Query(min_length=1)],
     ) -> dict[str, Any]:
         normalized = list(
-            dict.fromkeys(
-                code.strip().upper() for code in codes if code.strip()
-            )
+            dict.fromkeys(code.strip().upper() for code in codes if code.strip())
         )
         if not normalized:
             raise ApiProblem(
