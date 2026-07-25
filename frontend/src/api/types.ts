@@ -1,4 +1,10 @@
-export type JobStatus = "queued" | "running" | "succeeded" | "failed";
+export type JobStatus =
+  | "queued"
+  | "running"
+  | "cancelling"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 export type ParameterValue = boolean | number | string;
 
 export interface StrategyParameterDefinition {
@@ -119,6 +125,7 @@ export interface BacktestJob {
   strategy_revision?: string;
   strategy_snapshot_path?: string;
   market_data_path?: string | null;
+  retry_of?: string | null;
   run_dir: string | null;
   stdout: string;
   stderr: string;

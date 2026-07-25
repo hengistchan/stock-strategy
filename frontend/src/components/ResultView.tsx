@@ -35,7 +35,9 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
     const copy = {
       queued: [t("result.queuedLabel"), t("result.queuedTitle"), t("result.queuedBody")],
       running: [t("result.runningLabel"), t("result.runningTitle", { symbol: symbolName ? `${job.request.symbol} · ${symbolName}` : job.request.symbol }), `${job.request.start} → ${job.request.end} · ${job.request.ktype}`],
+      cancelling: [t("status.cancelling"), t("result.runningTitle", { symbol: job.request.symbol }), t("status.cancelling")],
       failed: [t("result.failedLabel"), t("result.failedTitle"), stderrDetail ?? job.error ?? t("result.failedBody")],
+      cancelled: [t("status.cancelled"), t("status.cancelled"), job.error ?? t("status.cancelled")],
       succeeded: [t("result.succeededLabel"), t("result.succeededTitle"), t("result.succeededBody")],
     }[job.status];
     return (

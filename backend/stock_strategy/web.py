@@ -19,6 +19,7 @@ from .execution_service import ExecutionService
 from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
 from .job_store import JobStore, last_error as _last_error
+from .job_lifecycle import InvalidJobTransition
 from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
 from .result_reader import (
@@ -242,6 +243,22 @@ def create_app(
             return store.get_job(job_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="找不到这次回测。") from error
+
+    @app.delete("/api/jobs/{job_id}", status_code=202)
+    async def cancel_job(job_id: str) -> dict[str, Any]:
+        try:
+            return await store.cancel(job_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
+
+    @app.post("/api/jobs/{job_id}/retry", status_code=202)
+    async def retry_job(job_id: str) -> dict[str, Any]:
+        try:
+            return store.retry(job_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
+        except (InvalidJobTransition, OSError, ValueError) as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.get("/api/jobs/{job_id}/result")
     async def result(job_id: str) -> dict[str, Any]:

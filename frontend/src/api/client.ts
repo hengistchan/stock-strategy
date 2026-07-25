@@ -93,6 +93,10 @@ export const api = {
   },
   jobs: () => request<JobsResponse>("/api/jobs"),
   job: (jobId: string) => request<BacktestJob>(`/api/jobs/${jobId}`),
+  cancelJob: (jobId: string) =>
+    request<BacktestJob>(`/api/jobs/${jobId}`, { method: "DELETE" }),
+  retryJob: (jobId: string) =>
+    request<BacktestJob>(`/api/jobs/${jobId}/retry`, { method: "POST" }),
   result: (jobId: string) => request<BacktestResult>(`/api/jobs/${jobId}/result`),
   prices: (jobId: string, offset: number, limit: number) =>
     request<PriceWindow>(`/api/jobs/${jobId}/prices?offset=${offset}&limit=${limit}`),

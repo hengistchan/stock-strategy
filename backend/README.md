@@ -40,6 +40,8 @@ cd ..
 
 作业元数据的权威状态保存在 WAL 模式的 `runs/state.sqlite3`。启动时会自动导入已有的 `runs/web/*/job.json`；后续状态更新仍写出 `job.json` 兼容镜像，因此旧工作区和外部脚本无需一次性迁移。
 
+`DELETE /api/jobs/{job_id}` 取消 queued/running 作业；`POST /api/jobs/{job_id}/retry` 只接受 failed/cancelled 作业，并从不可变策略快照创建带 `retry_of` 的新任务，不覆盖原结果。
+
 `warmup_bars` 只建立策略历史，不属于回测评估区间。收益、基准、回撤和资金使用率从第一根 evaluation K 线开始计算；Sharpe 统一使用每日收盘权益收益，少于 20 个交易日的结果将 `annualized_return_pct` 记录为 `null`。完整输入/评估边界位于 `summary.settings.data_window`。
 
 费用和滑点通过 `FeeModel` / `SlippageModel` 接口注入 Broker。默认模型继续解释现有的 bps 与最低佣金字段，并将模型名称和参数写入 `summary.settings.execution_models`，以便复核成交假设。

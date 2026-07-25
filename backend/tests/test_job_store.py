@@ -19,6 +19,39 @@ class FakeProcess:
 
 
 class JobStoreTest(unittest.IsolatedAsyncioTestCase):
+    async def test_queued_job_can_be_cancelled_and_retried_with_lineage(self):
+        request = {
+            "strategy": "strategies/demo.py",
+            "symbol": "US.AAPL",
+            "start": "2025-01-01",
+            "end": "2025-12-31",
+            "ktype": "K_DAY",
+            "autype": "QFQ",
+            "session": "ALL",
+            "initial_cash": 100_000,
+            "commission_bps": 3,
+            "min_commission": 1,
+            "slippage_bps": 5,
+            "warmup_bars": 0,
+            "allow_short": False,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            strategy = root / "strategies" / "demo.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass\n", encoding="utf-8")
+            store = JobStore(root)
+            original = store.create_job(request, strategy)
+            cancelled = await store.cancel(original["id"])
+            with patch.object(store, "launch") as launch:
+                retried = store.retry(original["id"])
+
+        self.assertEqual(cancelled["status"], "cancelled")
+        self.assertEqual(retried["status"], "queued")
+        self.assertEqual(retried["retry_of"], original["id"])
+        self.assertEqual(retried["strategy_revision"], original["strategy_revision"])
+        launch.assert_called_once_with(retried["id"])
+
     async def test_successful_job_remains_readable_from_immutable_evidence(self):
         request = {
             "strategy": "strategies/demo.py",

@@ -13,7 +13,7 @@ from typing import Any, Mapping
 import uuid
 
 from .market_cache import MarketDataCache
-from .job_lifecycle import JobStatus
+from .job_lifecycle import InvalidJobTransition, JobStatus, TERMINAL_JOB_STATUSES
 from .paths import BACKEND_ROOT, PROJECT_ROOT
 from .result_reader import (
     load_price_window_payload,
@@ -63,6 +63,7 @@ class JobStore:
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
         self.cache = MarketDataCache(self.project_root)
         self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._processes: dict[str, asyncio.subprocess.Process] = {}
         self._execution_lock = asyncio.Lock()
         self._reconcile_interrupted_jobs()
 
@@ -73,6 +74,7 @@ class JobStore:
         *,
         strategy_source: str | None = None,
         strategy_revision: str | None = None,
+        retry_of: str | None = None,
     ) -> dict[str, Any]:
         job_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         job_dir = self._job_dir(job_id)
@@ -116,6 +118,7 @@ class JobStore:
                 ),
                 "market_data_path": None,
                 "execution_profile": TRUSTED_EXECUTION_PROFILE,
+                "retry_of": retry_of,
                 "run_dir": None,
                 "stdout": "",
                 "stderr": "",
@@ -135,6 +138,56 @@ class JobStore:
 
     async def run_job(self, job_id: str) -> None:
         await self._run_job(job_id)
+
+    async def cancel(self, job_id: str) -> dict[str, Any]:
+        job = self.get_job(job_id)
+        status = JobStatus(str(job["status"]))
+        if status in TERMINAL_JOB_STATUSES:
+            return job
+        if status == JobStatus.QUEUED:
+            task = self._tasks.get(job_id)
+            if task is not None:
+                task.cancel()
+            try:
+                return self._transition_job(
+                    job_id,
+                    JobStatus.CANCELLED,
+                    finished_at=_now(),
+                    error="回测已在执行前取消。",
+                )
+            except InvalidJobTransition:
+                return await self.cancel(job_id)
+        if status == JobStatus.RUNNING:
+            job = self._transition_job(job_id, JobStatus.CANCELLING)
+            process = self._processes.get(job_id)
+            if process is not None:
+                terminate_process_tree(process)
+            return job
+        return job
+
+    def retry(self, job_id: str) -> dict[str, Any]:
+        original = self.get_job(job_id)
+        if JobStatus(str(original["status"])) not in {
+            JobStatus.FAILED,
+            JobStatus.CANCELLED,
+        }:
+            raise InvalidJobTransition("only failed or cancelled jobs can be retried")
+        snapshot_value = original.get("strategy_snapshot_path")
+        strategy_snapshot = (
+            self.project_root / str(snapshot_value or original["strategy_path"])
+        ).resolve()
+        source = strategy_snapshot.read_text(encoding="utf-8")
+        request = dict(original["request"])
+        request["refresh_cache"] = False
+        retried = self.create_job(
+            request,
+            self.project_root / str(original["strategy_path"]),
+            strategy_source=source,
+            strategy_revision=original.get("strategy_revision"),
+            retry_of=job_id,
+        )
+        self.launch(retried["id"])
+        return retried
 
     async def _run_job(self, job_id: str) -> None:
         async with self._execution_lock:
@@ -157,9 +210,13 @@ class JobStore:
                 stderr=asyncio.subprocess.PIPE,
                 **subprocess_isolation_options(),
             )
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout_seconds
-            )
+            self._processes[job_id] = process
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    process.communicate(), timeout=self.timeout_seconds
+                )
+            finally:
+                self._processes.pop(job_id, None)
         except asyncio.TimeoutError:
             terminate_process_tree(process)
             await process.communicate()
@@ -182,6 +239,16 @@ class JobStore:
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")
         job.update(stdout=stdout[-12_000:], stderr=stderr[-12_000:], finished_at=_now())
+        if self.get_job(job_id)["status"] == JobStatus.CANCELLING.value:
+            self._transition_job(
+                job_id,
+                JobStatus.CANCELLED,
+                stdout=job["stdout"],
+                stderr=job["stderr"],
+                finished_at=job["finished_at"],
+                error="回测已由用户取消。",
+            )
+            return
         cache_error: Exception | None = None
         try:
             cache_entry = self.cache.record(job["request"])
