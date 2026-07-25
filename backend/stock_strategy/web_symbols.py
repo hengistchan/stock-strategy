@@ -42,11 +42,11 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
         responses=error_responses(422, 503),
     )
     def resolve_symbols(
-        codes: Annotated[list[str] | None, Query()] = None,
+        codes: Annotated[list[str], Query(min_length=1)],
     ) -> dict[str, Any]:
         normalized = list(
             dict.fromkeys(
-                code.strip().upper() for code in (codes or []) if code.strip()
+                code.strip().upper() for code in codes if code.strip()
             )
         )
         if not normalized:

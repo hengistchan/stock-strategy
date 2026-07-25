@@ -177,6 +177,7 @@
               "items": {
                 "type": "string"
               },
+              "minItems": 1,
               "title": "Codes"
             }
           }

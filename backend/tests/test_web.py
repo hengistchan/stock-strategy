@@ -192,6 +192,17 @@ class WebTest(unittest.TestCase):
             ["苹果", "腾讯控股"],
         )
 
+    def test_symbol_resolver_requires_at_least_one_code(self):
+        app = create_app(
+            opend_probe=lambda host, port: True,
+            symbol_directory=FakeSymbolDirectory(),
+        )
+        with TestClient(app) as client:
+            response = client.get("/api/symbols/resolve")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "request_validation_error")
+
     def test_equity_display_sampling_preserves_extremes_without_loading_all_rows(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "equity_curve.csv"

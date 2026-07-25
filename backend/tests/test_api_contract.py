@@ -29,6 +29,11 @@ class ApiContractTest(unittest.TestCase):
         self.assertIn("/api/migrations/scan", schema["paths"])
         self.assertIn("/api/migrations/fixture", schema["paths"])
         self.assertIn("/api/migrations/import", schema["paths"])
+        resolve_parameters = schema["paths"]["/api/symbols/resolve"]["get"][
+            "parameters"
+        ]
+        codes = next(item for item in resolve_parameters if item["name"] == "codes")
+        self.assertTrue(codes["required"])
 
 
 if __name__ == "__main__":

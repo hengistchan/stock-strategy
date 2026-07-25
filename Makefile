@@ -1,4 +1,6 @@
-.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance api-schema dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance api-schema api-schema-check dev-api dev-web serve
+
+PYTHON ?= .venv/bin/python
 
 install:
 	python3.12 -m venv .venv
@@ -44,8 +46,11 @@ acceptance: build
 	.venv/bin/python backend/scripts/acceptance.py
 
 api-schema:
-	PYTHONPATH=backend .venv/bin/python backend/scripts/export_openapi.py frontend/openapi.json
+	PYTHONPATH=backend $(PYTHON) backend/scripts/export_openapi.py frontend/openapi.json
 	cd frontend && npm run generate:api
+
+api-schema-check: api-schema
+	git diff --exit-code -- frontend/openapi.json frontend/src/api/generated
 
 dev-api:
 	PYTHONPATH=backend .venv/bin/python -m uvicorn stock_strategy.web:create_app --factory --host 127.0.0.1 --port 8000 --reload
