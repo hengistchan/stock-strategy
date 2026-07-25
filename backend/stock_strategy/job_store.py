@@ -294,6 +294,8 @@ class JobStore:
             "equity_curve.csv",
             "daily_returns.csv",
             "logs.csv",
+            "logs.jsonl",
+            "report.html",
             "report.svg",
         }
         missing_artifacts = sorted(

@@ -288,6 +288,8 @@ class Strategy(StrategyBase):
             self.assertTrue(Path(artifacts.equity_path).exists())
             self.assertTrue(Path(artifacts.daily_returns_path).exists())
             self.assertTrue(Path(artifacts.logs_path).exists())
+            self.assertTrue(Path(artifacts.logs_jsonl_path).exists())
+            self.assertTrue(Path(artifacts.html_path).exists())
             summary = json.loads(Path(artifacts.summary_path).read_text())
             self.assertEqual(summary["artifacts"]["orders"], "orders.csv")
             with Path(artifacts.daily_returns_path).open(newline="") as handle:
@@ -295,6 +297,10 @@ class Strategy(StrategyBase):
             self.assertEqual(len(daily_returns), len(result.daily_returns))
             self.assertGreater(len(daily_returns), 0)
             ElementTree.parse(artifacts.chart_path)
+            self.assertIn(
+                "Next-bar execution",
+                Path(artifacts.html_path).read_text(encoding="utf-8"),
+            )
 
 
 if __name__ == "__main__":

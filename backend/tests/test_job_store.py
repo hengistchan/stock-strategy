@@ -158,6 +158,14 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
                 "date,level,message\n2025-01-03,FILL,filled\n",
                 encoding="utf-8",
             )
+            (run_dir / "logs.jsonl").write_text(
+                '{"date":"2025-01-03","level":"FILL","message":"filled"}\n',
+                encoding="utf-8",
+            )
+            (run_dir / "report.html").write_text(
+                "<!doctype html><title>Backtest</title>",
+                encoding="utf-8",
+            )
             (run_dir / "report.svg").write_text("<svg/>", encoding="utf-8")
 
             with patch(
@@ -200,7 +208,9 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
                 "equity_curve.csv",
                 "fills.csv",
                 "logs.csv",
+                "logs.jsonl",
                 "orders.csv",
+                "report.html",
                 "report.svg",
                 "summary.json",
                 "trades.csv",

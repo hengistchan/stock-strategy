@@ -36,6 +36,8 @@ def write_artifacts(
     equity_path = output_dir / "equity_curve.csv"
     daily_returns_path = output_dir / "daily_returns.csv"
     logs_path = output_dir / "logs.csv"
+    logs_jsonl_path = output_dir / "logs.jsonl"
+    html_path = output_dir / "report.html"
     chart_path = output_dir / "report.svg" if create_chart else None
 
     summary = {
@@ -51,6 +53,8 @@ def write_artifacts(
             "equity_curve": equity_path.name,
             "daily_returns": daily_returns_path.name,
             "logs": logs_path.name,
+            "logs_jsonl": logs_jsonl_path.name,
+            "html": html_path.name,
             "chart": chart_path.name if chart_path else None,
         },
     }
@@ -61,8 +65,16 @@ def write_artifacts(
     _write_csv(equity_path, result.equity_curve, EquityPoint)
     _write_csv(daily_returns_path, result.daily_returns, DailyReturn)
     _write_csv(logs_path, result.logs, LogEntry)
+    logs_jsonl_path.write_text(
+        "".join(
+            json.dumps(asdict(log), ensure_ascii=False) + "\n"
+            for log in result.logs
+        ),
+        encoding="utf-8",
+    )
     if chart_path:
         _write_chart(result, chart_path)
+    _write_report_html(result, html_path, chart_path)
 
     artifacts = BacktestArtifacts(
         output_dir=str(output_dir),
@@ -73,6 +85,8 @@ def write_artifacts(
         equity_path=str(equity_path),
         daily_returns_path=str(daily_returns_path),
         logs_path=str(logs_path),
+        logs_jsonl_path=str(logs_jsonl_path),
+        html_path=str(html_path),
         chart_path=str(chart_path) if chart_path else None,
     )
     result.artifacts = artifacts
@@ -209,6 +223,47 @@ def _write_chart(result: BacktestResult, path: Path) -> None:
         ]
     )
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_report_html(
+    result: BacktestResult,
+    path: Path,
+    chart_path: Path | None,
+) -> None:
+    metrics = result.metrics
+    chart = (
+        f'<img src="{escape(chart_path.name)}" alt="Backtest equity, drawdown and trade P&amp;L chart">'
+        if chart_path
+        else "<p>Static chart was disabled for this run.</p>"
+    )
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{escape(result.strategy_name)} · {escape(result.symbol)}</title>
+  <style>
+    body{{max-width:1200px;margin:40px auto;padding:0 24px;color:#233941;background:#eef2f2;font-family:system-ui,sans-serif}}
+    header{{display:flex;justify-content:space-between;gap:24px;border-bottom:1px solid #233941}}
+    dl{{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#ccd7d8}}
+    dl div{{padding:14px;background:#f9fbfa}}dt{{color:#61747b;font-size:12px}}dd{{margin:5px 0 0;font-size:22px;font-weight:700}}
+    img{{display:block;width:100%;margin-top:24px}}footer{{margin-top:24px;color:#61747b;font-size:12px}}
+  </style>
+</head>
+<body>
+  <header><div><h1>{escape(result.strategy_name)}</h1><p>{escape(result.symbol)}</p></div><p>{escape(result.start_date)} → {escape(result.end_date)}</p></header>
+  <dl>
+    <div><dt>Total return</dt><dd>{metrics.total_return_pct:+.2f}%</dd></div>
+    <div><dt>Benchmark</dt><dd>{metrics.benchmark_return_pct:+.2f}%</dd></div>
+    <div><dt>Max drawdown</dt><dd>{metrics.max_drawdown_pct:.2f}%</dd></div>
+    <div><dt>Sharpe</dt><dd>{metrics.sharpe_ratio:.2f}</dd></div>
+  </dl>
+  {chart}
+  <footer>Next-bar execution · costs included · research use only</footer>
+</body>
+</html>
+"""
+    path.write_text(html, encoding="utf-8")
 
 
 def _points(

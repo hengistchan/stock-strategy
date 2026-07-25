@@ -525,6 +525,8 @@ class BacktestArtifacts:
     equity_path: str
     daily_returns_path: str
     logs_path: str
+    logs_jsonl_path: str
+    html_path: str
     chart_path: str | None = None
 
 
