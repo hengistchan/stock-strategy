@@ -19,12 +19,9 @@ from .execution_service import ExecutionService
 from .diagnostics import DiagnosticsService, is_opend_available
 from .experiments import ExperimentStore
 from .job_store import JobStore, last_error as _last_error
-from .job_lifecycle import InvalidJobTransition
 from .opend import OpenDRequestError, OpenDSymbolDirectory, OpenDUnavailableError
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
 from .result_reader import (
-    INITIAL_PRICE_WINDOW,
-    MAX_PRICE_WINDOW,
     read_downsampled_equity_curve as _read_downsampled_equity_curve,
 )
 from .strategy_parameters import StrategyParameterError
@@ -40,11 +37,11 @@ from .web_models import (
     KLINE_TYPES,
     SESSION_TYPES,
     SYMBOL_PATTERN,
-    BacktestRequest,
     ExperimentRequest,
     StrategyCreateRequest,
     StrategySaveRequest,
 )
+from .web_jobs import create_jobs_router
 
 
 def create_app(
@@ -117,6 +114,7 @@ def create_app(
     assets_root = web_root / "assets"
     if assets_root.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_root), name="assets")
+    app.include_router(create_jobs_router(store, execution))
 
     @app.get("/")
     async def index():
@@ -225,71 +223,6 @@ def create_app(
             )
         except StrategyRepositoryError as error:
             raise _strategy_http_error(error) from error
-
-    @app.get("/api/jobs")
-    async def jobs() -> dict[str, Any]:
-        return {"jobs": store.list_jobs()[:50]}
-
-    @app.post("/api/jobs", status_code=202)
-    async def create_job(request: BacktestRequest) -> dict[str, Any]:
-        try:
-            return execution.create_backtest(request)
-        except (StrategyRepositoryError, StrategyParameterError) as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-    @app.get("/api/jobs/{job_id}")
-    async def job(job_id: str) -> dict[str, Any]:
-        try:
-            return store.get_job(job_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-
-    @app.delete("/api/jobs/{job_id}", status_code=202)
-    async def cancel_job(job_id: str) -> dict[str, Any]:
-        try:
-            return await store.cancel(job_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-
-    @app.post("/api/jobs/{job_id}/retry", status_code=202)
-    async def retry_job(job_id: str) -> dict[str, Any]:
-        try:
-            return store.retry(job_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-        except (InvalidJobTransition, OSError, ValueError) as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-    @app.get("/api/jobs/{job_id}/result")
-    async def result(job_id: str) -> dict[str, Any]:
-        try:
-            return store.load_result(job_id)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-        except RuntimeError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-    @app.get("/api/jobs/{job_id}/prices")
-    async def prices(
-        job_id: str,
-        offset: int = Query(default=0, ge=0),
-        limit: int = Query(default=INITIAL_PRICE_WINDOW, ge=1, le=MAX_PRICE_WINDOW),
-    ) -> dict[str, Any]:
-        try:
-            return store.load_price_window(job_id, offset, limit)
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-        except RuntimeError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-    @app.get("/api/jobs/{job_id}/report.svg")
-    async def report(job_id: str) -> FileResponse:
-        try:
-            return FileResponse(store.report_path(job_id), media_type="image/svg+xml")
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="找不到这次回测。") from error
-        except RuntimeError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.get("/api/experiments")
     async def list_experiments() -> dict[str, Any]:
