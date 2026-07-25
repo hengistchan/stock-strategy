@@ -5,28 +5,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from .strategy_repository import MAX_STRATEGY_BYTES
-
-
-SYMBOL_PATTERN = r"^[A-Z]{2,8}\.[A-Z0-9.-]{1,24}$"
-KLINE_TYPES = (
-    "K_DAY",
-    "K_WEEK",
-    "K_1M",
-    "K_3M",
-    "K_5M",
-    "K_10M",
-    "K_15M",
-    "K_30M",
-    "K_60M",
-    "K_120M",
-    "K_180M",
-    "K_240M",
+from .application_models import (
+    KLINE_TYPES,
+    SESSION_TYPES,
+    SYMBOL_PATTERN,
+    BacktestSpec,
+    ExperimentSpec,
+    ParameterValue,
 )
-SESSION_TYPES = ("ALL", "RTH", "ETH")
-
-
-ParameterValue = bool | int | float | str
+from .strategy_repository import MAX_STRATEGY_BYTES
 
 
 class BacktestRequest(BaseModel):
@@ -66,6 +53,9 @@ class BacktestRequest(BaseModel):
             raise ValueError("结束日期不能早于开始日期。")
         return self
 
+    def to_spec(self) -> BacktestSpec:
+        return BacktestSpec(**self.model_dump())
+
 
 class ExperimentRequest(BaseModel):
     name: str = Field(default="参数实验", min_length=1, max_length=80)
@@ -74,6 +64,16 @@ class ExperimentRequest(BaseModel):
     objective: Literal[
         "total_return_pct", "sharpe_ratio", "max_drawdown_pct"
     ] = "sharpe_ratio"
+
+    def to_spec(self) -> ExperimentSpec:
+        return ExperimentSpec(
+            name=self.name,
+            base=self.base.to_spec(),
+            parameter_grid={
+                name: list(values) for name, values in self.parameter_grid.items()
+            },
+            objective=self.objective,
+        )
 
 
 class StrategyCreateRequest(BaseModel):

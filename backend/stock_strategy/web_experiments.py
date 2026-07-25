@@ -25,7 +25,7 @@ def create_experiments_router(
     @router.post("", status_code=202)
     async def create_experiment(request: ExperimentRequest) -> dict[str, Any]:
         try:
-            return execution.create_experiment(request)
+            return execution.create_experiment(request.to_spec())
         except (
             StrategyRepositoryError,
             StrategyParameterError,

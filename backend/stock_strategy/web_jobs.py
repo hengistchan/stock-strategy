@@ -28,7 +28,7 @@ def create_jobs_router(
     @router.post("", status_code=202)
     async def create_job(request: BacktestRequest) -> dict[str, Any]:
         try:
-            return execution.create_backtest(request)
+            return execution.create_backtest(request.to_spec())
         except (StrategyRepositoryError, StrategyParameterError) as error:
             raise ApiProblem(
                 status_code=422,
