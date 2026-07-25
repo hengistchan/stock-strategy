@@ -1,10 +1,57 @@
 import unittest
 
 from stock_strategy.broker import Broker
+from stock_strategy.execution_models import FeeModel, SlippageModel
 from stock_strategy.models import Bar, BarType, Contract, OrderSide, TimeInForce
 
 
+class FlatFeeModel(FeeModel):
+    def calculate(self, *, price: float, quantity: float, side: OrderSide) -> float:
+        del price, quantity, side
+        return 7.0
+
+    def manifest(self):
+        return {"name": "test-flat-fee", "amount": 7}
+
+
+class FixedSlippageModel(SlippageModel):
+    def apply(self, *, price: float, side: OrderSide) -> float:
+        return price + 2 if side in (OrderSide.BUY, OrderSide.BUY_BACK) else price - 2
+
+    def manifest(self):
+        return {"name": "test-fixed-slippage", "amount": 2}
+
+
 class BrokerTest(unittest.TestCase):
+    def test_custom_fee_and_slippage_models_drive_reservation_and_fill(self):
+        broker = Broker(
+            1_100,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            fee_model=FlatFeeModel(),
+            slippage_model=FixedSlippageModel(),
+        )
+        symbol = Contract("US.TEST")
+        self.assertEqual(broker.max_cash_buy_quantity(100), 10)
+        order_id = broker.submit(
+            symbol=symbol,
+            side=OrderSide.BUY,
+            quantity=10,
+            order_type="MARKET",
+            current_index=0,
+            current_date="2025-01-02",
+            current_price=100,
+        )
+
+        self.assertEqual(broker.get_order(order_id).reserved_cash, 1_027)
+        broker.process_bar(Bar("2025-01-03", 100, 103, 99, 101, 1_000), 1)
+
+        self.assertEqual(broker.fills[0].price, 102)
+        self.assertEqual(broker.fills[0].fee, 7)
+        self.assertEqual(broker.cash, 73)
+
     def test_market_order_fills_on_next_bar_open(self):
         broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
         symbol = Contract("US.TEST")

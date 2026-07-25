@@ -29,6 +29,14 @@ class RuntimeTest(unittest.TestCase):
         self.assertEqual(result.settings["data_window"]["input_bars"], 400)
         self.assertEqual(result.settings["data_window"]["evaluation_bars"], 340)
         self.assertEqual(
+            result.settings["execution_models"]["fee"]["name"],
+            "bps-commission-v1",
+        )
+        self.assertEqual(
+            result.settings["execution_models"]["slippage"]["name"],
+            "bps-slippage-v1",
+        )
+        self.assertEqual(
             result.settings["engine_contract"]["version"],
             ENGINE_CONTRACT_VERSION,
         )

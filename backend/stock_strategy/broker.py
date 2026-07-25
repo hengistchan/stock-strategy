@@ -3,6 +3,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from .execution_models import (
+    BpsCommissionModel,
+    BpsSlippageModel,
+    FeeModel,
+    SlippageModel,
+)
 from .models import (
     Bar,
     BarType,
@@ -56,11 +62,22 @@ class Broker:
         slippage_bps: float,
         allow_short: bool,
         bar_type: BarType | str = BarType.K_DAY,
+        *,
+        fee_model: FeeModel | None = None,
+        slippage_model: SlippageModel | None = None,
     ) -> None:
         if initial_cash <= 0:
             raise ValueError("initial_cash must be positive")
         self.initial_cash = float(initial_cash)
         self.cash = float(initial_cash)
+        self.fee_model = fee_model or BpsCommissionModel(
+            commission_bps=commission_bps,
+            min_commission=min_commission,
+        )
+        self.slippage_model = slippage_model or BpsSlippageModel(
+            slippage_bps=slippage_bps
+        )
+        # Keep these public attributes for strategy/runtime compatibility.
         self.commission_rate = commission_bps / 10_000
         self.min_commission = float(min_commission)
         self.slippage_rate = slippage_bps / 10_000
@@ -331,9 +348,14 @@ class Broker:
         return self.cash + self.position.quantity * mark_price
 
     def max_cash_buy_quantity(self, mark_price: float) -> int:
-        effective_price = mark_price * (1 + self.slippage_rate + self.commission_rate)
-        available = max(0.0, self.available_cash - self.min_commission)
-        return max(0, math.floor(available / effective_price))
+        execution_price = self._apply_slippage(mark_price, OrderSide.BUY)
+        quantity = max(0, math.floor(self.available_cash / execution_price))
+        while quantity > 0:
+            fee = self._calculate_fee(execution_price, quantity, OrderSide.BUY)
+            if quantity * execution_price + fee <= self.available_cash + 1e-9:
+                return quantity
+            quantity -= 1
+        return 0
 
     @property
     def reserved_buy_cash(self) -> float:
@@ -372,8 +394,8 @@ class Broker:
         if not math.isfinite(reference_price) or reference_price <= 0:
             raise ValueError("current price must be positive when reserving order cash")
         if order_type != "LIMIT":
-            reference_price *= 1 + self.slippage_rate
-        fee = max(self.min_commission, quantity * reference_price * self.commission_rate)
+            reference_price = self._apply_slippage(reference_price, side)
+        fee = self._calculate_fee(reference_price, quantity, side)
         return quantity * reference_price + fee
 
     @staticmethod
@@ -501,15 +523,28 @@ class Broker:
         return order.trail_reference + order.trail_value
 
     def _apply_slippage(self, price: float, side: OrderSide) -> float:
-        if side in (OrderSide.BUY, OrderSide.BUY_BACK):
-            return price * (1 + self.slippage_rate)
-        return price * (1 - self.slippage_rate)
+        result = self.slippage_model.apply(price=price, side=side)
+        if not math.isfinite(result) or result <= 0:
+            raise ValueError("slippage model returned a non-positive or non-finite price")
+        return result
+
+    def _calculate_fee(
+        self, price: float, quantity: float, side: OrderSide
+    ) -> float:
+        fee = self.fee_model.calculate(
+            price=price,
+            quantity=quantity,
+            side=side,
+        )
+        if not math.isfinite(fee) or fee < 0:
+            raise ValueError("fee model returned a negative or non-finite fee")
+        return fee
 
     def _execute(self, order: Order, date: str, index: int, price: float) -> None:
         if not self._validate_position_change(order, date, price):
             return
 
-        fee = max(self.min_commission, order.quantity * price * self.commission_rate)
+        fee = self._calculate_fee(price, order.quantity, order.side)
         signed_delta = order.quantity if order.side in (OrderSide.BUY, OrderSide.BUY_BACK) else -order.quantity
         old_quantity = self.position.quantity
 
@@ -552,7 +587,7 @@ class Broker:
             if position < 0:
                 reason = "BUY cannot cover a short position; use BUY_BACK"
             else:
-                estimated_fee = max(self.min_commission, quantity * price * self.commission_rate)
+                estimated_fee = self._calculate_fee(price, quantity, order.side)
                 if quantity * price + estimated_fee > self.cash + 1e-9:
                     reason = "insufficient cash"
         elif order.side == OrderSide.SELL:

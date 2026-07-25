@@ -156,6 +156,10 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "strategy_parameter_definitions": parameter_definitions,
             "strategy_path": str(path),
             "ending_position": ending_position,
+            "execution_models": {
+                "fee": broker.fee_model.manifest(),
+                "slippage": broker.slippage_model.manifest(),
+            },
             "data_window": {
                 "input_start": bars[0].date,
                 "input_end": bars[-1].date,
