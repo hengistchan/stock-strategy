@@ -180,9 +180,7 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             manifest = json.loads(
                 (store.root / job["id"] / "manifest.json").read_text(encoding="utf-8")
             )
-            summary = json.loads(
-                (run_dir / "summary.json").read_text(encoding="utf-8")
-            )
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
             snapshot_path = root / completed["market_data_path"]
             strategy_snapshot = root / completed["strategy_snapshot_path"]
 

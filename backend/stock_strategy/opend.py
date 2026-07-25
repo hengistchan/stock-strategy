@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import csv
+import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-import re
 from threading import Lock
 from time import monotonic
 from typing import Any, Callable
-
 
 HISTORY_SESSIONS = frozenset({"ALL", "RTH", "ETH"})
 
@@ -50,9 +49,7 @@ class OpenDSymbolDirectory:
         loader: Callable[[], list[OpenDSymbol]] | None = None,
     ) -> None:
         self._ttl_seconds = ttl_seconds
-        self._loader = loader or (
-            lambda: fetch_stock_directory(host=host, port=port)
-        )
+        self._loader = loader or (lambda: fetch_stock_directory(host=host, port=port))
         self._symbols: list[OpenDSymbol] = []
         self._loaded_at = 0.0
         self._lock = Lock()
@@ -62,11 +59,15 @@ class OpenDSymbolDirectory:
         if not normalized:
             return []
         symbols = self._load()
-        return [item.to_dict() for item in match_stock_symbols(symbols, normalized, limit)]
+        return [
+            item.to_dict() for item in match_stock_symbols(symbols, normalized, limit)
+        ]
 
     def resolve(self, codes: list[str]) -> list[dict[str, str]]:
         """Resolve exact Futu codes while preserving the requested order."""
-        requested = list(dict.fromkeys(code.strip().upper() for code in codes if code.strip()))
+        requested = list(
+            dict.fromkeys(code.strip().upper() for code in codes if code.strip())
+        )
         inventory = {symbol.code: symbol for symbol in self._load()}
         return [inventory[code].to_dict() for code in requested if code in inventory]
 
@@ -96,7 +97,7 @@ def fetch_stock_directory(
     stock_type: Any = "STOCK"
     if context_factory is None:
         try:
-            from futu import OpenQuoteContext, RET_OK, SecurityType
+            from futu import RET_OK, OpenQuoteContext, SecurityType
         except ImportError as error:
             raise OpenDUnavailableError(
                 "Futu SDK is not installed; install the project with the opend extra"
@@ -109,9 +110,7 @@ def fetch_stock_directory(
     symbols: dict[str, OpenDSymbol] = {}
     try:
         for market in markets:
-            ret, frame = context.get_stock_basicinfo(
-                market, stock_type=stock_type
-            )
+            ret, frame = context.get_stock_basicinfo(market, stock_type=stock_type)
             if ret != success_code:
                 raise OpenDRequestError(
                     f"OpenD get_stock_basicinfo failed for {market}: {frame}"
@@ -152,7 +151,9 @@ def match_stock_symbols(
 
         if normalized_query == code or normalized_query == local_code:
             score = (0.0, len(code), code)
-        elif code.startswith(normalized_query) or local_code.startswith(normalized_query):
+        elif code.startswith(normalized_query) or local_code.startswith(
+            normalized_query
+        ):
             score = (1.0, len(code), code)
         elif normalized_query == name:
             score = (2.0, len(name), code)
@@ -203,7 +204,7 @@ def fetch_stock_metadata(
     """Read stock lot, tick and classification metadata from OpenD."""
     if context_factory is None:
         try:
-            from futu import OpenQuoteContext, RET_OK
+            from futu import RET_OK, OpenQuoteContext
         except ImportError as error:
             raise OpenDUnavailableError(
                 "Futu SDK is not installed; install the project with the opend extra"
@@ -216,7 +217,9 @@ def fetch_stock_metadata(
         if ret != success_code:
             raise OpenDRequestError(f"OpenD get_market_snapshot failed: {frame}")
         if not hasattr(frame, "to_dict"):
-            raise OpenDRequestError("OpenD returned an unexpected stock metadata payload")
+            raise OpenDRequestError(
+                "OpenD returned an unexpected stock metadata payload"
+            )
         records = frame.to_dict("records")
         if not records:
             raise OpenDRequestError(f"OpenD returned no stock metadata for {symbol}")
@@ -256,11 +259,13 @@ def fetch_history_kline(
     normalized_session = session.upper()
     if normalized_session not in HISTORY_SESSIONS:
         supported = ", ".join(sorted(HISTORY_SESSIONS))
-        raise ValueError(f"unsupported OpenD history session {session!r}; expected {supported}")
+        raise ValueError(
+            f"unsupported OpenD history session {session!r}; expected {supported}"
+        )
 
     if context_factory is None:
         try:
-            from futu import OpenQuoteContext, RET_OK
+            from futu import RET_OK, OpenQuoteContext
         except ImportError as error:
             raise OpenDUnavailableError(
                 "Futu SDK is not installed; install the project with the opend extra"

@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal, Mapping, TypeAlias
 
-
 SYMBOL_PATTERN = r"^[A-Z]{2,8}\.[A-Z0-9.-]{1,24}$"
 KLINE_TYPES = (
     "K_DAY",

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
 import hashlib
-from importlib.metadata import PackageNotFoundError, version
 import json
-from pathlib import Path
 import re
+from datetime import datetime
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any, Mapping
-
 
 CACHE_ID_PATTERN = re.compile(r"^[a-f0-9]{16}$")
 CACHE_SCHEMA_VERSION = 1
@@ -92,7 +91,9 @@ class MarketDataCache:
                 entries.append(payload)
             except (OSError, KeyError, ValueError, json.JSONDecodeError):
                 continue
-        return sorted(entries, key=lambda entry: entry.get("updated_at", ""), reverse=True)
+        return sorted(
+            entries, key=lambda entry: entry.get("updated_at", ""), reverse=True
+        )
 
     def delete(self, cache_id: str) -> bool:
         if not CACHE_ID_PATTERN.fullmatch(cache_id):

@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import re
 import statistics
-from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from .context import get_context
@@ -33,10 +32,15 @@ class Series:
 
     def _binary(self, other: Any, operation: Callable[[float, float], float]) -> Series:
         right = _broadcast(other, len(self))
-        return Series(operation(left, value) for left, value in zip(self.values, right))
+        return Series(
+            operation(left, value)
+            for left, value in zip(self.values, right, strict=True)
+        )
 
     def _compare(self, other: Any, operation: Callable[[float, float], bool]) -> Series:
-        return self._binary(other, lambda left, right: 1.0 if operation(left, right) else 0.0)
+        return self._binary(
+            other, lambda left, right: 1.0 if operation(left, right) else 0.0
+        )
 
     def __add__(self, other: Any) -> Series:
         return self._binary(other, lambda left, right: left + right)
@@ -55,7 +59,9 @@ class Series:
     __rmul__ = __mul__
 
     def __truediv__(self, other: Any) -> Series:
-        return self._binary(other, lambda left, right: left / right if right else math.nan)
+        return self._binary(
+            other, lambda left, right: left / right if right else math.nan
+        )
 
     def __rtruediv__(self, other: Any) -> Series:
         return Series(_broadcast(other, len(self))).__truediv__(self)
@@ -112,16 +118,19 @@ def get_MyLang_indicator(
     environment.update({str(name).upper(): value for name, value in params.items()})
     outputs: dict[str, Any] = {}
     for statement in _statements(registration["script"]):
-        match = re.match(
-            r"^([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|:|=)\s*(.+)$", statement
-        )
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|:|=)\s*(.+)$", statement)
         if not match:
             continue
         name, expression = match.groups()
         translated = _translate_expression(expression)
         scope = {**_MYLANG_FUNCTIONS, **environment, **outputs}
         try:
-            outputs[name.upper()] = eval(translated, {"__builtins__": {}}, scope)
+            # This evaluates a trusted user indicator inside the strategy process.
+            outputs[name.upper()] = eval(  # nosec B307
+                translated,
+                {"__builtins__": {}},
+                scope,
+            )
         except Exception as error:
             raise DataUnavailableError(
                 f"MyLang indicator {indicator_name}.{name} could not be evaluated: {error}"
@@ -184,7 +193,11 @@ def get_Python_indicator(
         "math": math,
     }
     try:
-        exec(compile(registration["script"], f"<{indicator_name}>", "exec"), namespace)
+        # Trusted user code is isolated by the strategy process profile.
+        exec(  # nosec B102
+            compile(registration["script"], f"<{indicator_name}>", "exec"),
+            namespace,
+        )
     except Exception as error:
         raise DataUnavailableError(
             f"Python indicator {indicator_name} could not be evaluated: {error}"
@@ -204,7 +217,9 @@ def MA(value: Any, period: int) -> Series:
     series = _as_series(value)
     period = int(period)
     return Series(
-        math.nan if index + 1 < period else statistics.fmean(series.values[index - period + 1 : index + 1])
+        math.nan
+        if index + 1 < period
+        else statistics.fmean(series.values[index - period + 1 : index + 1])
         for index in range(len(series))
     )
 
@@ -246,7 +261,9 @@ def SUM(value: Any, period: int) -> Series:
     series = _as_series(value)
     period = int(period)
     return Series(
-        math.nan if index + 1 < period else sum(series.values[index - period + 1 : index + 1])
+        math.nan
+        if index + 1 < period
+        else sum(series.values[index - period + 1 : index + 1])
         for index in range(len(series))
     )
 
@@ -279,7 +296,9 @@ def MIN(left: Any, right: Any) -> Series:
 def IF(condition: Any, when_true: Any, when_false: Any) -> Series:
     test = _as_series(condition)
     left, right = _broadcast(when_true, len(test)), _broadcast(when_false, len(test))
-    return Series(a if flag else b for flag, a, b in zip(test, left, right))
+    return Series(
+        a if flag else b for flag, a, b in zip(test, left, right, strict=True)
+    )
 
 
 def CROSS(left: Any, right: Any) -> Series:
@@ -287,17 +306,26 @@ def CROSS(left: Any, right: Any) -> Series:
     right_values = _broadcast(b, len(a))
     output = [0.0]
     for index in range(1, len(a)):
-        output.append(1.0 if a[index] > right_values[index] and a[index - 1] <= right_values[index - 1] else 0.0)
+        output.append(
+            1.0
+            if a[index] > right_values[index]
+            and a[index - 1] <= right_values[index - 1]
+            else 0.0
+        )
     return Series(output)
 
 
-def _series_environment(symbol: Contract, bar_type: BarType, select: int, session_type: THType) -> dict[str, Series]:
+def _series_environment(
+    symbol: Contract, bar_type: BarType, select: int, session_type: THType
+) -> dict[str, Series]:
     context = get_context()
     if str(symbol) != str(context.symbol):
         raise DataUnavailableError("custom indicators support the trigger stock only")
     requested = BarType(bar_type)
     if not can_derive(context.bar_type, requested):
-        raise DataUnavailableError(f"cannot derive {requested.value} from {context.bar_type.value}")
+        raise DataUnavailableError(
+            f"cannot derive {requested.value} from {context.bar_type.value}"
+        )
     if str(symbol).startswith("US.") and THType(session_type) != context.session_type:
         raise DataUnavailableError(
             f"requested {THType(session_type).value} but input contains {context.session_type.value}"
@@ -319,7 +347,9 @@ def _registration(indicator_name: str, kind: str) -> dict[str, Any]:
     try:
         registration = get_context().registered_indicators[indicator_name.upper()]
     except KeyError as error:
-        raise DataUnavailableError(f"indicator {indicator_name} was not registered") from error
+        raise DataUnavailableError(
+            f"indicator {indicator_name} was not registered"
+        ) from error
     if registration["kind"] != kind:
         raise DataUnavailableError(
             f"indicator {indicator_name} was registered as {registration['kind']}, not {kind}"
@@ -329,7 +359,9 @@ def _registration(indicator_name: str, kind: str) -> dict[str, Any]:
 
 def _statements(script: str) -> list[str]:
     cleaned = re.sub(r"\{[^}]*\}", "", script)
-    return [part.strip() for part in cleaned.replace("\n", " ").split(";") if part.strip()]
+    return [
+        part.strip() for part in cleaned.replace("\n", " ").split(";") if part.strip()
+    ]
 
 
 def _translate_expression(expression: str) -> str:
@@ -347,11 +379,15 @@ def _translate_expression(expression: str) -> str:
     return expression
 
 
-def _rolling(value: Any, period: int, operation: Callable[[list[float]], float]) -> Series:
+def _rolling(
+    value: Any, period: int, operation: Callable[[list[float]], float]
+) -> Series:
     series = _as_series(value)
     period = int(period)
     return Series(
-        math.nan if index + 1 < period else operation(series.values[index - period + 1 : index + 1])
+        math.nan
+        if index + 1 < period
+        else operation(series.values[index - period + 1 : index + 1])
         for index in range(len(series))
     )
 
@@ -371,7 +407,11 @@ def _pairwise(
     )
     return Series(
         operation(a, b)
-        for a, b in zip(_broadcast(left, length), _broadcast(right, length))
+        for a, b in zip(
+            _broadcast(left, length),
+            _broadcast(right, length),
+            strict=True,
+        )
     )
 
 

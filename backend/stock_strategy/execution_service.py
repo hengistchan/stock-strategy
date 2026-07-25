@@ -14,6 +14,7 @@ from .strategy_repository import (
     compatibility_error,
 )
 
+
 class ExecutionService:
     """Application layer for validating and launching backtests and experiments."""
 
@@ -41,9 +42,7 @@ class ExecutionService:
     def create_experiment(self, request: ExperimentSpec) -> dict[str, Any]:
         prepared = self.prepare_backtest(request.base)
         if not prepared.definitions and not request.symbols:
-            raise ValueError(
-                "该策略没有声明 STRATEGY_PARAMETERS，无法创建参数实验"
-            )
+            raise ValueError("该策略没有声明 STRATEGY_PARAMETERS，无法创建参数实验")
 
         normalized_grid: dict[str, list[Any]] = {}
         if not request.symbols:
@@ -81,9 +80,7 @@ class ExecutionService:
         self.experiments.launch(experiment["id"])
         return experiment
 
-    def prepare_backtest(
-        self, request: BacktestSpec
-    ) -> PreparedBacktest:
+    def prepare_backtest(self, request: BacktestSpec) -> PreparedBacktest:
         strategy_path = self.strategies.resolve_for_backtest(request.strategy)
         strategy_document = self.strategies.read(request.strategy)
         incompatibility = compatibility_error(

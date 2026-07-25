@@ -67,9 +67,7 @@ def install_api_error_handlers(app: FastAPI) -> None:
         error: RequestValidationError,
     ) -> JSONResponse:
         details = error.errors()
-        message = "；".join(
-            str(item.get("msg", "Invalid request")) for item in details
-        )
+        message = "；".join(str(item.get("msg", "Invalid request")) for item in details)
         return JSONResponse(
             status_code=422,
             content=jsonable_encoder(

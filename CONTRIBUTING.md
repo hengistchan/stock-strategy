@@ -25,10 +25,12 @@ Vite 运行在 `127.0.0.1:5173`，并将 `/api` 代理到 FastAPI `127.0.0.1:800
 
 ```bash
 make test
+make quality
 make acceptance
 ```
 
 - Python 改动需要覆盖 `backend/tests/` 中的 `unittest`。
+- `make quality` 会执行 Ruff lint/format、mypy、74% branch coverage、Bandit 和 pip-audit；本机与 CI 使用相同门禁。
 - React 组件改动需要通过 ESLint、TypeScript 和 Vitest。
 - 关键工作台流程改动需要通过 `cd frontend && npm run test:e2e`；首次运行前执行 `npx playwright install chromium`。
 - OpenD 相关改动不得添加网页行情或静默模拟数据回退。

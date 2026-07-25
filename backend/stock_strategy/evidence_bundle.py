@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
 import io
 import json
-from pathlib import Path, PurePosixPath
 import shutil
-from typing import Any, Mapping
 import uuid
 import zipfile
+from datetime import datetime
+from pathlib import Path, PurePosixPath
+from typing import Any, Mapping
 
 from .run_manifest import atomic_write_json, canonical_json_bytes, sha256_bytes
-
 
 EVIDENCE_BUNDLE_SCHEMA_VERSION = 1
 MAX_BUNDLE_BYTES = 512 * 1024 * 1024
@@ -102,9 +101,9 @@ class EvidenceBundleService:
             run_dir.mkdir(parents=True, exist_ok=False)
             for name in ("strategy.py", "request.json", "market-data.csv"):
                 (staging / name).write_bytes(files[name])
-            for name, payload in files.items():
+            for name, file_bytes in files.items():
                 if name.startswith("output/"):
-                    (run_dir / name.removeprefix("output/")).write_bytes(payload)
+                    (run_dir / name.removeprefix("output/")).write_bytes(file_bytes)
 
             now = datetime.now().astimezone().isoformat(timespec="seconds")
             imported_manifest = dict(manifest)
@@ -116,7 +115,7 @@ class EvidenceBundleService:
                 execution_profile="imported-evidence-read-only",
             )
             atomic_write_json(staging / "manifest.json", imported_manifest)
-            payload = {
+            imported_job = {
                 "id": imported_id,
                 "status": "succeeded",
                 "created_at": now,
@@ -147,29 +146,25 @@ class EvidenceBundleService:
                 "stderr": "",
                 "error": None,
             }
-            atomic_write_json(staging / "job.json", payload)
+            atomic_write_json(staging / "job.json", imported_job)
             staging.replace(job_dir)
-            return payload
+            return imported_job
         except Exception:
             shutil.rmtree(staging, ignore_errors=True)
             raise
 
-    def _verified_export_files(
-        self, job_dir: Path, run_dir: Path
-    ) -> dict[str, bytes]:
-        manifest = _load_json(
-            (job_dir / "manifest.json").read_bytes(), "manifest.json"
-        )
+    def _verified_export_files(self, job_dir: Path, run_dir: Path) -> dict[str, bytes]:
+        manifest = _load_json((job_dir / "manifest.json").read_bytes(), "manifest.json")
         files = {
             name: (job_dir / name).read_bytes()
             for name in REQUIRED_JOB_FILES - {"market-data-manifest.json"}
         }
         if sha256_bytes(files["strategy.py"]) != manifest.get("strategy_sha256"):
             raise EvidenceBundleError("strategy snapshot hash does not match manifest")
-        if sha256_bytes(files["market-data.csv"]) != manifest.get(
-            "market_data_sha256"
-        ):
-            raise EvidenceBundleError("market-data snapshot hash does not match manifest")
+        if sha256_bytes(files["market-data.csv"]) != manifest.get("market_data_sha256"):
+            raise EvidenceBundleError(
+                "market-data snapshot hash does not match manifest"
+            )
         market_manifest = {
             key: manifest.get(key)
             for key in (
@@ -229,12 +224,14 @@ class EvidenceBundleService:
             if not isinstance(inventory, dict):
                 raise EvidenceBundleError("invalid evidence file inventory")
             if set(inventory) != names - {"bundle.json"}:
-                raise EvidenceBundleError("evidence inventory does not match ZIP entries")
+                raise EvidenceBundleError(
+                    "evidence inventory does not match ZIP entries"
+                )
             if not REQUIRED_JOB_FILES.issubset(inventory):
                 raise EvidenceBundleError("evidence bundle is missing job snapshots")
-            if not {
-                f"output/{name}" for name in REQUIRED_OUTPUT_FILES
-            }.issubset(inventory):
+            if not {f"output/{name}" for name in REQUIRED_OUTPUT_FILES}.issubset(
+                inventory
+            ):
                 raise EvidenceBundleError("evidence bundle is missing run artifacts")
             files: dict[str, bytes] = {}
             for name, expected in inventory.items():
@@ -254,10 +251,10 @@ class EvidenceBundleService:
         manifest = _load_json(files["manifest.json"], "manifest.json")
         if sha256_bytes(files["strategy.py"]) != manifest.get("strategy_sha256"):
             raise EvidenceBundleError("imported strategy hash does not match manifest")
-        if sha256_bytes(files["market-data.csv"]) != manifest.get(
-            "market_data_sha256"
-        ):
-            raise EvidenceBundleError("imported market-data hash does not match manifest")
+        if sha256_bytes(files["market-data.csv"]) != manifest.get("market_data_sha256"):
+            raise EvidenceBundleError(
+                "imported market-data hash does not match manifest"
+            )
         artifacts = manifest.get("artifacts")
         if not isinstance(artifacts, dict):
             raise EvidenceBundleError("imported manifest has no artifact inventory")
@@ -285,9 +282,7 @@ class EvidenceBundleService:
             raise EvidenceBundleError(f"symlinks are not allowed: {info.filename}")
 
     @staticmethod
-    def _write_zip_entry(
-        archive: zipfile.ZipFile, name: str, content: bytes
-    ) -> None:
+    def _write_zip_entry(archive: zipfile.ZipFile, name: str, content: bytes) -> None:
         info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o100600 << 16

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from importlib.metadata import PackageNotFoundError, version
 import os
-from pathlib import Path
 import socket
 import sys
+from dataclasses import asdict, dataclass
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Callable, Literal
 
 from .opend import OpenDSymbolDirectory
-
 
 DiagnosticStatus = Literal["pass", "fail", "blocked"]
 

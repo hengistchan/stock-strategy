@@ -38,7 +38,7 @@ cd ..
 
 新建 Web 回测时，`JobStore` 会先冻结 `strategy.py`、`request.json` 和 `manifest.json`，执行命令只读取任务内的策略快照。OpenD 数据完成后会复制为任务内的 `market-data.csv` 并校验 SHA-256；共享缓存被清理或原始策略被修改都不会改变既有结果。旧版任务缺少快照字段时仍可按原路径读取。
 
-作业元数据的权威状态保存在 WAL 模式的 `runs/state.sqlite3`。启动时会自动导入已有的 `runs/web/*/job.json`；后续状态更新仍写出 `job.json` 兼容镜像，因此旧工作区和外部脚本无需一次性迁移。
+作业与实验元数据的权威状态保存在 WAL 模式的 `runs/state.sqlite3`。启动时会自动导入已有的 `runs/web/*/job.json` 和 `runs/experiments/*/experiment.json`；实验候选、阶段与 job 关系使用外键表，后续更新仍写出 JSON 兼容镜像，因此旧工作区和外部脚本无需一次性迁移。
 
 `DELETE /api/jobs/{job_id}` 取消 queued/running 作业；`POST /api/jobs/{job_id}/retry` 只接受 failed/cancelled 作业，并从不可变策略快照创建带 `retry_of` 的新任务，不覆盖原结果。
 
@@ -46,7 +46,15 @@ cd ..
 
 费用和滑点通过 `FeeModel` / `SlippageModel` 接口注入 Broker。默认模型继续解释现有的 bps 与最低佣金字段，并将模型名称和参数写入 `summary.settings.execution_models`，以便复核成交假设。
 
-成功运行必须生成 `orders.csv`、`fills.csv`、`trades.csv`、`equity_curve.csv`、`daily_returns.csv`、`logs.csv` 和 `report.svg`。Web 作业在发布结果前校验这些文件，并将相对路径、字节数和 SHA-256 写入 `manifest.json`。
+成功运行必须生成 `orders.csv`、`fills.csv`、`trades.csv`、`equity_curve.csv`、`daily_returns.csv`、`logs.csv`、`logs.jsonl`、`report.html` 和 `report.svg`。Web 作业在发布结果前校验这些文件，并将相对路径、字节数和 SHA-256 写入 `manifest.json`。
+
+后端工程门禁：
+
+```bash
+make quality
+```
+
+该命令执行 Ruff lint/format、mypy、74% branch coverage、Bandit 与 pip-audit；GitHub Actions 同时在 Python 3.11 和 3.12 运行完整 fixture 验收。
 
 构建包含当前 React 生产资源的 wheel，并检查不存在陈旧哈希文件：
 

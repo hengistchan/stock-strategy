@@ -2,21 +2,20 @@ from __future__ import annotations
 
 import ast
 import builtins
-from datetime import datetime
 import hashlib
-from pathlib import Path
 import re
-from typing import Any
 import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
+from . import futu
 from .run_manifest import atomic_write_json, atomic_write_text
 from .strategy_parameters import StrategyParameterError, extract_parameter_definitions
-from . import futu
-
 
 MAX_STRATEGY_BYTES = 256 * 1024
 STRATEGY_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
-DEFAULT_STRATEGY_SOURCE = '''from stock_strategy.futu import *
+DEFAULT_STRATEGY_SOURCE = """from stock_strategy.futu import *
 
 
 STRATEGY_PARAMETERS = {}
@@ -30,7 +29,7 @@ class Strategy(StrategyBase):
     def handle_data(self):
         # 在当前 K 线收盘产生信号，订单最早于下一根 K 线成交。
         pass
-'''
+"""
 
 
 class StrategyRepositoryError(Exception):
@@ -61,7 +60,9 @@ class StrategyRepository:
         self.examples_root = (self.project_root / "examples").resolve()
         self.strategies_root = (self.project_root / "strategies").resolve()
         self.strategies_root.mkdir(parents=True, exist_ok=True)
-        self.versions_root = (self.project_root / "runs" / "strategy_versions").resolve()
+        self.versions_root = (
+            self.project_root / "runs" / "strategy_versions"
+        ).resolve()
         self.versions_root.mkdir(parents=True, exist_ok=True)
 
     def list(self) -> list[dict[str, Any]]:
@@ -120,16 +121,14 @@ class StrategyRepository:
         current = self._read_source(path)
         current_revision = _revision(current)
         if expected_revision and expected_revision != current_revision:
-            raise StrategyConflictError(
-                "策略已被其他操作修改，请重新载入后再保存。"
-            )
+            raise StrategyConflictError("策略已被其他操作修改，请重新载入后再保存。")
         validate_strategy_source(content)
         self._atomic_write(path, content)
         relative_path = str(path.relative_to(self.project_root))
         self._record_version(relative_path, content, reason="saved")
         return self.read(relative_path)
 
-    def versions(self, value: str) -> list[dict[str, Any]]:
+    def versions(self, value: str) -> builtins.list[dict[str, Any]]:
         path, _, _ = self._resolve_readable(value)
         relative_path = str(path.relative_to(self.project_root))
         content = self._read_source(path)
@@ -155,9 +154,7 @@ class StrategyRepository:
         relative_path = str(path.relative_to(self.project_root))
         current = self._read_source(path)
         if expected_revision and _revision(current) != expected_revision:
-            raise StrategyConflictError(
-                "策略已被其他操作修改，请重新载入后再恢复。"
-            )
+            raise StrategyConflictError("策略已被其他操作修改，请重新载入后再恢复。")
         source = self.version_source(relative_path, revision)
         validate_strategy_source(source)
         self._atomic_write(path, source)
@@ -223,9 +220,9 @@ class StrategyRepository:
             "readonly": readonly,
             "revision": _revision(source),
             "size": stat.st_size,
-            "updated_at": datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat(
-                timespec="seconds"
-            ),
+            "updated_at": datetime.fromtimestamp(stat.st_mtime)
+            .astimezone()
+            .isoformat(timespec="seconds"),
             "parameters": extract_parameter_definitions(source),
             "compatibility": analyze_strategy_compatibility(source),
         }
@@ -254,9 +251,7 @@ class StrategyRepository:
             {
                 "id": uuid.uuid4().hex,
                 "revision": revision,
-                "created_at": datetime.now().astimezone().isoformat(
-                    timespec="seconds"
-                ),
+                "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 "reason": reason,
                 "source_path": str(snapshot_path.relative_to(self.project_root)),
             }
@@ -458,7 +453,9 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
         "bar_types": sorted(bar_types),
         "driver_bar_type": driver_bar_type,
         "session_types": sorted(session_types),
-        "required_session": next(iter(session_types)) if len(session_types) == 1 else None,
+        "required_session": next(iter(session_types))
+        if len(session_types) == 1
+        else None,
         "findings": findings,
         "semantic_differences": [
             {
@@ -478,9 +475,7 @@ def analyze_strategy_compatibility(content: str) -> dict[str, Any]:
                 "message": "Open positions are marked to market unless end liquidation is enabled.",
             },
         ],
-        "suggestions": [
-            finding["suggestion"] for finding in findings
-        ],
+        "suggestions": [finding["suggestion"] for finding in findings],
     }
 
 
@@ -491,7 +486,6 @@ def compatibility_error(
 ) -> str | None:
     parts: list[str] = []
     unsupported_names = compatibility.get("unsupported_names") or []
-    bar_types = compatibility.get("bar_types") or []
     if unsupported_names:
         parts.append("尚未支持的 Futu 名称：" + "、".join(unsupported_names))
     driver_bar_type = compatibility.get("driver_bar_type")

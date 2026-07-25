@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from .api_errors import ApiProblem
 from .api_models import BacktestJob, error_responses
-from .evidence_bundle import EvidenceBundleError, MAX_BUNDLE_BYTES
+from .evidence_bundle import MAX_BUNDLE_BYTES, EvidenceBundleError
 from .job_store import JobStore
 
 
@@ -46,9 +46,7 @@ def create_evidence_router(store: JobStore) -> APIRouter:
     async def import_evidence(request: Request) -> dict[str, object]:
         declared_size = request.headers.get("content-length")
         try:
-            too_large = bool(
-                declared_size and int(declared_size) > MAX_BUNDLE_BYTES
-            )
+            too_large = bool(declared_size and int(declared_size) > MAX_BUNDLE_BYTES)
         except ValueError:
             too_large = False
         if too_large:

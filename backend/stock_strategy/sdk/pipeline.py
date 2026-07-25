@@ -7,6 +7,7 @@ from .models import (
     AccountState,
     ExecutionReceipt,
     OrderProposal,
+    OrderSide,
     PositionState,
     RiskDecision,
     SignalContext,
@@ -67,7 +68,7 @@ class StrategyPipeline:
             exit_decision = self.exit.evaluate(context, position)
             if exit_decision is None:
                 return PipelineDecision("no_action", reason="hold")
-            side = "sell" if position.quantity > 0 else "buy_back"
+            side: OrderSide = "sell" if position.quantity > 0 else "buy_back"
             proposal = OrderProposal(
                 symbol=position.symbol,
                 side=side,
@@ -111,4 +112,3 @@ class StrategyPipeline:
             executor=self.executor,
             reason=signal.reason,
         )
-

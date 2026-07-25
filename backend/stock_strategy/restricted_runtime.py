@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 from .strategy_process import RESTRICTED_EXECUTION_PROFILE
-
 
 _NETWORK_EVENTS = {
     "socket.__new__",
@@ -36,9 +35,9 @@ def install_restricted_runtime() -> bool:
         return False
     roots = tuple(
         Path(value).resolve()
-        for value in os.environ.get(
-            "STOCK_STRATEGY_ALLOWED_WRITE_ROOTS", ""
-        ).split(os.pathsep)
+        for value in os.environ.get("STOCK_STRATEGY_ALLOWED_WRITE_ROOTS", "").split(
+            os.pathsep
+        )
         if value
     )
     sys.addaudithook(lambda event, args: restricted_audit(event, args, roots))

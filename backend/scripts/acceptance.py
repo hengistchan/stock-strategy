@@ -6,15 +6,14 @@ import csv
 import json
 import math
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import date, datetime, time, timedelta
 import xml.etree.ElementTree as ElementTree
-
+from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 MINIMUM_PYTHON = (3, 11)
 ACCEPTANCE_SYMBOL = "US.ACCEPT"
@@ -103,7 +102,9 @@ def main(argv=None):
     try:
         evidence = verify_run(run_dir)
     except (AssertionError, KeyError, OSError, ValueError) as error:
-        return fail("artifact verification failed", error=str(error), run_dir=str(run_dir))
+        return fail(
+            "artifact verification failed", error=str(error), run_dir=str(run_dir)
+        )
 
     payload = {
         "status": "passed",
@@ -176,6 +177,8 @@ def verify_run(run_dir):
     equity_path = run_dir / "equity_curve.csv"
     daily_returns_path = run_dir / "daily_returns.csv"
     logs_path = run_dir / "logs.csv"
+    logs_jsonl_path = run_dir / "logs.jsonl"
+    html_path = run_dir / "report.html"
     report_path = run_dir / "report.svg"
     artifact_paths = (
         summary_path,
@@ -185,10 +188,12 @@ def verify_run(run_dir):
         equity_path,
         daily_returns_path,
         logs_path,
+        logs_jsonl_path,
+        html_path,
         report_path,
     )
     for path in artifact_paths:
-        assert path.is_file(), "missing artifact: {0}".format(path.name)
+        assert path.is_file(), f"missing artifact: {path.name}"
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["symbol"] == ACCEPTANCE_SYMBOL, "OpenD symbol inference mismatch"

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from datetime import datetime
 import math
 import statistics
+from collections import defaultdict
+from datetime import datetime
 from typing import Any, Iterable, Sequence
 
 from .models import DailyReturn, EquityPoint, Trade
-
 
 ROLLING_WINDOW_DAYS = 63
 MIN_ROLLING_DAYS = 20
@@ -79,9 +78,7 @@ def benchmark_statistics(
     ]
     active_std = statistics.stdev(active)
     information_ratio = (
-        statistics.fmean(active) / active_std * math.sqrt(252)
-        if active_std
-        else None
+        statistics.fmean(active) / active_std * math.sqrt(252) if active_std else None
     )
     return {
         "alpha_pct": alpha,
@@ -171,9 +168,7 @@ def _distribution(values: Sequence[float], *, percentage: bool) -> dict[str, Any
         "p90": _quantile(ordered, 0.9) * scale,
         "max": ordered[-1] * scale,
         "mean": statistics.fmean(ordered) * scale,
-        "std": (
-            statistics.stdev(ordered) * scale if len(ordered) > 1 else 0.0
-        ),
+        "std": (statistics.stdev(ordered) * scale if len(ordered) > 1 else 0.0),
     }
 
 

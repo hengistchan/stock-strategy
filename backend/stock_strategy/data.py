@@ -10,7 +10,6 @@ from typing import Any, Iterable, Mapping
 
 from .models import Bar
 
-
 ALIASES = {
     "code": ("code", "symbol", "股票代码", "证券代码", "證券代碼"),
     "date": ("time_key", "date", "datetime", "time", "日期", "时间"),
@@ -79,7 +78,11 @@ def bars_from_opend_records(
         )
     )
     requested_symbol = symbol.strip().upper() if symbol else None
-    if requested_symbol and available_symbols and requested_symbol not in available_symbols:
+    if (
+        requested_symbol
+        and available_symbols
+        and requested_symbol not in available_symbols
+    ):
         raise ValueError(
             f"Symbol {requested_symbol} not found; available: {', '.join(available_symbols)}"
         )
@@ -88,7 +91,9 @@ def bars_from_opend_records(
             "OpenD data contains multiple symbols; pass --symbol with one of: "
             + ", ".join(available_symbols)
         )
-    resolved_symbol = requested_symbol or (available_symbols[0] if available_symbols else None)
+    resolved_symbol = requested_symbol or (
+        available_symbols[0] if available_symbols else None
+    )
     selected_rows = [
         row
         for row in rows
@@ -118,7 +123,8 @@ def bars_from_opend_records(
 
 def generate_sample_bars(count: int = 880, seed: int = 20260713) -> list[Bar]:
     """Create deterministic synthetic daily bars for end-to-end smoke tests."""
-    rng = random.Random(seed)
+    # Reproducible market fixture; this RNG has no security purpose.
+    rng = random.Random(seed)  # nosec B311
     cursor = date(2023, 1, 3)
     previous_close = 126.4
     bars: list[Bar] = []
@@ -143,7 +149,9 @@ def generate_sample_bars(count: int = 880, seed: int = 20260713) -> list[Bar]:
             spread = abs(rng.gauss(0, 0.009)) + 0.003
             high = max(open_price, close) * (1 + spread)
             low = min(open_price, close) * (1 - spread * rng.uniform(0.75, 1.25))
-            volume = round(rng.uniform(42_000_000, 80_000_000) * (1 + abs(intraday) * 9))
+            volume = round(
+                rng.uniform(42_000_000, 80_000_000) * (1 + abs(intraday) * 9)
+            )
             bars.append(
                 Bar(
                     date=cursor.isoformat(),
@@ -163,7 +171,9 @@ def _resolve_columns(fieldnames: Iterable[str]) -> dict[str, str | None]:
     normalized = {name.strip().lower(): name for name in fieldnames}
     result: dict[str, str | None] = {}
     for field, aliases in ALIASES.items():
-        result[field] = next((normalized[name] for name in aliases if name in normalized), None)
+        result[field] = next(
+            (normalized[name] for name in aliases if name in normalized), None
+        )
     missing = [
         field
         for field, source in result.items()
@@ -203,7 +213,9 @@ def _parse_row(
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError(f"Invalid value on CSV line {line_no}: {error}") from error
 
-    if not all(math.isfinite(value) for value in (open_price, high, low, close, volume)):
+    if not all(
+        math.isfinite(value) for value in (open_price, high, low, close, volume)
+    ):
         raise ValueError(f"Values must be finite on CSV line {line_no}")
     if min(open_price, high, low, close) <= 0:
         raise ValueError(f"Prices must be positive on CSV line {line_no}")

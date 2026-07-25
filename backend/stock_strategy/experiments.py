@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import shutil
+import uuid
 from datetime import date, datetime, timedelta
 from itertools import product
 from pathlib import Path
-import re
-import shutil
 from statistics import fmean, median, pstdev
 from typing import Any, Mapping, Protocol, Sequence
-import uuid
 
 from .event_stream import EventBroker
 from .run_manifest import StrategySnapshot, atomic_write_json, atomic_write_text
 from .state_repository import SqliteExperimentRepository
-
 
 EXPERIMENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
 MAX_EXPERIMENT_RUNS = 36
@@ -72,7 +71,9 @@ def expand_parameter_grid(
             if value not in deduplicated:
                 deduplicated.append(value)
         value_lists.append(deduplicated)
-    combinations = [dict(zip(names, values)) for values in product(*value_lists)]
+    combinations = [
+        dict(zip(names, values, strict=True)) for values in product(*value_lists)
+    ]
     if len(combinations) > MAX_EXPERIMENT_RUNS:
         raise ValueError(
             f"experiment expands to {len(combinations)} runs; maximum is {MAX_EXPERIMENT_RUNS}"
@@ -152,9 +153,10 @@ class ExperimentStore:
         except Exception:
             shutil.rmtree(directory, ignore_errors=True)
             raise
-        payload = {
+        payload: dict[str, Any] = {
             "id": experiment_id,
-            "name": name.strip() or f"参数实验 {datetime.now().strftime('%m-%d %H:%M')}",
+            "name": name.strip()
+            or f"参数实验 {datetime.now().strftime('%m-%d %H:%M')}",
             "status": "queued",
             "created_at": _now(),
             "started_at": None,
@@ -170,7 +172,9 @@ class ExperimentStore:
             "test_window": dict(test_window) if test_window else None,
             "walk_forward_folds": walk_forward_folds,
             "walk_forward_windows": walk_forward_windows,
-            "parameter_grid": {key: list(values) for key, values in parameter_grid.items()},
+            "parameter_grid": {
+                key: list(values) for key, values in parameter_grid.items()
+            },
             "strategy_path": snapshot.source_path,
             "strategy_revision": snapshot.revision,
             "strategy_snapshot_path": str(snapshot_path.relative_to(self.project_root)),
@@ -211,9 +215,7 @@ class ExperimentStore:
         strategy_path = self.project_root / experiment["strategy_path"]
         snapshot_value = experiment.get("strategy_snapshot_path")
         snapshot_path = (
-            self.project_root / snapshot_value
-            if snapshot_value
-            else strategy_path
+            self.project_root / snapshot_value if snapshot_value else strategy_path
         )
         strategy_source = snapshot_path.read_text(encoding="utf-8")
         strategy_revision = experiment.get("strategy_revision")
@@ -265,33 +267,23 @@ class ExperimentStore:
                         validation_phases.append(validation)
                         if validation["status"] != "succeeded":
                             break
-                    successful = (
-                        len(validation_phases) == len(walk_forward_windows)
-                        and all(
-                            phase["status"] == "succeeded"
-                            for phase in validation_phases
-                        )
+                    successful = len(validation_phases) == len(
+                        walk_forward_windows
+                    ) and all(
+                        phase["status"] == "succeeded" for phase in validation_phases
                     )
-                    last_phase = (
-                        validation_phases[-1]
-                        if validation_phases
-                        else train
-                    )
+                    last_phase = validation_phases[-1] if validation_phases else train
                     run["job_id"] = last_phase.get("job_id")
                     run["status"] = "succeeded" if successful else "failed"
                     run["metrics"] = (
-                        _aggregate_metrics(validation_phases)
-                        if successful
-                        else None
+                        _aggregate_metrics(validation_phases) if successful else None
                     )
                     run["score"] = (
                         run["metrics"].get(experiment["objective"])
                         if run["metrics"]
                         else None
                     )
-                    run["error"] = (
-                        None if successful else last_phase.get("error")
-                    )
+                    run["error"] = None if successful else last_phase.get("error")
                 else:
                     train = await self._run_phase(
                         experiment,
@@ -323,9 +315,7 @@ class ExperimentStore:
                     run["status"] = scoring_phase["status"]
                     run["metrics"] = scoring_phase.get("metrics")
                     run["score"] = (
-                        scoring_phase.get("metrics", {}).get(
-                            experiment["objective"]
-                        )
+                        scoring_phase.get("metrics", {}).get(experiment["objective"])
                         if scoring_phase["status"] == "succeeded"
                         else None
                     )
@@ -452,9 +442,7 @@ class ExperimentStore:
             if name == "validation" or name.endswith("_validation")
         ]
         robustness_phases = [
-            phase
-            for phase in [*validation_phases, test]
-            if phase is not None
+            phase for phase in [*validation_phases, test] if phase is not None
         ]
         observed = [
             phase
@@ -491,9 +479,9 @@ class ExperimentStore:
                 "walk_forward"
                 if walk_forward
                 else (
-                "train_validation_test"
-                if experiment.get("validation_window")
-                else "in_sample"
+                    "train_validation_test"
+                    if experiment.get("validation_window")
+                    else "in_sample"
                 )
             ),
             "selected_parameters": dict(selected["parameters"]),
@@ -501,11 +489,7 @@ class ExperimentStore:
             "validation_metrics": (
                 selected.get("metrics")
                 if walk_forward
-                else (
-                    validation.get("metrics")
-                    if validation is not None
-                    else None
-                )
+                else (validation.get("metrics") if validation is not None else None)
             ),
             "test_metrics": test.get("metrics") if test is not None else None,
             "walk_forward_windows": (
@@ -520,9 +504,7 @@ class ExperimentStore:
             ],
             "parameter_stability": score_stability,
             "positive_window_ratio": (
-                sum(value > 0 for value in returns) / len(returns)
-                if returns
-                else None
+                sum(value > 0 for value in returns) / len(returns) if returns else None
             ),
             "worst_window_drawdown_pct": min(drawdowns) if drawdowns else None,
         }

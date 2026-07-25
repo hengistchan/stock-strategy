@@ -15,7 +15,16 @@ dependencies = []
 [project.optional-dependencies]
 opend = ["futu-api>=10.6.6608,<11"]
 web = ["fastapi>=0.139,<1", "uvicorn>=0.51,<1"]
-test = ["build>=1.3,<2", "httpx2>=2.7,<3"]
+test = [
+    "bandit[toml]>=1.9.4,<2",
+    "build>=1.3,<2",
+    "coverage[toml]>=7.15,<8",
+    "httpx2>=2.7,<3",
+    "hypothesis>=6.160,<7",
+    "mypy>=2.3,<3",
+    "pip-audit>=2.10.1,<3",
+    "ruff>=0.15.22,<0.16",
+]
 
 [project.scripts]
 stock-backtest = "stock_strategy.cli:main"
@@ -27,3 +36,38 @@ include = ["stock_strategy*"]
 
 [tool.setuptools.package-data]
 stock_strategy = ["web_dist/*", "web_dist/assets/*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["stock_strategy/web_dist"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"stock_strategy/futu.py" = ["E402", "F401"]
+"stock_strategy/stock_api.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+exclude = ["stock_strategy/web_dist"]
+
+[tool.coverage.run]
+branch = true
+source = ["stock_strategy"]
+omit = ["stock_strategy/web_dist/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 74
+
+[tool.bandit]
+exclude_dirs = ["tests", "stock_strategy/web_dist"]
+skips = ["B101"]

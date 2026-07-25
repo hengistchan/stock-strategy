@@ -18,10 +18,14 @@ def build_parser() -> argparse.ArgumentParser:
         prog="stock-backtest",
         description="Run a Futu-style Python strategy against OHLCV data.",
     )
-    parser.add_argument("--strategy", required=True, help="Path to the Python strategy script")
+    parser.add_argument(
+        "--strategy", required=True, help="Path to the Python strategy script"
+    )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--data", help="OHLCV CSV path")
-    source.add_argument("--sample", action="store_true", help="Use deterministic synthetic data")
+    source.add_argument(
+        "--sample", action="store_true", help="Use deterministic synthetic data"
+    )
     source.add_argument(
         "--opend",
         action="store_true",
@@ -40,9 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("simple", "futu_auto", "futu_us", "futu_hk"),
         default="simple",
     )
-    parser.add_argument(
-        "--slippage-model", choices=("bps", "spread"), default="bps"
-    )
+    parser.add_argument("--slippage-model", choices=("bps", "spread"), default="bps")
     parser.add_argument(
         "--execution-model",
         choices=("deterministic", "volume", "conservative"),
@@ -91,7 +93,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override one declared STRATEGY_PARAMETERS value; may be repeated",
     )
     parser.add_argument("--output", default="runs", help="Artifact output directory")
-    parser.add_argument("--no-chart", action="store_true", help="Skip report.svg generation")
+    parser.add_argument(
+        "--no-chart", action="store_true", help="Skip report.svg generation"
+    )
     parser.add_argument(
         "--liquidate-on-end",
         action="store_true",
@@ -113,7 +117,9 @@ def main(argv: list[str] | None = None) -> int:
         for assignment in args.parameter:
             name, value = parse_parameter_assignment(assignment)
             if name in strategy_parameters:
-                raise ValueError(f"strategy parameter {name!r} was supplied more than once")
+                raise ValueError(
+                    f"strategy parameter {name!r} was supplied more than once"
+                )
             strategy_parameters[name] = value
         if args.data:
             market_data = load_market_data(args.data, args.symbol)
@@ -124,9 +130,15 @@ def main(argv: list[str] | None = None) -> int:
             if not args.start or not args.end:
                 raise ValueError("--start and --end are required with --opend")
             requested_cache = (
-                Path(args.opend_cache).expanduser().resolve() if args.opend_cache else None
+                Path(args.opend_cache).expanduser().resolve()
+                if args.opend_cache
+                else None
             )
-            if requested_cache and requested_cache.is_file() and not args.refresh_opend_cache:
+            if (
+                requested_cache
+                and requested_cache.is_file()
+                and not args.refresh_opend_cache
+            ):
                 cache_path = requested_cache
                 market_data = load_market_data(cache_path, args.symbol)
                 bars = market_data.bars
@@ -189,9 +201,7 @@ def main(argv: list[str] | None = None) -> int:
             market_data.source_format if market_data else "synthetic"
         )
         result.settings["strategy_process"] = {
-            "profile": os.environ.get(
-                "STOCK_STRATEGY_EXECUTION_PROFILE", "direct-cli"
-            ),
+            "profile": os.environ.get("STOCK_STRATEGY_EXECUTION_PROFILE", "direct-cli"),
             "network_disabled": restricted,
         }
         if args.opend:
@@ -209,11 +219,15 @@ def main(argv: list[str] | None = None) -> int:
         write_artifacts(result, args.output, create_chart=not args.no_chart)
         print_summary(result)
         if market_data and market_data.source_format == "opend":
-            print(f"OpenD 输入：已识别 {symbol}，保留 {len(bars)} 根 K 线及 time_key 时间戳。")
+            print(
+                f"OpenD 输入：已识别 {symbol}，保留 {len(bars)} 根 K 线及 time_key 时间戳。"
+            )
             if cache_hit:
                 print(f"OpenD 缓存：复用 {cache_path}。")
             elif history:
-                print(f"OpenD 直连：读取 {history.pages} 页；原始缓存：{cache_path or '未保存'}。")
+                print(
+                    f"OpenD 直连：读取 {history.pages} 页；原始缓存：{cache_path or '未保存'}。"
+                )
         if args.sample:
             print("提示：本次使用确定性模拟行情，只用于验证回测流程。")
         return 0

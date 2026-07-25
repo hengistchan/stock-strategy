@@ -14,12 +14,8 @@ class ExecutionModelsTest(unittest.TestCase):
     def test_futu_us_stock_fee_breakdown_separates_sell_only_charges(self):
         model = FutuUSStockFeeModel()
 
-        buy = model.calculate_breakdown(
-            price=10, quantity=100, side=OrderSide.BUY
-        )
-        sell = model.calculate_breakdown(
-            price=10, quantity=100, side=OrderSide.SELL
-        )
+        buy = model.calculate_breakdown(price=10, quantity=100, side=OrderSide.BUY)
+        sell = model.calculate_breakdown(price=10, quantity=100, side=OrderSide.SELL)
 
         self.assertAlmostEqual(buy.components["commission"], 0.99)
         self.assertAlmostEqual(buy.components["platform"], 1.0)
@@ -54,12 +50,8 @@ class ExecutionModelsTest(unittest.TestCase):
             half_spread_bps=2, impact_bps=3, fixed_tick=0.01
         )
 
-        self.assertAlmostEqual(
-            model.apply(price=100, side=OrderSide.BUY), 100.06
-        )
-        self.assertAlmostEqual(
-            model.apply(price=100, side=OrderSide.SELL), 99.94
-        )
+        self.assertAlmostEqual(model.apply(price=100, side=OrderSide.BUY), 100.06)
+        self.assertAlmostEqual(model.apply(price=100, side=OrderSide.SELL), 99.94)
 
     def test_conservative_bar_uses_adverse_close_and_volume_capacity(self):
         order = Order(

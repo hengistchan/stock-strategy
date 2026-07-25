@@ -23,7 +23,17 @@ class CliTest(unittest.TestCase):
             with data_path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(
                     handle,
-                    fieldnames=["code", "name", "time_key", "open", "close", "high", "low", "volume", "turnover"],
+                    fieldnames=[
+                        "code",
+                        "name",
+                        "time_key",
+                        "open",
+                        "close",
+                        "high",
+                        "low",
+                        "volume",
+                        "turnover",
+                    ],
                 )
                 writer.writeheader()
                 for index in range(80):
@@ -189,14 +199,24 @@ class Strategy(StrategyBase):
             with cache_path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(
                     handle,
-                    fieldnames=["code", "time_key", "open", "close", "high", "low", "volume"],
+                    fieldnames=[
+                        "code",
+                        "time_key",
+                        "open",
+                        "close",
+                        "high",
+                        "low",
+                        "volume",
+                    ],
                 )
                 writer.writeheader()
                 for index in range(40):
                     writer.writerow(
                         {
                             "code": "US.AAPL",
-                            "time_key": (datetime(2025, 1, 2) + timedelta(days=index)).strftime("%Y-%m-%d"),
+                            "time_key": (
+                                datetime(2025, 1, 2) + timedelta(days=index)
+                            ).strftime("%Y-%m-%d"),
                             "open": 100 + index,
                             "close": 100.5 + index,
                             "high": 101 + index,
@@ -205,7 +225,7 @@ class Strategy(StrategyBase):
                         }
                     )
             strategy_path.write_text(
-                '''
+                """
 STRATEGY_PARAMETERS = {"quantity": {"type": "int", "default": 1}}
 class Strategy(StrategyBase):
     def initialize(self):
@@ -216,7 +236,7 @@ class Strategy(StrategyBase):
         if not self.sent:
             place_market(self.symbol, qty=self.quantity, side=OrderSide.BUY)
             self.sent = True
-''',
+""",
                 encoding="utf-8",
             )
             with patch("stock_strategy.cli.fetch_history_kline") as fetch_history:
@@ -227,12 +247,22 @@ class Strategy(StrategyBase):
                     with redirect_stdout(io.StringIO()):
                         return_code = main(
                             [
-                                "--strategy", str(strategy_path),
-                                "--opend", "--symbol", "US.AAPL",
-                                "--start", "2025-01-01", "--end", "2025-12-31",
-                                "--opend-cache", str(cache_path),
-                                "--parameter", "quantity=3",
-                                "--output", str(output_path), "--no-chart",
+                                "--strategy",
+                                str(strategy_path),
+                                "--opend",
+                                "--symbol",
+                                "US.AAPL",
+                                "--start",
+                                "2025-01-01",
+                                "--end",
+                                "2025-12-31",
+                                "--opend-cache",
+                                str(cache_path),
+                                "--parameter",
+                                "quantity=3",
+                                "--output",
+                                str(output_path),
+                                "--no-chart",
                             ]
                         )
             summary = json.loads(next(output_path.glob("*/summary.json")).read_text())

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 
@@ -41,9 +41,13 @@ def create_symbols_router(directory: OpenDSymbolDirectory) -> APIRouter:
         response_model=SymbolResolveResponse,
         responses=error_responses(422, 503),
     )
-    def resolve_symbols(codes: list[str] = Query()) -> dict[str, Any]:
+    def resolve_symbols(
+        codes: Annotated[list[str] | None, Query()] = None,
+    ) -> dict[str, Any]:
         normalized = list(
-            dict.fromkeys(code.strip().upper() for code in codes if code.strip())
+            dict.fromkeys(
+                code.strip().upper() for code in (codes or []) if code.strip()
+            )
         )
         if not normalized:
             raise ApiProblem(

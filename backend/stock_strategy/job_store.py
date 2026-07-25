@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import csv
-from datetime import datetime
 import json
 import os
-from pathlib import Path
 import re
 import shutil
-from typing import Any, Mapping
 import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Mapping
 
 from .backtest_command import build_backtest_command
-from .evidence_bundle import EvidenceBundleService
 from .event_stream import EventBroker
+from .evidence_bundle import EvidenceBundleService
+from .job_lifecycle import TERMINAL_JOB_STATUSES, InvalidJobTransition, JobStatus
 from .market_cache import MarketDataCache
-from .job_lifecycle import InvalidJobTransition, JobStatus, TERMINAL_JOB_STATUSES
 from .paths import BACKEND_ROOT, PROJECT_ROOT
 from .result_reader import (
     load_price_window_payload,
@@ -31,13 +31,12 @@ from .run_manifest import (
     sha256_file,
     update_run_manifest,
 )
+from .state_repository import SqliteJobRepository
 from .strategy_process import (
+    TRUSTED_EXECUTION_PROFILE,
     StrategyProcessRunner,
     StrategyProcessTimeout,
-    TRUSTED_EXECUTION_PROFILE,
 )
-from .state_repository import SqliteJobRepository
-
 
 JOB_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
 
@@ -355,9 +354,7 @@ class JobStore:
             job=self.get_job(job_id),
         )
 
-    def load_price_window(
-        self, job_id: str, offset: int, limit: int
-    ) -> dict[str, Any]:
+    def load_price_window(self, job_id: str, offset: int, limit: int) -> dict[str, Any]:
         return load_price_window_payload(
             project_root=self.project_root,
             jobs_root=self.root,

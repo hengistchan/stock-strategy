@@ -1,8 +1,8 @@
+import hashlib
+import json
 import tempfile
 import unittest
 from datetime import date
-import json
-import hashlib
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -30,7 +30,11 @@ class FakeSymbolDirectory:
     def resolve(self, codes):
         self.requests.append(("resolve", codes))
         return [
-            {"code": code, "name": {"US.AAPL": "苹果", "HK.00700": "腾讯控股"}[code], "market": code.split(".")[0]}
+            {
+                "code": code,
+                "name": {"US.AAPL": "苹果", "HK.00700": "腾讯控股"}[code],
+                "market": code.split(".")[0],
+            }
             for code in codes
         ]
 
@@ -195,7 +199,9 @@ class WebTest(unittest.TestCase):
             for index in range(20):
                 equity = 500 if index == 7 else 100 + index
                 drawdown = -0.9 if index == 13 else -index / 100
-                rows.append(f"2025-01-{index + 1:02d},{equity},{100 + index},{drawdown}")
+                rows.append(
+                    f"2025-01-{index + 1:02d},{equity},{100 + index},{drawdown}"
+                )
             path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
             sampled, total = read_downsampled_equity_curve(path, max_points=8)
@@ -240,8 +246,15 @@ class WebTest(unittest.TestCase):
         self.assertEqual(missing_api.status_code, 404)
         self.assertEqual(missing_api.headers["content-type"], "application/json")
         self.assertTrue(health.json()["opend"]["connected"])
-        self.assertIn("examples/ma_cross.py", [item["path"] for item in config.json()["strategies"]])
-        example = next(item for item in config.json()["strategies"] if item["path"] == "examples/ma_cross.py")
+        self.assertIn(
+            "examples/ma_cross.py",
+            [item["path"] for item in config.json()["strategies"]],
+        )
+        example = next(
+            item
+            for item in config.json()["strategies"]
+            if item["path"] == "examples/ma_cross.py"
+        )
         self.assertTrue(example["readonly"])
         self.assertEqual(len(example["revision"]), 64)
         self.assertEqual(
@@ -419,7 +432,9 @@ class Strategy(StrategyBase):
     def test_strategy_paths_stay_inside_allowed_folders(self):
         project_root = Path(__file__).parents[2]
         strategies = list_strategies(project_root)
-        self.assertTrue(any(item["path"] == "examples/ma_cross.py" for item in strategies))
+        self.assertTrue(
+            any(item["path"] == "examples/ma_cross.py" for item in strategies)
+        )
         self.assertEqual(
             resolve_strategy(project_root, "examples/ma_cross.py"),
             (project_root / "examples/ma_cross.py").resolve(),
@@ -428,7 +443,6 @@ class Strategy(StrategyBase):
             resolve_strategy(project_root, "backend/stock_strategy/cli.py")
 
     def test_job_command_uses_only_opend_market_data(self):
-        project_root = Path(__file__).parents[2]
         request = BacktestRequest(
             strategy="examples/ma_cross.py",
             symbol="US.AAPL",
@@ -554,7 +568,10 @@ class Strategy(StrategyBase):
             with TestClient(app) as client:
                 created = client.post(
                     "/api/strategies",
-                    json={"name": "my_strategy", "template_path": "examples/ma_cross.py"},
+                    json={
+                        "name": "my_strategy",
+                        "template_path": "examples/ma_cross.py",
+                    },
                 )
                 loaded = client.get("/api/strategies/strategies/my_strategy.py")
                 revision = loaded.json()["revision"]
@@ -642,7 +659,9 @@ class Strategy(StrategyBase):
                 "strategy_revision_conflict",
             )
             self.assertEqual(readonly.status_code, 403)
-            self.assertEqual(example.read_text(encoding="utf-8"), "class Strategy:\n    pass\n")
+            self.assertEqual(
+                example.read_text(encoding="utf-8"), "class Strategy:\n    pass\n"
+            )
 
     def test_portfolio_api_preserves_shared_cash_contract(self):
         class FakePortfolioService:

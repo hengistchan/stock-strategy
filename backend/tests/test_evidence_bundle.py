@@ -2,13 +2,13 @@ import io
 import json
 import tempfile
 import unittest
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from stock_strategy.evidence_bundle import (
+    REQUIRED_OUTPUT_FILES,
     EvidenceBundleError,
     EvidenceBundleService,
-    REQUIRED_OUTPUT_FILES,
 )
 from stock_strategy.job_store import JobStore
 from stock_strategy.run_manifest import sha256_bytes
@@ -135,9 +135,7 @@ class EvidenceBundleTest(unittest.TestCase):
         (job_dir / "strategy.py").write_bytes(strategy)
         (job_dir / "market-data.csv").write_bytes(market_data)
         (job_dir / "request.json").write_text(json.dumps(request), encoding="utf-8")
-        (job_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (job_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (job_dir / "job.json").write_text(json.dumps(job), encoding="utf-8")
         return job, job_dir, run_dir
 

@@ -2,9 +2,9 @@ import unittest
 
 from stock_strategy.job_lifecycle import (
     ALLOWED_JOB_TRANSITIONS,
+    TERMINAL_JOB_STATUSES,
     InvalidJobTransition,
     JobStatus,
-    TERMINAL_JOB_STATUSES,
     validate_job_transition,
 )
 

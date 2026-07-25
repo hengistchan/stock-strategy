@@ -1,4 +1,6 @@
 import csv
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,10 +25,16 @@ class MarketDataCacheTest(unittest.TestCase):
             self.assertEqual(first["id"], second["id"])
 
             with first["path"].open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=["code", "time_key", "close"])
+                writer = csv.DictWriter(
+                    handle, fieldnames=["code", "time_key", "close"]
+                )
                 writer.writeheader()
-                writer.writerow({"code": "US.AAPL", "time_key": "2024-01-02", "close": 100})
-                writer.writerow({"code": "US.AAPL", "time_key": "2024-01-03", "close": 101})
+                writer.writerow(
+                    {"code": "US.AAPL", "time_key": "2024-01-02", "close": 100}
+                )
+                writer.writerow(
+                    {"code": "US.AAPL", "time_key": "2024-01-03", "close": 101}
+                )
             entry = cache.record(request)
             inventory = cache.list()
 
@@ -83,5 +91,3 @@ class MarketDataCacheTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-import hashlib
-import json

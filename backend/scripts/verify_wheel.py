@@ -5,13 +5,14 @@ import argparse
 from pathlib import Path
 from zipfile import ZipFile
 
-
 PACKAGE_PREFIX = "stock_strategy/web_dist/"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("wheel", nargs="?", help="Wheel path; defaults to backend/dist/*.whl")
+    parser.add_argument(
+        "wheel", nargs="?", help="Wheel path; defaults to backend/dist/*.whl"
+    )
     return parser
 
 
@@ -45,7 +46,9 @@ def main(argv: list[str] | None = None) -> int:
             details.append("missing: " + ", ".join(missing))
         if unexpected:
             details.append("stale/unexpected: " + ", ".join(unexpected))
-        raise SystemExit(f"wheel frontend mismatch in {wheel_path}: " + "; ".join(details))
+        raise SystemExit(
+            f"wheel frontend mismatch in {wheel_path}: " + "; ".join(details)
+        )
 
     print(f"verified {len(expected)} production frontend files in {wheel_path}")
     return 0

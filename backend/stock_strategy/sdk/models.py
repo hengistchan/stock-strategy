@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, Mapping
 
-
 EntrySide = Literal["buy", "sell_short"]
 OrderSide = Literal["buy", "sell", "sell_short", "buy_back"]
 
@@ -87,4 +86,3 @@ class ExitDecision:
 class ExecutionReceipt:
     order_id: str | None
     proposal: OrderProposal
-

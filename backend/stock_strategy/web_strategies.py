@@ -11,6 +11,8 @@ from .api_models import (
     StrategyVersionsResponse,
     error_responses,
 )
+from .experiments import ExperimentStore
+from .job_store import JobStore
 from .strategy_repository import (
     StrategyConflictError,
     StrategyNotFoundError,
@@ -19,8 +21,6 @@ from .strategy_repository import (
     StrategyRepositoryError,
     StrategyValidationError,
 )
-from .experiments import ExperimentStore
-from .job_store import JobStore
 from .web_models import (
     StrategyCreateRequest,
     StrategyRestoreRequest,
@@ -72,9 +72,7 @@ def create_strategies_router(
             for experiment in experiments.list():
                 revision = experiment.get("strategy_revision")
                 if revision and experiment.get("strategy_path") == strategy_path:
-                    experiment_counts[revision] = (
-                        experiment_counts.get(revision, 0) + 1
-                    )
+                    experiment_counts[revision] = experiment_counts.get(revision, 0) + 1
             return {
                 "strategy_path": strategy_path,
                 "versions": [

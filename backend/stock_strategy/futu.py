@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import builtins
 import math
 import statistics
-import builtins
 from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from .context import get_context
+from .errors import APIException, DataUnavailableError, UnsupportedAPIError
 from .models import (
     AlgoStrategyType,
     BarDataType,
@@ -37,18 +38,17 @@ from .models import (
     PositionSide,
     SymbolType,
     THType,
-    TSType,
+    TimeInForce,
+    TimeOrientation,
+    TimeZone,
     TradeSide,
     TrailType,
     TrdHours,
-    TimeOrientation,
-    TimeZone,
-    TimeInForce,
+    TSType,
     USMktStatus,
     Week,
 )
 from .timeframes import can_derive
-from .errors import APIException, DataUnavailableError, UnsupportedAPIError
 
 
 class StrategyBase:
@@ -71,7 +71,9 @@ class StrategyBase:
         register_indicator_Python(*_args, **_kwargs)
 
 
-def declare_strategy_type(strategy_type: AlgoStrategyType = AlgoStrategyType.SECURITY) -> None:
+def declare_strategy_type(
+    strategy_type: AlgoStrategyType = AlgoStrategyType.SECURITY,
+) -> None:
     get_context().strategy_type = strategy_type.value
 
 
@@ -118,7 +120,9 @@ def device_time(time_zone: TimeZone = TimeZone.DEVICE_TIME_ZONE) -> datetime:
     except (TypeError, ValueError) as error:
         raise UnsupportedAPIError(f"unsupported time zone: {time_zone}") from error
     try:
-        current = datetime.fromisoformat(context.current_bar.date.replace("Z", "+00:00"))
+        current = datetime.fromisoformat(
+            context.current_bar.date.replace("Z", "+00:00")
+        )
     except ValueError as error:
         raise ValueError(
             f"current OpenD bar has an invalid timestamp: {context.current_bar.date}"
@@ -320,7 +324,9 @@ def bar_custom(
     try:
         normalized_data_type = BarDataType(data_type)
     except (TypeError, ValueError) as error:
-        raise UnsupportedAPIError(f"unsupported bar_custom data type: {data_type}") from error
+        raise UnsupportedAPIError(
+            f"unsupported bar_custom data type: {data_type}"
+        ) from error
     if not 1 <= custom_num <= 200:
         raise ValueError("custom_num must be between 1 and 200")
     if not 1 <= select <= 5:
@@ -351,7 +357,9 @@ def bar_custom(
         return math.nan if not previous else (window[-1].close / previous - 1) * 100
     if normalized_data_type == BarDataType.CLOSE:
         return window[-1].close
-    raise UnsupportedAPIError(f"unsupported bar_custom data type: {normalized_data_type}")
+    raise UnsupportedAPIError(
+        f"unsupported bar_custom data type: {normalized_data_type}"
+    )
 
 
 def ma(
@@ -411,13 +419,21 @@ def rsi(
         return math.nan
     gains: list[float] = []
     losses: list[float] = []
-    for previous, current in zip(closes[:period], closes[1 : period + 1]):
+    for previous, current in zip(
+        closes[:period],
+        closes[1 : period + 1],
+        strict=True,
+    ):
         change = current - previous
         gains.append(max(change, 0.0))
         losses.append(max(-change, 0.0))
     average_gain = statistics.fmean(gains)
     average_loss = statistics.fmean(losses)
-    for previous, current in zip(closes[period:-1], closes[period + 1 :]):
+    for previous, current in zip(
+        closes[period:-1],
+        closes[period + 1 :],
+        strict=True,
+    ):
         change = current - previous
         average_gain = (average_gain * (period - 1) + max(change, 0.0)) / period
         average_loss = (average_loss * (period - 1) + max(-change, 0.0)) / period
@@ -437,12 +453,23 @@ def historical_volatility(
     closes = _values(symbol, DataType.CLOSE, select, bar_type)
     if len(closes) <= period:
         return math.nan
-    returns = [math.log(current / previous) for previous, current in zip(closes[-period - 1 : -1], closes[-period:])]
+    returns = [
+        math.log(current / previous)
+        for previous, current in zip(
+            closes[-period - 1 : -1],
+            closes[-period:],
+            strict=True,
+        )
+    ]
     context = get_context()
     periods_per_year = _observed_periods_per_year(
         BarType(bar_type), context.bars_for(bar_type)
     )
-    return statistics.stdev(returns) * math.sqrt(periods_per_year) * 100 if len(returns) > 1 else 0.0
+    return (
+        statistics.stdev(returns) * math.sqrt(periods_per_year) * 100
+        if len(returns) > 1
+        else 0.0
+    )
 
 
 def macd_dif(
@@ -456,9 +483,7 @@ def macd_dif(
 ) -> float:
     _validate_series_request(symbol, bar_type, session_type)
     del signal_period
-    dif, _dea, _histogram = _macd(
-        symbol, fast_period, slow_period, 9, select, bar_type
-    )
+    dif, _dea, _histogram = _macd(symbol, fast_period, slow_period, 9, select, bar_type)
     return dif
 
 
@@ -510,7 +535,14 @@ def is_macd_golden_cross(
     dif_previous, dea_previous, _ = _macd(
         symbol, fast_period, slow_period, signal_period, select + 1, bar_type
     )
-    return all(math.isfinite(value) for value in (dif_now, dea_now, dif_previous, dea_previous)) and dif_now > dea_now and dif_previous <= dea_previous
+    return (
+        all(
+            math.isfinite(value)
+            for value in (dif_now, dea_now, dif_previous, dea_previous)
+        )
+        and dif_now > dea_now
+        and dif_previous <= dea_previous
+    )
 
 
 def is_macd_death_cross(
@@ -529,7 +561,14 @@ def is_macd_death_cross(
     dif_previous, dea_previous, _ = _macd(
         symbol, fast_period, slow_period, signal_period, select + 1, bar_type
     )
-    return all(math.isfinite(value) for value in (dif_now, dea_now, dif_previous, dea_previous)) and dif_now < dea_now and dif_previous >= dea_previous
+    return (
+        all(
+            math.isfinite(value)
+            for value in (dif_now, dea_now, dif_previous, dea_previous)
+        )
+        and dif_now < dea_now
+        and dif_previous >= dea_previous
+    )
 
 
 def position_holding_qty(symbol: Contract) -> float:
@@ -703,7 +742,9 @@ def close_positions(symbol: Contract, qty: float | None = None) -> str | None:
     position = get_context().broker.position
     if position.quantity == 0:
         return None
-    close_qty = abs(position.quantity) if qty is None else min(abs(position.quantity), abs(qty))
+    close_qty = (
+        abs(position.quantity) if qty is None else min(abs(position.quantity), abs(qty))
+    )
     side = OrderSide.SELL if position.quantity > 0 else OrderSide.BUY_BACK
     return _submit(symbol, close_qty, side, "MARKET", TimeInForce.DAY)
 
@@ -718,9 +759,7 @@ def cancel_order_by_orderid(orderid: str) -> None:
     context.broker.cancel_order(str(orderid), context.current_bar.date)
 
 
-def cancel_order_by_symbol(
-    symbol: Contract, side: TradeSide = TradeSide.ALL
-) -> None:
+def cancel_order_by_symbol(symbol: Contract, side: TradeSide = TradeSide.ALL) -> None:
     _validate_symbol(symbol)
     normalized = TradeSide(side)
     order_side = None
@@ -956,7 +995,9 @@ def _validate_session(session_type: THType | str) -> None:
     try:
         requested_session = THType(session_type)
     except (TypeError, ValueError) as error:
-        raise UnsupportedAPIError(f"unsupported market session: {session_type}") from error
+        raise UnsupportedAPIError(
+            f"unsupported market session: {session_type}"
+        ) from error
     if requested_session != context.session_type:
         raise UnsupportedAPIError(
             f"requested {requested_session.value} session, but this backtest "
@@ -1081,9 +1122,9 @@ __all__ = [
 ]
 
 
+from . import custom_indicators as _custom_indicators
 from . import stock_api as _stock_api
 from . import stock_indicators as _stock_indicators
-from . import custom_indicators as _custom_indicators
 
 for _module in (_stock_api, _stock_indicators, _custom_indicators):
     for _name in _module.__all__:

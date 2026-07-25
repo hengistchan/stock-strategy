@@ -14,8 +14,8 @@ from .models import (
     Contract,
     CostPriceModel,
     Currency,
-    DTStatus,
     DealStatus,
+    DTStatus,
     Market,
     MktStatus,
     Order,
@@ -26,9 +26,9 @@ from .models import (
     SymbolType,
     THType,
     TimeZone,
-    TSType,
     TradeSide,
     TrdHours,
+    TSType,
     USMktStatus,
 )
 
@@ -84,7 +84,9 @@ def get_symbol_currency(symbol: Contract) -> Currency:
     try:
         return values[market]
     except KeyError as error:
-        raise UnsupportedAPIError(f"currency is unavailable for market {market}") from error
+        raise UnsupportedAPIError(
+            f"currency is unavailable for market {market}"
+        ) from error
 
 
 def lot_size(symbol: Contract) -> float:
@@ -161,7 +163,11 @@ def bar_chg(
     session_type: THType = THType.ALL,
 ) -> float:
     bar = _selected_bar(symbol, bar_type, select, session_type)
-    return math.nan if bar is None or bar.last_close is None else bar.close - bar.last_close
+    return (
+        math.nan
+        if bar is None or bar.last_close is None
+        else bar.close - bar.last_close
+    )
 
 
 def bar_chg_rate(
@@ -222,7 +228,9 @@ def ask_order_qty(symbol: Contract, level: int = 1) -> int:
 
 def rate_ratio(symbol: Contract) -> float:
     denominator = ask_qty(symbol) + bid_qty(symbol)
-    return (bid_qty(symbol) - ask_qty(symbol)) / denominator * 100 if denominator else 0.0
+    return (
+        (bid_qty(symbol) - ask_qty(symbol)) / denominator * 100 if denominator else 0.0
+    )
 
 
 def market_status(symbol: Contract) -> MktStatus:
@@ -271,11 +279,19 @@ def market_value_security(currency: Currency = Currency.HKD) -> float:
 
 
 def market_value_long(currency: Currency = Currency.HKD) -> float:
-    return market_value_security(currency) if get_context().broker.position.quantity > 0 else 0.0
+    return (
+        market_value_security(currency)
+        if get_context().broker.position.quantity > 0
+        else 0.0
+    )
 
 
 def market_value_short(currency: Currency = Currency.HKD) -> float:
-    return market_value_security(currency) if get_context().broker.position.quantity < 0 else 0.0
+    return (
+        market_value_security(currency)
+        if get_context().broker.position.quantity < 0
+        else 0.0
+    )
 
 
 def total_cash(currency: Currency = Currency.HKD) -> float:
@@ -449,7 +465,9 @@ def max_qty_to_buy_on_cash(
 ) -> int:
     del order_type, order_trade_session_type
     _validate_symbol(symbol)
-    return get_context().broker.max_cash_buy_quantity(price or get_context().current_bar.close)
+    return get_context().broker.max_cash_buy_quantity(
+        price or get_context().current_bar.close
+    )
 
 
 def max_qty_to_sell(symbol: Contract) -> float:
@@ -472,7 +490,9 @@ def max_qty_to_sell_short(
     _validate_symbol(symbol)
     if not get_context().broker.allow_short:
         return 0
-    return get_context().broker.max_cash_buy_quantity(price or get_context().current_bar.close)
+    return get_context().broker.max_cash_buy_quantity(
+        price or get_context().current_bar.close
+    )
 
 
 def position_market_cap(symbol: Contract) -> float:
@@ -507,7 +527,11 @@ def position_pl_ratio(symbol: Contract) -> float:
 def position_today_pl(symbol: Contract) -> float:
     _validate_symbol(symbol)
     today = get_context().current_bar.date[:10]
-    return sum(trade.net_pnl for trade in get_context().broker.trades if trade.exit_date[:10] == today)
+    return sum(
+        trade.net_pnl
+        for trade in get_context().broker.trades
+        if trade.exit_date[:10] == today
+    )
 
 
 def position_cost(
@@ -518,9 +542,7 @@ def position_cost(
     return get_context().broker.position.average_price
 
 
-def position_today_turnover(
-    symbol: Contract, side: TradeSide = TradeSide.ALL
-) -> float:
+def position_today_turnover(symbol: Contract, side: TradeSide = TradeSide.ALL) -> float:
     return sum(fill.price * fill.quantity for fill in _today_fills(symbol, side))
 
 
@@ -539,7 +561,9 @@ def position_unrealized_pl(symbol: Contract) -> float:
     if position.quantity > 0:
         return (context.current_bar.close - position.average_price) * position.quantity
     if position.quantity < 0:
-        return (position.average_price - context.current_bar.close) * abs(position.quantity)
+        return (position.average_price - context.current_bar.close) * abs(
+            position.quantity
+        )
     return 0.0
 
 
@@ -704,7 +728,9 @@ def execution_time(
 
 def alert(title: str = "", content: str = "") -> None:
     context = get_context()
-    context.broker._log(context.current_bar.date, "ALERT", f"{title}: {content}".strip(": "))
+    context.broker._log(
+        context.current_bar.date, "ALERT", f"{title}: {content}".strip(": ")
+    )
 
 
 def add_to_watchlist(symbol: Contract, watchlist: str = "") -> None:
@@ -873,7 +899,9 @@ def _today_fills(symbol: Contract, side: TradeSide) -> list[Any]:
 
 
 def _within(value: str, start: str, end: str) -> bool:
-    return (not start or value >= start) and (not end or value <= end + (" 23:59:59" if len(end) == 10 else ""))
+    return (not start or value >= start) and (
+        not end or value <= end + (" 23:59:59" if len(end) == 10 else "")
+    )
 
 
 __all__ = [

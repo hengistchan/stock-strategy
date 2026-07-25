@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import builtins
 import json
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 from typing import Any, Mapping
 
 from .job_lifecycle import InvalidJobTransition, validate_job_transition
-
 
 STATE_SCHEMA_VERSION = 2
 
@@ -31,7 +31,9 @@ class SqliteJobRepository:
             or payload.get("created_at")
             or ""
         )
-        serialized = json.dumps(dict(payload), ensure_ascii=False, separators=(",", ":"))
+        serialized = json.dumps(
+            dict(payload), ensure_ascii=False, separators=(",", ":")
+        )
         with self._connect() as connection:
             connection.execute(
                 """
@@ -61,10 +63,7 @@ class SqliteJobRepository:
         return json.loads(str(row["payload_json"]))
 
     def list(self, *, limit: int | None = None) -> list[dict[str, Any]]:
-        statement = (
-            "SELECT payload_json FROM jobs "
-            "ORDER BY created_at DESC, id DESC"
-        )
+        statement = "SELECT payload_json FROM jobs ORDER BY created_at DESC, id DESC"
         parameters: tuple[int, ...] = ()
         if limit is not None:
             if limit < 0:
@@ -126,9 +125,7 @@ class SqliteJobRepository:
                 ),
             )
             if cursor.rowcount != 1:
-                raise InvalidJobTransition(
-                    f"job {job_id} changed during transition"
-                )
+                raise InvalidJobTransition(f"job {job_id} changed during transition")
             connection.commit()
             return payload
         except Exception:
@@ -336,8 +333,7 @@ class SqliteExperimentRepository:
 
     def list(self, *, limit: int | None = None) -> list[dict[str, Any]]:
         statement = (
-            "SELECT payload_json FROM experiments "
-            "ORDER BY created_at DESC, id DESC"
+            "SELECT payload_json FROM experiments ORDER BY created_at DESC, id DESC"
         )
         parameters: tuple[int, ...] = ()
         if limit is not None:
@@ -349,7 +345,7 @@ class SqliteExperimentRepository:
             rows = connection.execute(statement, parameters).fetchall()
         return [json.loads(str(row["payload_json"])) for row in rows]
 
-    def related_jobs(self, experiment_id: str) -> list[str]:
+    def related_jobs(self, experiment_id: str) -> builtins.list[str]:
         with self._connect() as connection:
             rows = connection.execute(
                 """
@@ -367,9 +363,7 @@ class SqliteExperimentRepository:
         with self._connect() as connection:
             existing = {
                 str(row["id"])
-                for row in connection.execute(
-                    "SELECT id FROM experiments"
-                ).fetchall()
+                for row in connection.execute("SELECT id FROM experiments").fetchall()
             }
         for path in self.legacy_experiments_root.glob("*/experiment.json"):
             if path.parent.name in existing:
@@ -475,10 +469,7 @@ class SqliteExperimentRepository:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return None
-        if (
-            not isinstance(payload, dict)
-            or str(payload.get("id")) != experiment_id
-        ):
+        if not isinstance(payload, dict) or str(payload.get("id")) != experiment_id:
             return None
         return payload
 

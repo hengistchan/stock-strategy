@@ -1,4 +1,4 @@
-.PHONY: install frontend-install doctor build package test acceptance api-schema dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance api-schema dev-api dev-web serve
 
 install:
 	python3.12 -m venv .venv
@@ -22,6 +22,23 @@ package: build
 test:
 	PYTHONPATH=backend .venv/bin/python -m unittest discover -s backend/tests -v
 	cd frontend && npm run lint && npm run typecheck && npm run test
+
+backend-lint:
+	cd backend && ../.venv/bin/ruff check stock_strategy tests scripts
+	cd backend && ../.venv/bin/ruff format --check stock_strategy tests scripts
+
+backend-typecheck:
+	cd backend && ../.venv/bin/mypy stock_strategy
+
+backend-coverage:
+	cd backend && ../.venv/bin/coverage run -m unittest discover -s tests
+	cd backend && ../.venv/bin/coverage report
+
+backend-security:
+	cd backend && ../.venv/bin/bandit -q -r stock_strategy -c pyproject.toml
+	.venv/bin/python -m pip_audit --local --skip-editable
+
+quality: backend-lint backend-typecheck backend-coverage backend-security
 
 acceptance: build
 	.venv/bin/python backend/scripts/acceptance.py

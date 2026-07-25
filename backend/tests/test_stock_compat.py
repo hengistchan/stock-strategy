@@ -5,8 +5,8 @@ from stock_strategy.broker import Broker
 from stock_strategy.context import ExecutionContext, activate_context
 from stock_strategy.data import generate_sample_bars
 from stock_strategy.futu import (
-    BarType,
     APIException,
+    BarType,
     Contract,
     Currency,
     DataUnavailableError,
@@ -15,20 +15,20 @@ from stock_strategy.futu import (
     OrderStatus,
     THType,
     TimeZone,
-    boll_upper,
     bar_turnover,
+    boll_upper,
     cancel_order_by_orderid,
     get_MyLang_indicator,
-    get_Python_indicator,
     get_orderid_by_groupid,
+    get_Python_indicator,
     lot_size,
     min_tick,
     net_asset,
+    order_create_time,
     order_filled_avg_price,
     order_filled_qty,
     order_qty,
     order_status,
-    order_create_time,
     place_market,
     place_stop,
     register_indicator,
@@ -139,14 +139,10 @@ if __name__ == "__main__":
 
             with self.assertRaises(DataUnavailableError) as unavailable:
                 bar_turnover(self.symbol, bar_type=BarType.K_DAY, select=1)
-            self.assertEqual(
-                unavailable.exception.err_code, ErrCode.NoDataAvailable
-            )
+            self.assertEqual(unavailable.exception.err_code, ErrCode.NoDataAvailable)
 
     def test_reverse_positions_closes_then_opens_the_opposite_stock_position(self):
-        broker = Broker(
-            100_000, 0, 0, 0, True, bar_type=BarType.K_DAY
-        )
+        broker = Broker(100_000, 0, 0, 0, True, bar_type=BarType.K_DAY)
         context = ExecutionContext(
             self.bars,
             self.symbol,

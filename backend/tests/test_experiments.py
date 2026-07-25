@@ -154,9 +154,9 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
                 strategy_path=strategy,
                 objective="sharpe_ratio",
             )
-            frozen_source = (store._directory(experiment["id"]) / "strategy.py").read_text(
-                encoding="utf-8"
-            )
+            frozen_source = (
+                store._directory(experiment["id"]) / "strategy.py"
+            ).read_text(encoding="utf-8")
             strategy.write_text("class Strategy:\n    version = 2\n", encoding="utf-8")
             await store._run(experiment["id"])
             completed = store.get(experiment["id"])
@@ -194,9 +194,7 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
                 parameter_grid={"fast": [10, 20]},
                 strategy_path=strategy,
                 objective="sharpe_ratio",
-                constraints=[
-                    {"metric": "max_drawdown_pct", "op": ">=", "value": -15}
-                ],
+                constraints=[{"metric": "max_drawdown_pct", "op": ">=", "value": -15}],
             )
 
             await store._run(experiment["id"])

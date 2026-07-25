@@ -8,8 +8,8 @@ from stock_strategy.opend import (
     OpenDRequestError,
     OpenDSymbol,
     OpenDSymbolDirectory,
-    fetch_stock_directory,
     fetch_history_kline,
+    fetch_stock_directory,
     fetch_stock_metadata,
     match_stock_symbols,
     write_history_csv,
@@ -92,14 +92,17 @@ class OpenDTest(unittest.TestCase):
     def test_symbol_directory_reuses_the_cached_opend_inventory(self):
         calls = []
         directory = OpenDSymbolDirectory(
-            loader=lambda: calls.append(True)
-            or [OpenDSymbol("US.AAPL", "Apple", "US")],
+            loader=lambda: (
+                calls.append(True) or [OpenDSymbol("US.AAPL", "Apple", "US")]
+            ),
             ttl_seconds=60,
         )
 
         self.assertEqual(directory.search("aapl")[0]["name"], "Apple")
         self.assertEqual(directory.search("apple")[0]["code"], "US.AAPL")
-        self.assertEqual(directory.resolve(["us.aapl", "US.MISSING"])[0]["name"], "Apple")
+        self.assertEqual(
+            directory.resolve(["us.aapl", "US.MISSING"])[0]["name"], "Apple"
+        )
         self.assertEqual(len(calls), 1)
 
     def test_fetch_stock_metadata_reads_snapshot_and_closes(self):
@@ -190,7 +193,9 @@ class OpenDTest(unittest.TestCase):
                 start="2025-01-01",
                 end="2025-01-31",
                 session="OVERNIGHT",
-                context_factory=lambda **kwargs: self.fail("context should not be opened"),
+                context_factory=lambda **kwargs: self.fail(
+                    "context should not be opened"
+                ),
             )
 
     def test_fetch_history_closes_after_request_error(self):
@@ -211,7 +216,9 @@ class OpenDTest(unittest.TestCase):
             pages=1,
         )
         with tempfile.TemporaryDirectory() as directory:
-            path = write_history_csv(history, Path(directory) / "nested" / "history.csv")
+            path = write_history_csv(
+                history, Path(directory) / "nested" / "history.csv"
+            )
             with path.open("r", encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
         self.assertEqual(rows[0]["code"], "US.AAPL")

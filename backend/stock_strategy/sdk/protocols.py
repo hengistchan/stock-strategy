@@ -41,4 +41,3 @@ class ExitPolicy(Protocol):
 
 class OrderExecutor(Protocol):
     def submit(self, proposal: OrderProposal) -> ExecutionReceipt: ...
-

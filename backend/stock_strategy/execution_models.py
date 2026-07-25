@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import math
+from dataclasses import asdict, dataclass
 from typing import Any, Mapping, Protocol
 
 from .models import Bar, Order, OrderSide
-
 
 FUTU_US_FEE_SOURCE = (
     "https://www.futuhk.com/en/support/"
@@ -19,7 +18,9 @@ class FeeBreakdown:
     components: Mapping[str, float]
 
     def __post_init__(self) -> None:
-        normalized = {str(name): float(value) for name, value in self.components.items()}
+        normalized = {
+            str(name): float(value) for name, value in self.components.items()
+        }
         if not normalized:
             raise ValueError("fee breakdown must contain at least one component")
         if any(not math.isfinite(value) or value < 0 for value in normalized.values()):
@@ -102,9 +103,7 @@ class BpsCommissionModel:
         )
 
     def calculate(self, *, price: float, quantity: float, side: OrderSide) -> float:
-        return self.calculate_breakdown(
-            price=price, quantity=quantity, side=side
-        ).total
+        return self.calculate_breakdown(price=price, quantity=quantity, side=side).total
 
     def manifest(self) -> dict[str, Any]:
         return {
@@ -136,7 +135,9 @@ class FutuUSStockFeeModel:
         turnover = _validated_turnover(price, quantity)
         is_sell = side in (OrderSide.SELL, OrderSide.SELL_SHORT)
         components = {
-            "commission": max(self.min_commission, quantity * self.commission_per_share),
+            "commission": max(
+                self.min_commission, quantity * self.commission_per_share
+            ),
             "platform": max(self.min_platform, quantity * self.platform_per_share),
             "settlement": quantity * self.settlement_per_share,
             "sec_regulatory": max(self.sec_minimum, turnover * self.sec_rate)
@@ -153,9 +154,7 @@ class FutuUSStockFeeModel:
         return FeeBreakdown(components)
 
     def calculate(self, *, price: float, quantity: float, side: OrderSide) -> float:
-        return self.calculate_breakdown(
-            price=price, quantity=quantity, side=side
-        ).total
+        return self.calculate_breakdown(price=price, quantity=quantity, side=side).total
 
     def manifest(self) -> dict[str, Any]:
         return {
@@ -207,9 +206,7 @@ class FutuHKStockFeeModel:
         return FeeBreakdown(components)
 
     def calculate(self, *, price: float, quantity: float, side: OrderSide) -> float:
-        return self.calculate_breakdown(
-            price=price, quantity=quantity, side=side
-        ).total
+        return self.calculate_breakdown(price=price, quantity=quantity, side=side).total
 
     def manifest(self) -> dict[str, Any]:
         return {

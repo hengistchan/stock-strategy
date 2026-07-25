@@ -7,8 +7,7 @@ from stock_strategy.strategy_parameters import (
     resolve_parameter_values,
 )
 
-
-SOURCE = '''
+SOURCE = """
 STRATEGY_PARAMETERS = {
     "period": {
         "label": "周期",
@@ -27,7 +26,7 @@ STRATEGY_PARAMETERS = {
         "max": 1.0,
     },
 }
-'''
+"""
 
 
 class StrategyParametersTest(unittest.TestCase):
@@ -55,7 +54,9 @@ class StrategyParametersTest(unittest.TestCase):
             resolve_parameter_values(definitions, {"period": 1})
 
     def test_localized_copy_requires_a_locale_mapping(self):
-        with self.assertRaisesRegex(StrategyParameterError, "label_i18n must be a dictionary"):
+        with self.assertRaisesRegex(
+            StrategyParameterError, "label_i18n must be a dictionary"
+        ):
             extract_parameter_definitions(
                 'STRATEGY_PARAMETERS = {"period": {"type": "int", "default": 20, "label_i18n": "Period"}}'
             )

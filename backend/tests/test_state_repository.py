@@ -4,12 +4,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from stock_strategy.job_lifecycle import InvalidJobTransition
 from stock_strategy.state_repository import (
     STATE_SCHEMA_VERSION,
     SqliteExperimentRepository,
     SqliteJobRepository,
 )
-from stock_strategy.job_lifecycle import InvalidJobTransition
 
 
 class SqliteJobRepositoryTest(unittest.TestCase):

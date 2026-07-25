@@ -17,7 +17,15 @@ class DataTest(unittest.TestCase):
         second = generate_sample_bars(40)
         self.assertEqual(first, second)
         self.assertEqual(len(first), 40)
-        self.assertTrue(all(bar.low <= min(bar.open, bar.close) <= max(bar.open, bar.close) <= bar.high for bar in first))
+        self.assertTrue(
+            all(
+                bar.low
+                <= min(bar.open, bar.close)
+                <= max(bar.open, bar.close)
+                <= bar.high
+                for bar in first
+            )
+        )
 
     def test_load_bars_accepts_chinese_headers(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -26,7 +34,9 @@ class DataTest(unittest.TestCase):
                 writer = csv.writer(handle)
                 writer.writerow(["日期", "开盘", "最高", "最低", "收盘", "成交量"])
                 for index, bar in enumerate(generate_sample_bars(30)):
-                    writer.writerow([bar.date, bar.open, bar.high, bar.low, bar.close, index + 1])
+                    writer.writerow(
+                        [bar.date, bar.open, bar.high, bar.low, bar.close, index + 1]
+                    )
             bars = load_bars(path)
         self.assertEqual(len(bars), 30)
         self.assertEqual(bars[0].volume, 1)
@@ -34,7 +44,9 @@ class DataTest(unittest.TestCase):
     def test_load_bars_rejects_invalid_ohlc(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "bad.csv"
-            path.write_text("date,open,high,low,close\n2025-01-01,10,9,8,11\n", encoding="utf-8")
+            path.write_text(
+                "date,open,high,low,close\n2025-01-01,10,9,8,11\n", encoding="utf-8"
+            )
             with self.assertRaisesRegex(ValueError, "Invalid OHLC"):
                 load_bars(path)
 
@@ -43,10 +55,36 @@ class DataTest(unittest.TestCase):
             path = Path(directory) / "opend.csv"
             with path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.writer(handle)
-                writer.writerow(["", "code", "name", "time_key", "open", "close", "high", "low", "volume", "turnover"])
+                writer.writerow(
+                    [
+                        "",
+                        "code",
+                        "name",
+                        "time_key",
+                        "open",
+                        "close",
+                        "high",
+                        "low",
+                        "volume",
+                        "turnover",
+                    ]
+                )
                 for index in range(30):
                     minute = 30 + index
-                    writer.writerow([index, "US.AAPL", "Apple", f"2025-01-02 09:{minute:02d}:00", 100, 101, 102, 99, 1_000, 100_000])
+                    writer.writerow(
+                        [
+                            index,
+                            "US.AAPL",
+                            "Apple",
+                            f"2025-01-02 09:{minute:02d}:00",
+                            100,
+                            101,
+                            102,
+                            99,
+                            1_000,
+                            100_000,
+                        ]
+                    )
             market_data = load_market_data(path)
         self.assertEqual(market_data.source_format, "opend")
         self.assertEqual(market_data.symbol, "US.AAPL")

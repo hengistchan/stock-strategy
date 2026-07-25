@@ -22,7 +22,9 @@ class ErrorResponse(BaseModel):
     error: ErrorBody
 
 
-def error_responses(*status_codes: int) -> dict[int, dict[str, Any]]:
+def error_responses(
+    *status_codes: int,
+) -> dict[int | str, dict[str, Any]]:
     return {
         status_code: {
             "model": ErrorResponse,
@@ -217,9 +219,7 @@ class ExperimentResponse(ApiModel):
     validation_window: dict[str, str] | None = None
     test_window: dict[str, str] | None = None
     walk_forward_folds: int = 0
-    walk_forward_windows: list[dict[str, dict[str, str]]] = Field(
-        default_factory=list
-    )
+    walk_forward_windows: list[dict[str, dict[str, str]]] = Field(default_factory=list)
     parameter_grid: dict[str, list[Any]]
     strategy_path: str
     strategy_revision: str | None = None

@@ -5,7 +5,6 @@ from pathlib import Path
 from stock_strategy.strategy_migration import StrategyMigrationService
 from stock_strategy.strategy_repository import StrategyRepository
 
-
 SUPPORTED_SOURCE = """
 from stock_strategy.futu import *
 

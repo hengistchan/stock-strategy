@@ -97,7 +97,13 @@ class BrokerTest(unittest.TestCase):
         self.assertEqual(broker.cash, 73)
 
     def test_market_order_fills_on_next_bar_open(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+        )
         symbol = Contract("US.TEST")
         first = Bar("2025-01-02", 100, 102, 99, 101, 1_000)
         second = Bar("2025-01-03", 105, 108, 104, 107, 1_000)
@@ -175,30 +181,46 @@ class BrokerTest(unittest.TestCase):
             current_price=99,
         )
 
-        broker.process_bar(
-            Bar("2025-01-02 09:31:00", 102, 103, 102, 102.5, 1_000), 1
-        )
+        broker.process_bar(Bar("2025-01-02 09:31:00", 102, 103, 102, 102.5, 1_000), 1)
         self.assertTrue(broker.get_order(order_id).triggered)
         self.assertEqual(broker.position.quantity, 0)
         self.assertEqual(len(broker.pending_orders), 1)
 
-        broker.process_bar(
-            Bar("2025-01-02 09:32:00", 100.5, 101, 100, 100.8, 1_000), 2
-        )
+        broker.process_bar(Bar("2025-01-02 09:32:00", 100.5, 101, 100, 100.8, 1_000), 2)
         self.assertEqual(broker.position.quantity, 10)
         self.assertLessEqual(broker.position.average_price, 101)
 
     def test_sell_closes_position_and_records_net_trade(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+        )
         symbol = Contract("US.TEST")
         bars = [
             Bar("2025-01-02", 100, 102, 99, 101, 1_000),
             Bar("2025-01-03", 100, 105, 99, 104, 1_000),
             Bar("2025-01-06", 110, 112, 109, 111, 1_000),
         ]
-        broker.submit(symbol=symbol, side=OrderSide.BUY, quantity=10, order_type="MARKET", current_index=0, current_date=bars[0].date)
+        broker.submit(
+            symbol=symbol,
+            side=OrderSide.BUY,
+            quantity=10,
+            order_type="MARKET",
+            current_index=0,
+            current_date=bars[0].date,
+        )
         broker.process_bar(bars[1], 1)
-        broker.submit(symbol=symbol, side=OrderSide.SELL, quantity=10, order_type="MARKET", current_index=1, current_date=bars[1].date)
+        broker.submit(
+            symbol=symbol,
+            side=OrderSide.SELL,
+            quantity=10,
+            order_type="MARKET",
+            current_index=1,
+            current_date=bars[1].date,
+        )
         broker.process_bar(bars[2], 2)
 
         self.assertEqual(broker.position.quantity, 0)
@@ -207,7 +229,14 @@ class BrokerTest(unittest.TestCase):
         self.assertEqual(broker.cash, 10_100)
 
     def test_day_limit_order_remains_active_within_first_eligible_trading_day(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False, bar_type=BarType.K_1M)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            bar_type=BarType.K_1M,
+        )
         symbol = Contract("US.TEST")
         signal_bar = Bar("2025-01-02 09:30:00", 100, 101, 100, 101, 1_000)
         first_eligible = Bar("2025-01-02 09:31:00", 103, 104, 101, 102, 1_000)
@@ -230,7 +259,14 @@ class BrokerTest(unittest.TestCase):
         self.assertEqual(broker.position.average_price, 99)
 
     def test_day_limit_order_expires_before_checking_next_trading_day(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False, bar_type=BarType.K_1M)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+            bar_type=BarType.K_1M,
+        )
         symbol = Contract("US.TEST")
         bars = [
             Bar("2025-01-02 09:30:00", 100, 101, 100, 101, 1_000),
@@ -284,7 +320,13 @@ class BrokerTest(unittest.TestCase):
         self.assertIn("trading-day boundary", broker.logs[-1].message)
 
     def test_pending_buys_reserve_cash(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+        )
         symbol = Contract("US.TEST")
         broker.submit(
             symbol=symbol,
@@ -310,7 +352,13 @@ class BrokerTest(unittest.TestCase):
             )
 
     def test_pending_sells_freeze_available_position(self):
-        broker = Broker(10_000, commission_bps=0, min_commission=0, slippage_bps=0, allow_short=False)
+        broker = Broker(
+            10_000,
+            commission_bps=0,
+            min_commission=0,
+            slippage_bps=0,
+            allow_short=False,
+        )
         symbol = Contract("US.TEST")
         broker.position.quantity = 10
         broker.position.average_price = 100

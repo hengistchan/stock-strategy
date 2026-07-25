@@ -1,5 +1,5 @@
-import os
 import asyncio
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -8,8 +8,8 @@ from stock_strategy.strategy_process import (
     RESTRICTED_EXECUTION_PROFILE,
     TRUSTED_EXECUTION_PROFILE,
     ExecutionLimits,
-    StrategyProcessRunner,
     StrategyProcessOutputLimit,
+    StrategyProcessRunner,
     StrategyProcessTimeout,
     build_strategy_environment,
     subprocess_isolation_options,
@@ -72,7 +72,9 @@ class StrategyProcessTest(unittest.TestCase):
 
     def test_subprocess_starts_a_new_session_on_posix(self):
         with patch("stock_strategy.strategy_process.os.name", "posix"):
-            self.assertEqual(subprocess_isolation_options(), {"start_new_session": True})
+            self.assertEqual(
+                subprocess_isolation_options(), {"start_new_session": True}
+            )
         with patch("stock_strategy.strategy_process.os.name", "nt"):
             self.assertEqual(subprocess_isolation_options(), {})
 

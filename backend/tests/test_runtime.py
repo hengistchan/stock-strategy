@@ -92,7 +92,9 @@ class Strategy(StrategyBase):
         self.assertEqual(result.start_date, bars[5].date)
         self.assertEqual(result.bar_count, 15)
         self.assertEqual(len(result.equity_curve), 15)
-        self.assertEqual(result.equity_curve[0].benchmark, result.metrics.initial_equity)
+        self.assertEqual(
+            result.equity_curve[0].benchmark, result.metrics.initial_equity
+        )
 
     def test_intraday_metrics_use_daily_returns_and_hide_short_period_cagr(self):
         curve = [
@@ -113,7 +115,8 @@ class Strategy(StrategyBase):
 
         daily_returns = [0.01, 102_000 / 101_000 - 1]
         expected_sharpe = (
-            sum(daily_returns) / len(daily_returns)
+            sum(daily_returns)
+            / len(daily_returns)
             / (
                 (sum((value - sum(daily_returns) / 2) ** 2 for value in daily_returns))
                 ** 0.5
@@ -237,14 +240,16 @@ class Strategy(StrategyBase):
 
         self.assertEqual(result.metrics.total_trades, 0)
         self.assertEqual(result.settings["ending_position"]["quantity"], 1)
-        self.assertEqual(result.settings["ending_position"]["mark_price"], bars[-1].close)
+        self.assertEqual(
+            result.settings["ending_position"]["mark_price"], bars[-1].close
+        )
         self.assertNotEqual(result.settings["ending_position"]["side"], "NONE")
 
     def test_declared_strategy_parameters_are_injected_and_recorded(self):
         with tempfile.TemporaryDirectory() as directory:
             strategy = Path(directory) / "strategy.py"
             strategy.write_text(
-                '''
+                """
 STRATEGY_PARAMETERS = {
     "quantity": {"type": "int", "default": 1, "min": 1, "max": 10}
 }
@@ -259,7 +264,7 @@ class Strategy(StrategyBase):
         if not self.sent:
             place_market(self.symbol, qty=self.quantity, side=OrderSide.BUY)
             self.sent = True
-''',
+""",
                 encoding="utf-8",
             )
             result = run_backtest(

@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-
 PARAMETER_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 PARAMETER_TYPES = frozenset({"int", "float", "bool", "string"})
 LOCALE_PATTERN = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
@@ -24,7 +23,9 @@ def extract_parameter_definitions(source: str) -> list[dict[str, Any]]:
     try:
         module = ast.parse(source, filename="strategy.py")
     except SyntaxError as error:
-        raise StrategyParameterError(f"could not parse strategy parameters: {error.msg}") from error
+        raise StrategyParameterError(
+            f"could not parse strategy parameters: {error.msg}"
+        ) from error
 
     value_node: ast.expr | None = None
     for node in module.body:
@@ -62,7 +63,9 @@ def extract_parameter_definitions(source: str) -> list[dict[str, Any]]:
         if not isinstance(name, str) or not PARAMETER_NAME_PATTERN.fullmatch(name):
             raise StrategyParameterError(f"invalid strategy parameter name: {name!r}")
         if not isinstance(specification, dict):
-            raise StrategyParameterError(f"parameter {name!r} must use a dictionary spec")
+            raise StrategyParameterError(
+                f"parameter {name!r} must use a dictionary spec"
+            )
         definitions.append(_normalize_definition(name, specification))
     return definitions
 
@@ -124,7 +127,9 @@ def parse_parameter_assignment(value: str) -> tuple[str, Any]:
     return name, parsed
 
 
-def _normalize_definition(name: str, specification: Mapping[str, Any]) -> dict[str, Any]:
+def _normalize_definition(
+    name: str, specification: Mapping[str, Any]
+) -> dict[str, Any]:
     parameter_type = str(specification.get("type", "")).lower()
     if parameter_type not in PARAMETER_TYPES:
         raise StrategyParameterError(
@@ -165,7 +170,9 @@ def _normalize_definition(name: str, specification: Mapping[str, Any]) -> dict[s
     choices = specification.get("choices")
     if choices is not None:
         if not isinstance(choices, (list, tuple)) or not choices:
-            raise StrategyParameterError(f"parameter {name!r} choices must be non-empty")
+            raise StrategyParameterError(
+                f"parameter {name!r} choices must be non-empty"
+            )
         definition["choices"] = [
             _coerce_value(name, parameter_type, choice) for choice in choices
         ]

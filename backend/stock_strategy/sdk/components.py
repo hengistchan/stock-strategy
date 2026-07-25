@@ -53,9 +53,7 @@ class FixedRiskSizer:
             return 0.0
         risk_quantity = account.equity * self.risk_fraction / per_share_risk
         capital_quantity = (
-            account.buying_power
-            * self.max_position_fraction
-            / signal.reference_price
+            account.buying_power * self.max_position_fraction / signal.reference_price
         )
         raw = min(risk_quantity, capital_quantity)
         return math.floor(raw / self.lot_size) * self.lot_size
@@ -127,4 +125,3 @@ class StructuralExitPolicy:
             ):
                 return ExitDecision("structural_target")
         return None
-

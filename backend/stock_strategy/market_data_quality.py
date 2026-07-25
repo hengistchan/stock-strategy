@@ -6,7 +6,6 @@ from typing import Any, Sequence
 
 from .models import Bar, BarType
 
-
 MARKET_TIMEZONES = {
     "US": "America/New_York",
     "HK": "Asia/Hong_Kong",
@@ -25,7 +24,7 @@ def build_market_data_quality_report(
     market = symbol.split(".", 1)[0].upper()
     duplicate_count = len(bars) - len({bar.date for bar in bars})
     suspicious_jumps = []
-    for previous, current in zip(bars, bars[1:]):
+    for previous, current in zip(bars, bars[1:], strict=False):
         if previous.close <= 0:
             continue
         change = current.close / previous.close - 1
@@ -37,11 +36,7 @@ def build_market_data_quality_report(
                     "change_pct": change * 100,
                 }
             )
-    missing = (
-        _missing_weekdays(bars)
-        if normalized_type == BarType.K_DAY
-        else []
-    )
+    missing = _missing_weekdays(bars) if normalized_type == BarType.K_DAY else []
     adjustment = autype.upper()
     return {
         "rows": len(bars),
@@ -68,10 +63,7 @@ def build_market_data_quality_report(
 def _missing_weekdays(bars: Sequence[Bar]) -> list[str]:
     if len(bars) < 2:
         return []
-    observed = {
-        datetime.fromisoformat(bar.date).date()
-        for bar in bars
-    }
+    observed = {datetime.fromisoformat(bar.date).date() for bar in bars}
     cursor = min(observed)
     end = max(observed)
     missing: list[str] = []

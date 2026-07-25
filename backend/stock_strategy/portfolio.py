@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import datetime
 import hashlib
 import json
 import math
-from pathlib import Path
 import statistics
-from typing import Any, Mapping, Sequence
 import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Mapping, Sequence
 
 from .data import bars_from_opend_records
-from .models import Bar
 from .market_data_quality import build_market_data_quality_report
+from .models import Bar
 from .opend import OpenDHistory, fetch_history_kline
 from .run_manifest import atomic_write_json
 
@@ -32,12 +32,16 @@ class PortfolioConfig:
     session: str = "ALL"
 
     def __post_init__(self) -> None:
-        normalized = {symbol.upper(): float(weight) for symbol, weight in self.weights.items()}
+        normalized = {
+            symbol.upper(): float(weight) for symbol, weight in self.weights.items()
+        }
         if len(normalized) < 2:
             raise ValueError("portfolio requires at least two symbols")
         if len({symbol.split(".", 1)[0] for symbol in normalized}) != 1:
             raise ValueError("portfolio symbols must share one market and currency")
-        if any(not math.isfinite(weight) or weight <= 0 for weight in normalized.values()):
+        if any(
+            not math.isfinite(weight) or weight <= 0 for weight in normalized.values()
+        ):
             raise ValueError("portfolio weights must be positive finite values")
         total = sum(normalized.values())
         if total <= 0:
@@ -141,8 +145,7 @@ def run_portfolio(
     curve: list[dict[str, float | str]] = []
     peak = config.initial_cash
     benchmark_origin = {
-        symbol: by_symbol[symbol][common_dates[0]].close
-        for symbol in config.weights
+        symbol: by_symbol[symbol][common_dates[0]].close for symbol in config.weights
     }
     previous_period: tuple[int, int] | None = None
 
@@ -174,9 +177,7 @@ def run_portfolio(
         )
         peak = max(peak, equity)
         benchmark = config.initial_cash * sum(
-            config.weights[symbol]
-            * bars[symbol].close
-            / benchmark_origin[symbol]
+            config.weights[symbol] * bars[symbol].close / benchmark_origin[symbol]
             for symbol in config.weights
         )
         curve.append(
@@ -253,9 +254,7 @@ def _rebalance(
     min_commission: float,
     slippage_bps: float,
 ) -> tuple[float, float, float, list[dict[str, Any]]]:
-    equity = cash + sum(
-        positions[symbol] * bars[symbol].open for symbol in weights
-    )
+    equity = cash + sum(positions[symbol] * bars[symbol].open for symbol in weights)
     target_quantities = {
         symbol: max(0, math.floor(equity * weights[symbol] / bars[symbol].open))
         for symbol in weights
@@ -274,7 +273,9 @@ def _rebalance(
         positions[symbol] -= quantity
         fees += fee
         turnover += price * quantity
-        transactions.append(_transaction(timestamp, symbol, "SELL", quantity, price, fee))
+        transactions.append(
+            _transaction(timestamp, symbol, "SELL", quantity, price, fee)
+        )
 
     for symbol in weights:
         desired = target_quantities[symbol] - positions[symbol]
@@ -294,7 +295,9 @@ def _rebalance(
         positions[symbol] += quantity
         fees += fee
         turnover += price * quantity
-        transactions.append(_transaction(timestamp, symbol, "BUY", quantity, price, fee))
+        transactions.append(
+            _transaction(timestamp, symbol, "BUY", quantity, price, fee)
+        )
     return cash, fees, turnover, transactions
 
 
@@ -337,9 +340,8 @@ def _portfolio_metrics(
     )
     return {
         "total_return_pct": (equities[-1] / initial_cash - 1) * 100,
-        "benchmark_return_pct": (
-            float(curve[-1]["benchmark"]) / initial_cash - 1
-        ) * 100,
+        "benchmark_return_pct": (float(curve[-1]["benchmark"]) / initial_cash - 1)
+        * 100,
         "max_drawdown_pct": min(float(point["drawdown"]) for point in curve) * 100,
         "sharpe_ratio": sharpe,
         "annualized_volatility_pct": (

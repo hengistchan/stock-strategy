@@ -27,12 +27,18 @@ class FutuApiTest(unittest.TestCase):
         self.bars = generate_sample_bars(80)
         self.symbol = Contract("US.TEST")
         self.broker = Broker(10_000, 0, 0, 0, False)
-        self.context = ExecutionContext(self.bars, self.symbol, self.broker, current_index=70)
+        self.context = ExecutionContext(
+            self.bars, self.symbol, self.broker, current_index=70
+        )
 
     def test_select_uses_current_and_previous_bar(self):
         with activate_context(self.context):
-            self.assertEqual(bar_close(self.symbol, BarType.K_DAY, select=1), self.bars[70].close)
-            self.assertEqual(bar_close(self.symbol, BarType.K_DAY, select=2), self.bars[69].close)
+            self.assertEqual(
+                bar_close(self.symbol, BarType.K_DAY, select=1), self.bars[70].close
+            )
+            self.assertEqual(
+                bar_close(self.symbol, BarType.K_DAY, select=2), self.bars[69].close
+            )
 
     def test_indicators_return_finite_values_after_warmup(self):
         with activate_context(self.context):
@@ -68,9 +74,13 @@ class FutuApiTest(unittest.TestCase):
 
     def test_period_and_us_session_mismatch_fail_instead_of_resampling(self):
         with activate_context(self.context):
-            with self.assertRaisesRegex(UnsupportedAPIError, "resampling is not implemented"):
+            with self.assertRaisesRegex(
+                UnsupportedAPIError, "resampling is not implemented"
+            ):
                 bar_close(self.symbol, BarType.K_5M, select=1)
-            with self.assertRaisesRegex(UnsupportedAPIError, "session filtering is not implemented"):
+            with self.assertRaisesRegex(
+                UnsupportedAPIError, "session filtering is not implemented"
+            ):
                 bar_close(
                     self.symbol,
                     BarType.K_DAY,
@@ -127,9 +137,7 @@ class FutuApiTest(unittest.TestCase):
             self.assertEqual(
                 bar_close(self.symbol, BarType.K_5M, select=1), bars[4].close
             )
-            self.assertTrue(
-                math.isnan(bar_close(self.symbol, BarType.K_5M, select=2))
-            )
+            self.assertTrue(math.isnan(bar_close(self.symbol, BarType.K_5M, select=2)))
             context.current_index = 5
             self.assertEqual(
                 bar_close(self.symbol, BarType.K_5M, select=1), bars[5].close

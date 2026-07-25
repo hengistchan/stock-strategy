@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
-from pathlib import Path
 import platform
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Mapping
 
 from . import __version__
 from .market_cache import CACHE_SCHEMA_VERSION, DATA_ADAPTER_VERSION
 from .runtime import ENGINE_CONTRACT_VERSION
 from .strategy_process import TRUSTED_EXECUTION_PROFILE
-
 
 RUN_MANIFEST_SCHEMA_VERSION = 1
 

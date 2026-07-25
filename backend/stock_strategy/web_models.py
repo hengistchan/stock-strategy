@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
 import re
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from .application_models import (
-    KLINE_TYPES,
-    SESSION_TYPES,
     SYMBOL_PATTERN,
     BacktestSpec,
     EvaluationWindow,
@@ -16,8 +14,8 @@ from .application_models import (
     MetricConstraint,
     ParameterValue,
 )
-from .strategy_repository import MAX_STRATEGY_BYTES
 from .portfolio import PortfolioConfig
+from .strategy_repository import MAX_STRATEGY_BYTES
 
 
 class BacktestRequest(BaseModel):
@@ -74,13 +72,15 @@ class ExperimentRequest(BaseModel):
     name: str = Field(default="参数实验", min_length=1, max_length=80)
     base: BacktestRequest
     parameter_grid: dict[str, list[ParameterValue]]
-    objective: Literal[
-        "total_return_pct", "sharpe_ratio", "max_drawdown_pct"
-    ] = "sharpe_ratio"
+    objective: Literal["total_return_pct", "sharpe_ratio", "max_drawdown_pct"] = (
+        "sharpe_ratio"
+    )
     validation: "EvaluationWindowRequest | None" = None
     test: "EvaluationWindowRequest | None" = None
     walk_forward_folds: int = Field(default=0, ge=0, le=5)
-    constraints: list["MetricConstraintRequest"] = Field(default_factory=list, max_length=8)
+    constraints: list["MetricConstraintRequest"] = Field(
+        default_factory=list, max_length=8
+    )
     symbols: list[str] = Field(default_factory=list, max_length=36)
 
     @model_validator(mode="after")
@@ -88,14 +88,18 @@ class ExperimentRequest(BaseModel):
         normalized_symbols = [symbol.strip().upper() for symbol in self.symbols]
         if len(set(normalized_symbols)) != len(normalized_symbols):
             raise ValueError("批量验证的标的代码不能重复。")
-        if any(not re.fullmatch(SYMBOL_PATTERN, symbol) for symbol in normalized_symbols):
+        if any(
+            not re.fullmatch(SYMBOL_PATTERN, symbol) for symbol in normalized_symbols
+        ):
             raise ValueError("批量验证包含无效的标的代码。")
         if normalized_symbols and len(normalized_symbols) < 2:
             raise ValueError("批量验证至少需要 2 个标的。")
         if normalized_symbols and self.parameter_grid:
             raise ValueError("批量标的验证不能同时运行参数网格。")
         if normalized_symbols and (
-            self.walk_forward_folds or self.validation is not None or self.test is not None
+            self.walk_forward_folds
+            or self.validation is not None
+            or self.test is not None
         ):
             raise ValueError("批量标的验证不能同时配置样本外区间。")
         self.symbols = normalized_symbols
@@ -109,7 +113,12 @@ class ExperimentRequest(BaseModel):
             raise ValueError("测试区间需要先配置验证区间。")
         if self.validation is not None and self.validation.start <= self.base.end:
             raise ValueError("验证区间必须晚于训练区间。")
-        if self.test is not None and self.test.start <= self.validation.end:
+        validation = self.validation
+        if (
+            self.test is not None
+            and validation is not None
+            and self.test.start <= validation.end
+        ):
             raise ValueError("测试区间必须晚于验证区间。")
         return self
 
@@ -124,7 +133,9 @@ class ExperimentRequest(BaseModel):
             validation=self.validation.to_window() if self.validation else None,
             test=self.test.to_window() if self.test else None,
             walk_forward_folds=self.walk_forward_folds,
-            constraints=tuple(constraint.to_constraint() for constraint in self.constraints),
+            constraints=tuple(
+                constraint.to_constraint() for constraint in self.constraints
+            ),
             symbols=tuple(self.symbols),
         )
 
@@ -201,7 +212,9 @@ class PortfolioRequest(BaseModel):
     def validate_portfolio(self) -> "PortfolioRequest":
         if self.end < self.start:
             raise ValueError("组合结束日期不能早于开始日期。")
-        normalized = {symbol.strip().upper(): weight for symbol, weight in self.weights.items()}
+        normalized = {
+            symbol.strip().upper(): weight for symbol, weight in self.weights.items()
+        }
         if any(not re.fullmatch(SYMBOL_PATTERN, symbol) for symbol in normalized):
             raise ValueError("组合包含无效的标的代码。")
         self.weights = normalized

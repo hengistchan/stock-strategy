@@ -22,13 +22,16 @@ class DiagnosticsServiceTest(unittest.TestCase):
                 port=11111,
                 connection_probe=lambda host, port: True,
                 package_version_probe=lambda package: "10.6.6608",
-                quote_probe=lambda: "OpenD stock directory readable · 1 probe result(s)",
+                quote_probe=lambda: (
+                    "OpenD stock directory readable · 1 probe result(s)"
+                ),
             ).run()
 
         self.assertTrue(report.ready)
-        self.assertEqual([check.id for check in report.checks], [
-            "python", "futu_api", "workspace", "opend", "quote_directory"
-        ])
+        self.assertEqual(
+            [check.id for check in report.checks],
+            ["python", "futu_api", "workspace", "opend", "quote_directory"],
+        )
         self.assertTrue(all(check.status == "pass" for check in report.checks))
 
     def test_quote_check_is_blocked_when_sdk_and_opend_are_unavailable(self):

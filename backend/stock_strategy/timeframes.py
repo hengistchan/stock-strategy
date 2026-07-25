@@ -5,7 +5,6 @@ from math import isfinite
 
 from .models import Bar, BarType
 
-
 _MINUTES: dict[BarType, int] = {
     BarType.K_1M: 1,
     BarType.K_3M: 3,

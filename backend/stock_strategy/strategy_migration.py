@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
 import json
-from pathlib import Path
 import sys
-from typing import Any
 import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from .paths import BACKEND_ROOT
 from .run_manifest import atomic_write_json, atomic_write_text, sha256_bytes
 from .strategy_process import (
     RESTRICTED_EXECUTION_PROFILE,
-    StrategyProcessRunner,
     StrategyProcessOutputLimit,
+    StrategyProcessRunner,
     StrategyProcessTimeout,
 )
 from .strategy_repository import (
@@ -20,7 +20,6 @@ from .strategy_repository import (
     analyze_strategy_compatibility,
     validate_strategy_source,
 )
-
 
 FIXTURE_BARS = 400
 FIXTURE_SYMBOL = "US.AAPL"
@@ -103,9 +102,7 @@ class StrategyMigrationService:
                     "stderr": outcome.stderr,
                 }
             else:
-                summary = json.loads(
-                    summary_paths[-1].read_text(encoding="utf-8")
-                )
+                summary = json.loads(summary_paths[-1].read_text(encoding="utf-8"))
                 report["fixture"] = {
                     "status": "passed",
                     "symbol": FIXTURE_SYMBOL,
@@ -133,9 +130,9 @@ class StrategyMigrationService:
             {
                 **imported_report,
                 "strategy_path": strategy["path"],
-                "imported_at": datetime.now().astimezone().isoformat(
-                    timespec="seconds"
-                ),
+                "imported_at": datetime.now()
+                .astimezone()
+                .isoformat(timespec="seconds"),
             },
         )
         return {"strategy": strategy, "report": imported_report}

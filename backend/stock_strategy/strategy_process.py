@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 from dataclasses import dataclass
 from functools import partial
-import os
 from pathlib import Path
-import signal
 from typing import Any, Mapping
-
 
 TRUSTED_EXECUTION_PROFILE = "trusted-local-v2"
 RESTRICTED_EXECUTION_PROFILE = "restricted-import-v1"
@@ -54,9 +53,7 @@ def build_strategy_environment(
 ) -> dict[str, str]:
     inherited = source if source is not None else os.environ
     environment = {
-        key: inherited[key]
-        for key in _INHERITED_ENVIRONMENT_KEYS
-        if inherited.get(key)
+        key: inherited[key] for key in _INHERITED_ENVIRONMENT_KEYS if inherited.get(key)
     }
     environment.update(
         PYTHONPATH=str(backend_root.resolve()),
@@ -198,8 +195,10 @@ class StrategyProcessRunner:
                 raise
         finally:
             self._active.pop(job_id, None)
+        if process.returncode is None:
+            raise RuntimeError("strategy process finished without a return code")
         return ProcessOutcome(
-            returncode=int(process.returncode),
+            returncode=process.returncode,
             stdout=stdout_bytes.decode("utf-8", errors="replace")[
                 -MAX_CAPTURED_OUTPUT_CHARS:
             ],
@@ -212,10 +211,9 @@ class StrategyProcessRunner:
         self,
         process: asyncio.subprocess.Process,
     ) -> tuple[bytes, bytes]:
-        if (
-            getattr(process, "stdout", None) is None
-            or getattr(process, "stderr", None) is None
-        ):
+        stdout_stream = getattr(process, "stdout", None)
+        stderr_stream = getattr(process, "stderr", None)
+        if stdout_stream is None or stderr_stream is None:
             return await process.communicate()
         captured = {"total": 0}
 
@@ -229,13 +227,11 @@ class StrategyProcessRunner:
                     return bytes(result)
                 captured["total"] += len(chunk)
                 if captured["total"] > self.limits.output_bytes:
-                    raise StrategyProcessOutputLimit(
-                        "策略输出超过限制，进程已终止。"
-                    )
+                    raise StrategyProcessOutputLimit("策略输出超过限制，进程已终止。")
                 result.extend(chunk)
 
-        stdout_task = asyncio.create_task(read_stream(process.stdout))
-        stderr_task = asyncio.create_task(read_stream(process.stderr))
+        stdout_task = asyncio.create_task(read_stream(stdout_stream))
+        stderr_task = asyncio.create_task(read_stream(stderr_stream))
         wait_task = asyncio.create_task(process.wait())
         tasks = (stdout_task, stderr_task, wait_task)
         try:

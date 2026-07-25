@@ -21,12 +21,11 @@ from .models import (
     OrderSide,
     OrderStatus,
     Position,
-    TSType,
     TimeInForce,
     Trade,
     TrailType,
+    TSType,
 )
-
 
 _PRICE_ABS_TOLERANCE = 1e-8
 
@@ -115,9 +114,13 @@ class Broker:
     ) -> str:
         if not math.isfinite(quantity) or quantity <= 0:
             raise ValueError("order quantity must be a positive finite number")
-        if limit_price is not None and (not math.isfinite(limit_price) or limit_price <= 0):
+        if limit_price is not None and (
+            not math.isfinite(limit_price) or limit_price <= 0
+        ):
             raise ValueError("limit price must be positive")
-        if stop_price is not None and (not math.isfinite(stop_price) or stop_price <= 0):
+        if stop_price is not None and (
+            not math.isfinite(stop_price) or stop_price <= 0
+        ):
             raise ValueError("stop price must be positive")
 
         reserved_cash = self._estimate_reserved_cash(
@@ -131,7 +134,9 @@ class Broker:
         if reserved_cash > self.available_cash + 1e-9:
             raise ValueError("order exceeds cash available after pending buy orders")
         if side == OrderSide.SELL and quantity > self.max_sell_quantity() + 1e-9:
-            raise ValueError("order exceeds position available after pending sell orders")
+            raise ValueError(
+                "order exceeds position available after pending sell orders"
+            )
 
         order_id = f"SIM-{self._next_order_id:06d}"
         self._next_order_id += 1
@@ -161,7 +166,11 @@ class Broker:
         )
         self.pending_orders.append(order)
         self.orders[order_id] = order
-        self._log(current_date, "INFO", f"submitted {order_type} {side.value} {quantity:g} {symbol}")
+        self._log(
+            current_date,
+            "INFO",
+            f"submitted {order_type} {side.value} {quantity:g} {symbol}",
+        )
         return order_id
 
     def process_bar(self, bar: Bar, index: int) -> None:
@@ -179,7 +188,11 @@ class Broker:
                 and trading_date != order.active_date
             ):
                 order.status = OrderStatus.DISABLED
-                self._log(bar.date, "INFO", f"expired {order.order_id} at trading-day boundary")
+                self._log(
+                    bar.date,
+                    "INFO",
+                    f"expired {order.order_id} at trading-day boundary",
+                )
                 continue
             candidate_price = self._fill_price(order, bar)
             if candidate_price is None:
@@ -226,7 +239,11 @@ class Broker:
 
     def cancel_all(self, current_date: str) -> None:
         if self.pending_orders:
-            self._log(current_date, "INFO", f"cancelled {len(self.pending_orders)} pending order(s)")
+            self._log(
+                current_date,
+                "INFO",
+                f"cancelled {len(self.pending_orders)} pending order(s)",
+            )
         for order in self.pending_orders:
             order.status = (
                 OrderStatus.CANCELLED_PART
@@ -295,7 +312,9 @@ class Broker:
         if not math.isfinite(quantity) or quantity <= 0:
             raise ValueError("order quantity must be a positive finite number")
         if quantity + 1e-9 < order.filled_quantity:
-            raise ValueError("modified quantity cannot be below already filled quantity")
+            raise ValueError(
+                "modified quantity cannot be below already filled quantity"
+            )
         next_limit_price = order.limit_price if price is None else float(price)
         next_stop_price = order.stop_price if aux_price is None else float(aux_price)
         if next_limit_price is not None and (
@@ -552,7 +571,9 @@ class Broker:
     def _apply_slippage(self, price: float, side: OrderSide) -> float:
         result = self.slippage_model.apply(price=price, side=side)
         if not math.isfinite(result) or result <= 0:
-            raise ValueError("slippage model returned a non-positive or non-finite price")
+            raise ValueError(
+                "slippage model returned a non-positive or non-finite price"
+            )
         return result
 
     def _calculate_fee_breakdown(
@@ -577,9 +598,7 @@ class Broker:
             raise ValueError("fee model returned a negative or non-finite fee")
         return breakdown
 
-    def _calculate_fee(
-        self, price: float, quantity: float, side: OrderSide
-    ) -> float:
+    def _calculate_fee(self, price: float, quantity: float, side: OrderSide) -> float:
         return self._calculate_fee_breakdown(price, quantity, side).total
 
     def _execute(
@@ -597,9 +616,7 @@ class Broker:
         if not self._validate_position_change(order, date, price, fill_quantity):
             return
 
-        fee_breakdown = self._calculate_fee_breakdown(
-            price, fill_quantity, order.side
-        )
+        fee_breakdown = self._calculate_fee_breakdown(price, fill_quantity, order.side)
         fee = fee_breakdown.total
         signed_delta = (
             fill_quantity
@@ -626,9 +643,8 @@ class Broker:
         previous_filled = order.filled_quantity
         order.filled_quantity += fill_quantity
         order.filled_avg_price = (
-            (order.filled_avg_price * previous_filled + price * fill_quantity)
-            / order.filled_quantity
-        )
+            order.filled_avg_price * previous_filled + price * fill_quantity
+        ) / order.filled_quantity
         order.execution_ids.append(execution_id)
         remaining_after = max(0.0, order.quantity - order.filled_quantity)
         if remaining_before > 0:

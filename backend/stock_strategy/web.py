@@ -2,31 +2,27 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import secrets
 import sys
+from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api_errors import ApiProblem, error_payload, install_api_error_handlers
-from .execution_service import ExecutionService
 from .diagnostics import DiagnosticsService, is_opend_available
+from .execution_service import ExecutionService
 from .experiments import ExperimentStore
-from .job_store import JobStore, last_error as _last_error
+from .job_store import JobStore
 from .opend import OpenDSymbolDirectory
-from .portfolio import PortfolioService
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
-from .result_reader import (
-    read_downsampled_equity_curve as _read_downsampled_equity_curve,
-)
-from .strategy_repository import StrategyRepository, StrategyRepositoryError
+from .portfolio import PortfolioService
 from .strategy_migration import StrategyMigrationService
+from .strategy_repository import StrategyRepository, StrategyRepositoryError
 from .web_cache import create_cache_router
 from .web_events import create_events_router
 from .web_evidence import create_evidence_router
@@ -107,9 +103,7 @@ def create_app(
             if request.url.path == "/api" or request.url.path.startswith("/api/"):
                 authorization = request.headers.get("Authorization", "")
                 bearer = (
-                    authorization[7:]
-                    if authorization.startswith("Bearer ")
-                    else ""
+                    authorization[7:] if authorization.startswith("Bearer ") else ""
                 )
                 cookie = unquote(request.cookies.get("strategy_lab_token", ""))
                 supplied = bearer or cookie
@@ -186,7 +180,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--host",
         default="127.0.0.1",
-        choices=("127.0.0.1", "localhost", "0.0.0.0"),
+        choices=(
+            "127.0.0.1",
+            "localhost",
+            "0.0.0.0",  # nosec B104
+        ),
         help="Bind locally by default; use 0.0.0.0 only behind an explicit host firewall.",
     )
     parser.add_argument("--port", type=int, default=8000)
@@ -195,7 +193,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Explicitly allow a non-loopback bind; requires STRATEGY_LAB_API_TOKEN.",
     )
-    parser.add_argument("--opend-host", default=os.environ.get("OPEND_HOST", "127.0.0.1"))
+    parser.add_argument(
+        "--opend-host", default=os.environ.get("OPEND_HOST", "127.0.0.1")
+    )
     parser.add_argument(
         "--opend-port", type=int, default=int(os.environ.get("OPEND_PORT", "11111"))
     )
@@ -238,7 +238,9 @@ def validate_server_exposure(
 ) -> None:
     if _is_loopback_host(host):
         if api_token is not None and len(api_token) < 32:
-            raise ValueError("STRATEGY_LAB_API_TOKEN must contain at least 32 characters")
+            raise ValueError(
+                "STRATEGY_LAB_API_TOKEN must contain at least 32 characters"
+            )
         return
     if not allow_remote:
         raise ValueError(

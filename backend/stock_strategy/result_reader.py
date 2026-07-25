@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import csv
-from functools import lru_cache
 import json
 import math
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
-
 
 INITIAL_PRICE_WINDOW = 1_200
 MAX_PRICE_WINDOW = 2_000
@@ -58,9 +57,7 @@ def load_price_window_payload(
     return {
         "offset": bounded_offset,
         "total": total,
-        "points": load_opend_price_window(
-            project_root, summary, bounded_offset, limit
-        ),
+        "points": load_opend_price_window(project_root, summary, bounded_offset, limit),
     }
 
 
@@ -83,9 +80,7 @@ def read_csv(path: Path) -> list[dict[str, Any]]:
 
 
 @lru_cache(maxsize=16)
-def _read_csv_cached(
-    path_value: str, modified_at: int
-) -> tuple[dict[str, Any], ...]:
+def _read_csv_cached(path_value: str, modified_at: int) -> tuple[dict[str, Any], ...]:
     del modified_at
     path = Path(path_value)
     with path.open("r", encoding="utf-8", newline="") as handle:
@@ -228,7 +223,12 @@ def read_downsampled_equity_curve(
     bucket_length = 0
 
     def flush() -> None:
-        nonlocal bucket_first, bucket_last, bucket_drawdown, bucket_equity, bucket_length
+        nonlocal \
+            bucket_first, \
+            bucket_last, \
+            bucket_drawdown, \
+            bucket_equity, \
+            bucket_length
         if bucket_first is None:
             return
         selected.extend(
@@ -262,7 +262,10 @@ def read_downsampled_equity_curve(
             item = (index, row)
             bucket_first = bucket_first or item
             bucket_last = item
-            if bucket_drawdown is None or row["drawdown"] < bucket_drawdown[1]["drawdown"]:
+            if (
+                bucket_drawdown is None
+                or row["drawdown"] < bucket_drawdown[1]["drawdown"]
+            ):
                 bucket_drawdown = item
             if bucket_equity is None or row["equity"] > bucket_equity[1]["equity"]:
                 bucket_equity = item
@@ -279,8 +282,7 @@ def _csv_row_count_cached(path_value: str, modified_at: int) -> int:
     del modified_at
     with Path(path_value).open("rb") as handle:
         line_count = sum(
-            chunk.count(b"\n")
-            for chunk in iter(lambda: handle.read(1024 * 1024), b"")
+            chunk.count(b"\n") for chunk in iter(lambda: handle.read(1024 * 1024), b"")
         )
     return max(0, line_count - 1)
 

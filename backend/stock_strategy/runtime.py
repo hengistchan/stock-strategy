@@ -16,6 +16,7 @@ from .execution_models import (
     build_fee_model,
     build_slippage_model,
 )
+from .market_data_quality import build_market_data_quality_report
 from .models import (
     BacktestResult,
     Bar,
@@ -28,14 +29,13 @@ from .models import (
     THType,
     Trade,
 )
-from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
-from .market_data_quality import build_market_data_quality_report
 from .performance_analytics import (
     benchmark_statistics,
     build_performance_analysis,
     max_consecutive_losses,
     max_drawdown_duration_days,
 )
+from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
 
 
 class StrategyLoadError(RuntimeError):
@@ -82,7 +82,9 @@ class BacktestConfig:
         try:
             object.__setattr__(self, "session_type", THType(self.session_type))
         except (TypeError, ValueError) as error:
-            raise ValueError(f"unsupported session_type: {self.session_type}") from error
+            raise ValueError(
+                f"unsupported session_type: {self.session_type}"
+            ) from error
         normalized_autype = str(self.autype).upper()
         if normalized_autype not in {"QFQ", "HFQ", "NONE"}:
             raise ValueError(f"unsupported autype: {self.autype}")
@@ -111,13 +113,15 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         parameter_definitions, config.strategy_parameters
     )
     symbol = Contract(config.symbol)
+    bar_type = BarType(config.bar_type)
+    session_type = THType(config.session_type)
     broker = Broker(
         initial_cash=config.initial_cash,
         commission_bps=config.commission_bps,
         min_commission=config.min_commission,
         slippage_bps=config.slippage_bps,
         allow_short=config.allow_short,
-        bar_type=config.bar_type,
+        bar_type=bar_type,
         fee_model=build_fee_model(
             config.fee_model,
             symbol=config.symbol,
@@ -140,8 +144,8 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         bars=bars,
         symbol=symbol,
         broker=broker,
-        bar_type=config.bar_type,
-        session_type=config.session_type,
+        bar_type=bar_type,
+        session_type=session_type,
         autype=config.autype,
         strategy_parameters=strategy_parameters,
         market_metadata=config.market_metadata,
@@ -158,7 +162,9 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         try:
             strategy.initialize()
         except Exception as error:
-            raise StrategyExecutionError(f"strategy initialize() failed: {error}") from error
+            raise StrategyExecutionError(
+                f"strategy initialize() failed: {error}"
+            ) from error
 
         for index, bar in enumerate(bars):
             context.current_index = index
@@ -193,7 +199,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         initial_cash=config.initial_cash,
         exposed_bars=exposed_bars,
         total_fees=broker.total_fees,
-        bar_type=config.bar_type,
+        bar_type=bar_type,
         fills=broker.fills,
     )
     path = Path(config.strategy_path)
@@ -230,7 +236,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "market_data_quality": build_market_data_quality_report(
                 bars,
                 symbol=str(symbol),
-                bar_type=config.bar_type,
+                bar_type=bar_type,
                 autype=config.autype,
                 source="opend",
             ),
@@ -244,14 +250,12 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
             "engine_contract": {
                 "version": ENGINE_CONTRACT_VERSION,
                 "strict_single_period": False,
-                "driver_bar_type": config.bar_type.value,
+                "driver_bar_type": bar_type.value,
                 "coarser_periods": "incremental-no-lookahead",
                 "day_order_scope": "trading-day",
                 "evaluation_window": "excludes-warmup-bars",
                 "performance_frequency": "daily",
-                "minimum_annualization_trading_days": (
-                    MIN_ANNUALIZATION_TRADING_DAYS
-                ),
+                "minimum_annualization_trading_days": (MIN_ANNUALIZATION_TRADING_DAYS),
                 "end_position_policy": (
                     "liquidate" if config.liquidate_on_end else "mark-to-market"
                 ),
@@ -279,10 +283,15 @@ def load_strategy_class(path: str | Path) -> type[futu.StrategyBase]:
     for name in futu.__all__:
         module.__dict__[name] = getattr(futu, name)
     try:
-        code = compile(strategy_path.read_text(encoding="utf-8"), str(strategy_path), "exec")
-        exec(code, module.__dict__)
+        code = compile(
+            strategy_path.read_text(encoding="utf-8"), str(strategy_path), "exec"
+        )
+        # Explicit trusted/restricted strategy execution boundary.
+        exec(code, module.__dict__)  # nosec B102
     except Exception as error:
-        raise StrategyLoadError(f"could not load strategy {strategy_path}: {error}") from error
+        raise StrategyLoadError(
+            f"could not load strategy {strategy_path}: {error}"
+        ) from error
 
     preferred = module.__dict__.get("Strategy")
     if inspect.isclass(preferred) and issubclass(preferred, futu.StrategyBase):
@@ -329,30 +338,22 @@ def calculate_metrics(
 
     daily_return_values = [point.return_pct / 100 for point in daily_returns]
     return_std = (
-        statistics.stdev(daily_return_values)
-        if len(daily_return_values) > 1
-        else 0.0
+        statistics.stdev(daily_return_values) if len(daily_return_values) > 1 else 0.0
     )
     sharpe = (
-        statistics.fmean(daily_return_values)
-        / return_std
-        * math.sqrt(252)
+        statistics.fmean(daily_return_values) / return_std * math.sqrt(252)
         if return_std
         else 0.0
     )
     downside_deviation = (
         math.sqrt(
-            statistics.fmean(
-                min(value, 0.0) ** 2 for value in daily_return_values
-            )
+            statistics.fmean(min(value, 0.0) ** 2 for value in daily_return_values)
         )
         if daily_return_values
         else 0.0
     )
     sortino = (
-        statistics.fmean(daily_return_values)
-        / downside_deviation
-        * math.sqrt(252)
+        statistics.fmean(daily_return_values) / downside_deviation * math.sqrt(252)
         if downside_deviation
         else None
     )
@@ -408,22 +409,16 @@ def calculate_metrics(
             else None
         ),
         annualized_volatility_pct=(
-            return_std * math.sqrt(252) * 100
-            if len(daily_return_values) > 1
-            else None
+            return_std * math.sqrt(252) * 100 if len(daily_return_values) > 1 else None
         ),
         alpha_pct=benchmark_metrics["alpha_pct"],
         beta=benchmark_metrics["beta"],
         information_ratio=benchmark_metrics["information_ratio"],
-        expectancy=statistics.fmean(
-            trade.net_pnl for trade in trades
-        )
+        expectancy=statistics.fmean(trade.net_pnl for trade in trades)
         if trades
         else 0.0,
         average_win_loss_ratio=average_win_loss_ratio,
-        average_holding_bars=statistics.fmean(
-            trade.bars_held for trade in trades
-        )
+        average_holding_bars=statistics.fmean(trade.bars_held for trade in trades)
         if trades
         else 0.0,
         max_consecutive_losses=max_consecutive_losses(trades),
@@ -446,7 +441,9 @@ def calculate_daily_returns(
     result: list[DailyReturn] = []
     for date, point in by_date.items():
         return_pct = (point.equity / previous - 1) * 100 if previous else 0.0
-        result.append(DailyReturn(date=date, equity=point.equity, return_pct=return_pct))
+        result.append(
+            DailyReturn(date=date, equity=point.equity, return_pct=return_pct)
+        )
         previous = point.equity
     return result
 

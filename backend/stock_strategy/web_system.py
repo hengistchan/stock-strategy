@@ -9,10 +9,10 @@ from .api_models import (
     DiagnosticsResponse,
     HealthResponse,
 )
+from .application_models import KLINE_TYPES, SESSION_TYPES
 from .diagnostics import DiagnosticsService
 from .job_store import JobStore
 from .strategy_repository import StrategyRepository
-from .web_models import KLINE_TYPES, SESSION_TYPES
 
 
 def create_system_router(

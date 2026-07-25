@@ -27,11 +27,7 @@ class PerformanceAnalyticsTest(unittest.TestCase):
                     min(0.0, equity / 105_000 - 1),
                 )
             )
-            daily.append(
-                DailyReturn(
-                    f"2025-01-{day:02d}", equity, daily_return * 100
-                )
-            )
+            daily.append(DailyReturn(f"2025-01-{day:02d}", equity, daily_return * 100))
 
         analysis = build_performance_analysis(
             equity_curve=curve,
