@@ -29,7 +29,7 @@ class ExecutionService:
 
     def create_backtest(self, request: BacktestRequest) -> dict[str, Any]:
         normalized, strategy_path, _definitions = self.prepare_backtest(request)
-        job = self.jobs.create_job(normalized, strategy_path)
+        job = self.jobs.create_job(normalized.model_dump(mode="json"), strategy_path)
         self.jobs.launch(job["id"])
         return job
 

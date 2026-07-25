@@ -333,7 +333,7 @@ class Strategy(StrategyBase):
             strategy = root / "examples" / "ma_cross.py"
             strategy.write_text("class Strategy: pass", encoding="utf-8")
             store = JobStore(root)
-            job = store.create_job(request, strategy)
+            job = store.create_job(request.model_dump(mode="json"), strategy)
             command = store.build_command(job)
             stored_request = job["request"]
             legacy_job = {**job, "request": dict(job["request"])}
@@ -368,8 +368,9 @@ class Strategy(StrategyBase):
             strategy.parent.mkdir(parents=True)
             strategy.write_text("class Strategy: pass", encoding="utf-8")
             store = JobStore(root)
-            first = store.build_command(store.create_job(request, strategy))
-            second = store.build_command(store.create_job(request, strategy))
+            serialized = request.model_dump(mode="json")
+            first = store.build_command(store.create_job(serialized, strategy))
+            second = store.build_command(store.create_job(serialized, strategy))
 
         first_cache = first[first.index("--opend-cache") + 1]
         second_cache = second[second.index("--opend-cache") + 1]
@@ -390,7 +391,7 @@ class Strategy(StrategyBase):
             strategy.parent.mkdir(parents=True)
             strategy.write_text("class Strategy: pass", encoding="utf-8")
             store = JobStore(root)
-            job = store.create_job(request, strategy)
+            job = store.create_job(request.model_dump(mode="json"), strategy)
             run_dir = store.root / job["id"] / "output" / "run"
             run_dir.mkdir(parents=True)
             cache_path = root / "data" / "opend" / "web" / "prices.csv"

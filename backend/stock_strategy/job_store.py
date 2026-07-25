@@ -11,8 +11,6 @@ import sys
 from typing import Any, Mapping
 import uuid
 
-from pydantic import BaseModel
-
 from .market_cache import MarketDataCache
 from .paths import BACKEND_ROOT, PROJECT_ROOT
 from .result_reader import (
@@ -20,7 +18,6 @@ from .result_reader import (
     load_result_payload,
     validated_run_dir,
 )
-from .web_models import BacktestRequest
 
 
 JOB_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
@@ -48,7 +45,7 @@ class JobStore:
         self._reconcile_interrupted_jobs()
 
     def create_job(
-        self, request: BacktestRequest | Mapping[str, Any], strategy_path: Path
+        self, request: Mapping[str, Any], strategy_path: Path
     ) -> dict[str, Any]:
         job_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         job_dir = self._job_dir(job_id)
@@ -59,11 +56,7 @@ class JobStore:
             "created_at": _now(),
             "started_at": None,
             "finished_at": None,
-            "request": (
-                request.model_dump(mode="json")
-                if isinstance(request, BaseModel)
-                else dict(request)
-            ),
+            "request": dict(request),
             "strategy_path": str(strategy_path.resolve().relative_to(self.project_root)),
             "run_dir": None,
             "stdout": "",
