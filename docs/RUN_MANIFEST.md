@@ -16,7 +16,8 @@ runs/web/<job-id>/
     ├── trades.csv
     ├── equity_curve.csv
     ├── daily_returns.csv
-    ├── logs.csv
+    ├── logs.jsonl
+    ├── report.html
     └── report.svg
 ```
 
@@ -27,7 +28,7 @@ runs/web/<job-id>/
 `manifest.json` schema version 1 records:
 
 - application, Python, Futu SDK, engine-contract, cache-schema, and data-adapter versions;
-- the `trusted-local-v1` execution profile used by the strategy subprocess;
+- the `trusted-local-v2` execution profile and resource-bound strategy subprocess;
 - the original strategy path, immutable revision, snapshot path, and SHA-256;
 - the canonical request SHA-256;
 - the market-data snapshot path, SHA-256, byte size, and row count;

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from .data import bars_from_opend_records, generate_sample_bars, load_market_data
 from .opend import fetch_history_kline, fetch_stock_metadata, write_history_csv
 from .reporting import print_summary, write_artifacts
+from .restricted_runtime import install_restricted_runtime
 from .runtime import BacktestConfig, run_backtest
 from .strategy_parameters import parse_parameter_assignment
 
@@ -102,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        restricted = install_restricted_runtime()
         history = None
         market_metadata = {}
         cache_path = None
@@ -185,6 +188,12 @@ def main(argv: list[str] | None = None) -> int:
         result.settings["data_source_format"] = (
             market_data.source_format if market_data else "synthetic"
         )
+        result.settings["strategy_process"] = {
+            "profile": os.environ.get(
+                "STOCK_STRATEGY_EXECUTION_PROFILE", "direct-cli"
+            ),
+            "network_disabled": restricted,
+        }
         if args.opend:
             result.settings["opend"] = {
                 "host": args.opend_host,

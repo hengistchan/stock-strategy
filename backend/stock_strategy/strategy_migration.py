@@ -9,7 +9,12 @@ import uuid
 
 from .paths import BACKEND_ROOT
 from .run_manifest import atomic_write_json, atomic_write_text, sha256_bytes
-from .strategy_process import StrategyProcessRunner, StrategyProcessTimeout
+from .strategy_process import (
+    RESTRICTED_EXECUTION_PROFILE,
+    StrategyProcessRunner,
+    StrategyProcessOutputLimit,
+    StrategyProcessTimeout,
+)
 from .strategy_repository import (
     StrategyRepository,
     analyze_strategy_compatibility,
@@ -31,6 +36,7 @@ class StrategyMigrationService:
             backend_root=BACKEND_ROOT,
             working_directory=self.project_root,
             timeout_seconds=30,
+            execution_profile=RESTRICTED_EXECUTION_PROFILE,
         )
 
     def scan(self, content: str) -> dict[str, Any]:
@@ -81,7 +87,12 @@ class StrategyMigrationService:
             "--no-chart",
         ]
         try:
-            outcome = await self.runner.run(f"migration-{migration_id}", command)
+            outcome = await self.runner.run(
+                f"migration-{migration_id}",
+                command,
+                working_directory=migration_dir,
+                allowed_write_roots=(output_dir,),
+            )
             summary_paths = sorted(output_dir.glob("*/summary.json"))
             if outcome.returncode != 0 or not summary_paths:
                 error = _last_message(outcome.stderr, outcome.stdout)
@@ -99,13 +110,14 @@ class StrategyMigrationService:
                     "status": "passed",
                     "symbol": FIXTURE_SYMBOL,
                     "bars": FIXTURE_BARS,
+                    "execution_profile": RESTRICTED_EXECUTION_PROFILE,
                     "metrics": summary.get("metrics", {}),
                     "execution_contract": summary.get("settings", {}).get(
                         "engine_contract", {}
                     ),
                 }
                 report["next_step"] = "save_and_run_opend_backtest"
-        except StrategyProcessTimeout as error:
+        except (StrategyProcessTimeout, StrategyProcessOutputLimit) as error:
             report["fixture"] = {"status": "failed", "error": str(error)}
         atomic_write_json(migration_dir / "compatibility-report.json", report)
         return report

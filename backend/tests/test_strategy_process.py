@@ -5,8 +5,11 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from stock_strategy.strategy_process import (
+    RESTRICTED_EXECUTION_PROFILE,
     TRUSTED_EXECUTION_PROFILE,
+    ExecutionLimits,
     StrategyProcessRunner,
+    StrategyProcessOutputLimit,
     StrategyProcessTimeout,
     build_strategy_environment,
     subprocess_isolation_options,
@@ -36,6 +39,23 @@ class StrategyProcessTest(unittest.TestCase):
         )
         self.assertNotIn("STRATEGY_LAB_API_TOKEN", environment)
         self.assertNotIn("AWS_SECRET_ACCESS_KEY", environment)
+
+    def test_restricted_environment_disables_network_and_scopes_writes(self):
+        environment = build_strategy_environment(
+            Path("/project/backend"),
+            {},
+            execution_profile=RESTRICTED_EXECUTION_PROFILE,
+            allowed_write_roots=(Path("/project/run"),),
+        )
+
+        self.assertEqual(
+            environment["STOCK_STRATEGY_EXECUTION_PROFILE"],
+            RESTRICTED_EXECUTION_PROFILE,
+        )
+        self.assertEqual(environment["STOCK_STRATEGY_NETWORK_DISABLED"], "1")
+        self.assertEqual(
+            environment["STOCK_STRATEGY_ALLOWED_WRITE_ROOTS"], "/project/run"
+        )
 
     def test_posix_process_group_is_terminated_as_one_unit(self):
         process = Mock(pid=1234)
@@ -92,3 +112,21 @@ class StrategyProcessRunnerTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(process.killed)
         self.assertEqual(process.communicate_calls, 2)
         self.assertFalse(runner.cancel("job-1"))
+
+    async def test_output_limit_terminates_noisy_strategy(self):
+        runner = StrategyProcessRunner(
+            backend_root=Path("/project/backend"),
+            working_directory=Path("/tmp"),
+            timeout_seconds=5,
+            limits=ExecutionLimits(output_bytes=128),
+        )
+
+        with self.assertRaises(StrategyProcessOutputLimit):
+            await runner.run(
+                "noisy",
+                [
+                    os.sys.executable,
+                    "-c",
+                    "print('x' * 1024)",
+                ],
+            )

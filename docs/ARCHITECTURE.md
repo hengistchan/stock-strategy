@@ -85,8 +85,10 @@ FastAPI composition root (backend/stock_strategy/web.py)
 
 依赖由外向内保持单向：HTTP 路由依赖应用服务，应用服务依赖仓库和作业接口，作业层依赖回测 CLI 与文件产物。回测运行时不反向依赖 FastAPI 或 React。`ExperimentStore` 通过 `JobStoreProtocol` 使用作业能力，避免绑定具体 Web 实现。
 
-`web.py` 仍暂时承载全部 REST 路由；当 API 继续扩展到删除作业、组合管理或实时交易时，应按 `diagnostics / symbols / strategies / backtests / experiments / cache` 拆分 `APIRouter`，而不是再次向 composition root 堆叠业务校验。
+`web.py` 只负责组装应用服务和领域 `APIRouter`；HTTP DTO、执行规范与应用服务保持单向依赖。
 
 ## 信任模型
 
-策略文件是可执行 Python 代码，不是安全沙箱。编辑 API 只防止目录越界和意外覆盖，不防止恶意策略代码。`trusted-local-v1` 子进程不继承敏感宿主环境或外部 `PYTHONPATH`，并以独立进程组运行，但仍可访问本机文件和网络。服务默认绑定本机；非 loopback 绑定需要显式开关和 API token，但仍不能直接作为多用户公网服务。
+策略文件是可执行 Python 代码。常规 OpenD 回测使用 `trusted-local-v2`：子进程不继承敏感环境或外部 `PYTHONPATH`，使用独立进程组，并限制 CPU、文件大小、进程数、打开文件数与输出量；Linux 同时限制地址空间，Darwin 不支持的内存 rlimit 会明确降级。
+
+第三方策略的导入 fixture 使用 `restricted-import-v1`：只运行确定性样本数据，禁用网络、子进程与 native library 加载，并将写入范围限制在本次 fixture 输出目录。它用于迁移前筛查，不替代容器或虚拟机安全边界；正式 OpenD 回测仍只应运行用户信任的策略。服务默认绑定本机；非 loopback 绑定需要显式开关和 API token，但不能直接作为多用户公网服务。
