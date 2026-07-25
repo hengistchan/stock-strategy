@@ -9,7 +9,7 @@
 
 ![Strategy Lab 回测工作台](docs/assets/strategy-lab-workbench.jpg)
 
-Strategy Lab 直接连接本机 OpenD，以独立 Python 子进程运行股票策略，并通过 JSON、CSV 和 SVG 产物保留可复查的回测结果。项目不会读取交易账户，也不会发送真实订单。
+Strategy Lab 直接连接本机 OpenD，以独立 Python 子进程运行股票策略，并把每次新回测绑定到不可变的策略与行情快照。项目不会读取交易账户，也不会发送真实订单。
 
 ## 核心能力
 
@@ -19,6 +19,7 @@ Strategy Lab 直接连接本机 OpenD，以独立 Python 子进程运行股票�
 | 🧪 | **参数实验** | 复用行情缓存批量比较参数，并按收益、Sharpe 或回撤排序。 |
 | ✍️ | **策略编辑** | 在浏览器中创建、编辑、校验、保存和复用 Python 策略。 |
 | 🔌 | **OpenD 直连** | 模糊搜索美股和港股，获取名称与分页历史 K 线，不使用网页行情回退。 |
+| 🧾 | **可复现证据** | 每次回测保留请求、策略 revision、运行清单、行情哈希以及 JSON、CSV、SVG 产物。 |
 
 ## 快速开始
 

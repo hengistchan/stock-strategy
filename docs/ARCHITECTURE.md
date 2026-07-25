@@ -32,7 +32,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
   ├── StrategyRepository ── examples/ (只读)
   │                      └─ strategies/ (可写、原子保存)
   ├── ExperimentStore ── 参数组合 / 排名 ── runs/experiments/
-  ├── JobStore ── 作业生命周期 / 串行 Python 子进程
+  ├── JobStore ── 作业生命周期 / 不可变输入快照 / 串行 Python 子进程
   ├── result_reader ── 大型 CSV 索引、窗口读取、降采样
   └── MarketDataCache ── data/opend/cache/
                        │
@@ -60,7 +60,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - `web_models.py` 定义 HTTP 输入契约；跨字段规则在模型边界校验，日期区间不会进入应用服务后再重复判断。
 - `ExecutionService` 是应用服务层，集中处理策略解析、Futu 兼容性、参数默认值与实验搜索空间归一化。
 - `DiagnosticsService` 是 `make doctor`、`stock-doctor` 和 `/api/diagnostics` 的唯一诊断来源，统一检查运行时、工作区、OpenD TCP 与股票目录读取权限。
-- `JobStore` 只负责作业持久化和子进程生命周期；`result_reader` 负责结果文件读取、行情窗口索引与曲线降采样。
+- `JobStore` 在任务入队时冻结策略源码和请求，执行后冻结 OpenD 行情；`run_manifest` 记录输入哈希、运行时版本和状态。`result_reader` 负责兼容新旧结果文件、行情窗口索引与曲线降采样。
 - `StrategyRepository` 只读取 `examples/*.py` 和 `strategies/*.py`；只有后者可以写入。
 - `STRATEGY_PARAMETERS` 只通过 `ast.literal_eval` 读取；参数类型、边界、候选值和运行覆盖均在执行前验证。
 - 保存前用 `ast.parse` 校验 Python 语法和 `Strategy` 类，使用 revision 做乐观并发控制，并通过临时文件原子替换。

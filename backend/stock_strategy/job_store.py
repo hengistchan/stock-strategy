@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sys
 from typing import Any, Mapping
 import uuid
@@ -17,6 +18,14 @@ from .result_reader import (
     load_price_window_payload,
     load_result_payload,
     validated_run_dir,
+)
+from .run_manifest import (
+    StrategySnapshot,
+    atomic_write_json,
+    atomic_write_text,
+    create_run_manifest,
+    sha256_file,
+    update_run_manifest,
 )
 
 
@@ -45,26 +54,64 @@ class JobStore:
         self._reconcile_interrupted_jobs()
 
     def create_job(
-        self, request: Mapping[str, Any], strategy_path: Path
+        self,
+        request: Mapping[str, Any],
+        strategy_path: Path,
+        *,
+        strategy_source: str | None = None,
+        strategy_revision: str | None = None,
     ) -> dict[str, Any]:
         job_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         job_dir = self._job_dir(job_id)
         job_dir.mkdir(parents=True, exist_ok=False)
-        payload = {
-            "id": job_id,
-            "status": "queued",
-            "created_at": _now(),
-            "started_at": None,
-            "finished_at": None,
-            "request": dict(request),
-            "strategy_path": str(strategy_path.resolve().relative_to(self.project_root)),
-            "run_dir": None,
-            "stdout": "",
-            "stderr": "",
-            "error": None,
-        }
-        self._write_job(payload)
-        return payload
+        source_path = str(strategy_path.resolve().relative_to(self.project_root))
+        try:
+            snapshot = StrategySnapshot.create(
+                source_path=source_path,
+                content=(
+                    strategy_source
+                    if strategy_source is not None
+                    else strategy_path.read_text(encoding="utf-8")
+                ),
+                revision=strategy_revision,
+            )
+            created_at = _now()
+            serialized_request = dict(request)
+            atomic_write_text(job_dir / "strategy.py", snapshot.content)
+            atomic_write_json(job_dir / "request.json", serialized_request)
+            atomic_write_json(
+                job_dir / "manifest.json",
+                create_run_manifest(
+                    job_id=job_id,
+                    created_at=created_at,
+                    request=serialized_request,
+                    strategy=snapshot,
+                    futu_sdk_version=self.cache.futu_sdk_version,
+                ),
+            )
+            payload = {
+                "id": job_id,
+                "status": "queued",
+                "created_at": created_at,
+                "started_at": None,
+                "finished_at": None,
+                "request": serialized_request,
+                "strategy_path": source_path,
+                "strategy_revision": snapshot.revision,
+                "strategy_snapshot_path": str(
+                    (job_dir / "strategy.py").relative_to(self.project_root)
+                ),
+                "market_data_path": None,
+                "run_dir": None,
+                "stdout": "",
+                "stderr": "",
+                "error": None,
+            }
+            self._write_job(payload)
+            return payload
+        except Exception:
+            shutil.rmtree(job_dir, ignore_errors=True)
+            raise
 
     def launch(self, job_id: str) -> None:
         task = asyncio.create_task(self._run_job(job_id))
@@ -119,12 +166,23 @@ class JobStore:
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")
         job.update(stdout=stdout[-12_000:], stderr=stderr[-12_000:], finished_at=_now())
+        cache_error: Exception | None = None
         try:
-            self.cache.record(job["request"])
-        except (OSError, ValueError, csv.Error):
-            pass
+            cache_entry = self.cache.record(job["request"])
+            if cache_entry:
+                self._snapshot_market_data(job, cache_entry)
+        except (OSError, ValueError, csv.Error) as error:
+            cache_error = error
         if process.returncode != 0:
             job.update(status="failed", error=last_error(stderr, stdout))
+            self._write_job(job)
+            return
+        if not job.get("market_data_path"):
+            detail = str(cache_error) if cache_error else "OpenD 缓存不存在"
+            job.update(
+                status="failed",
+                error=f"回测完成但无法冻结 OpenD 行情快照：{detail}",
+            )
             self._write_job(job)
             return
 
@@ -134,6 +192,11 @@ class JobStore:
             job.update(status="failed", error="回测结束但没有生成 summary.json。")
             self._write_job(job)
             return
+        if job.get("market_data_path"):
+            self._bind_summary_to_market_snapshot(
+                summaries[-1],
+                (self.project_root / job["market_data_path"]).resolve(),
+            )
         job.update(status="succeeded", run_dir=str(summaries[-1].parent.resolve()))
         self._write_job(job)
 
@@ -147,7 +210,7 @@ class JobStore:
             "-m",
             "stock_strategy",
             "--strategy",
-            str((self.project_root / job["strategy_path"]).resolve()),
+            str(self._strategy_execution_path(job)),
             "--opend",
             "--symbol",
             request["symbol"],
@@ -242,11 +305,60 @@ class JobStore:
 
     def _write_job(self, payload: dict[str, Any]) -> None:
         path = self._job_dir(payload["id"]) / "job.json"
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        atomic_write_json(path, payload)
+        manifest_path = path.parent / "manifest.json"
+        if manifest_path.is_file():
+            update_run_manifest(
+                manifest_path,
+                status=str(payload["status"]),
+                started_at=payload.get("started_at"),
+                finished_at=payload.get("finished_at"),
+            )
+
+    def _strategy_execution_path(self, job: Mapping[str, Any]) -> Path:
+        snapshot_value = job.get("strategy_snapshot_path")
+        if snapshot_value:
+            snapshot_path = (self.project_root / str(snapshot_value)).resolve()
+            job_dir = self._job_dir(str(job["id"]))
+            if snapshot_path.parent == job_dir and snapshot_path.name == "strategy.py":
+                return snapshot_path
+        return (self.project_root / str(job["strategy_path"])).resolve()
+
+    def _snapshot_market_data(
+        self,
+        job: dict[str, Any],
+        cache_entry: Mapping[str, Any],
+    ) -> None:
+        source = (self.project_root / str(cache_entry["path"])).resolve()
+        destination = self._job_dir(str(job["id"])) / "market-data.csv"
+        temporary = destination.with_suffix(".csv.tmp")
+        try:
+            shutil.copyfile(source, temporary)
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+        snapshot_sha256 = sha256_file(destination)
+        if snapshot_sha256 != cache_entry["content_sha256"]:
+            destination.unlink(missing_ok=True)
+            raise OSError("OpenD 行情在生成任务快照时发生变化")
+        job["market_data_path"] = str(destination.relative_to(self.project_root))
+        update_run_manifest(
+            self._job_dir(str(job["id"])) / "manifest.json",
+            market_data={**cache_entry, "content_sha256": snapshot_sha256},
         )
-        temporary.replace(path)
+
+    @staticmethod
+    def _bind_summary_to_market_snapshot(
+        summary_path: Path,
+        snapshot_path: Path,
+    ) -> None:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        opend = summary.setdefault("settings", {}).setdefault("opend", {})
+        shared_cache_path = opend.get("cache_path")
+        if shared_cache_path:
+            opend["shared_cache_path"] = shared_cache_path
+        opend["cache_path"] = str(snapshot_path)
+        atomic_write_json(summary_path, summary)
 
     def _reconcile_interrupted_jobs(self) -> None:
         for job in self.list_jobs():

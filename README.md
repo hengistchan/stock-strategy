@@ -11,7 +11,7 @@
 
 ![Strategy Lab backtesting workbench](docs/assets/strategy-lab-workbench.jpg)
 
-Strategy Lab connects directly to a local OpenD instance, runs Python stock strategies in isolated backtest processes, and keeps every result reproducible through JSON, CSV, and SVG artifacts. It does not access trading accounts or place live orders.
+Strategy Lab connects directly to a local OpenD instance, runs Python stock strategies in isolated backtest processes, and binds each new run to immutable strategy and market-data snapshots. It does not access trading accounts or place live orders.
 
 ## What you can do
 
@@ -21,6 +21,7 @@ Strategy Lab connects directly to a local OpenD instance, runs Python stock stra
 | 🧪 | **Experiment** | Compare parameter grids on a shared market-data cache and rank candidates by return, Sharpe, or drawdown. |
 | ✍️ | **Build strategies** | Create, edit, validate, save, and reuse Python strategies from the browser. |
 | 🔌 | **Use OpenD directly** | Search US/HK stocks, resolve names, and request paginated historical K-lines without a web-data fallback. |
+| 🧾 | **Reproduce evidence** | Keep the request, strategy revision, runtime manifest, market-data hash, JSON, CSV, and SVG evidence with each run. |
 
 ## Quick start
 

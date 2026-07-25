@@ -104,9 +104,14 @@ def _resolve_opend_price_source(
         raise RuntimeError("回测结果缺少 OpenD 行情缓存路径。")
 
     cache_path = Path(cache_value).resolve()
-    allowed_root = (project_root / "data" / "opend").resolve()
-    if allowed_root not in cache_path.parents or not cache_path.is_file():
-        raise RuntimeError("OpenD 行情缓存不存在或超出项目数据目录。")
+    data_root = (project_root / "data" / "opend").resolve()
+    jobs_root = (project_root / "runs" / "web").resolve()
+    is_shared_cache = data_root in cache_path.parents
+    is_job_snapshot = (
+        jobs_root in cache_path.parents and cache_path.name == "market-data.csv"
+    )
+    if not (is_shared_cache or is_job_snapshot) or not cache_path.is_file():
+        raise RuntimeError("OpenD 行情缓存或任务快照不存在，或超出项目工作区。")
     return cache_path, str(summary.get("symbol", ""))
 
 

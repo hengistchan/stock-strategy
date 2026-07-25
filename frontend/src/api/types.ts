@@ -116,6 +116,9 @@ export interface BacktestJob {
   finished_at: string | null;
   request: BacktestRequest;
   strategy_path: string;
+  strategy_revision?: string;
+  strategy_snapshot_path?: string;
+  market_data_path?: string | null;
   run_dir: string | null;
   stdout: string;
   stderr: string;

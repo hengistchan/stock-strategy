@@ -34,6 +34,8 @@ cd ..
 
 `GET /api/diagnostics` 与 `stock-doctor` 共用 `DiagnosticsService`，检查 Python、Futu SDK、工作区目录、OpenD TCP 和股票目录读取权限。Web 状态面板只展示这份真实结果，不自行推断行情权限。
 
+新建 Web 回测时，`JobStore` 会先冻结 `strategy.py`、`request.json` 和 `manifest.json`，执行命令只读取任务内的策略快照。OpenD 数据完成后会复制为任务内的 `market-data.csv` 并校验 SHA-256；共享缓存被清理或原始策略被修改都不会改变既有结果。旧版任务缺少快照字段时仍可按原路径读取。
+
 构建包含当前 React 生产资源的 wheel，并检查不存在陈旧哈希文件：
 
 ```bash

@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from datetime import date
 import json
+import hashlib
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -30,6 +31,73 @@ class FakeSymbolDirectory:
 
 
 class WebTest(unittest.TestCase):
+    def test_job_executes_an_immutable_strategy_and_market_data_snapshot(self):
+        request = BacktestRequest(
+            strategy="strategies/snapshot.py",
+            symbol="US.AAPL",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        ).model_dump(mode="json")
+        original_source = "class Strategy:\n    version = 1\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            strategy = root / "strategies" / "snapshot.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text(original_source, encoding="utf-8")
+            store = JobStore(root)
+            job = store.create_job(request, strategy)
+            strategy.write_text(
+                "class Strategy:\n    version = 2\n",
+                encoding="utf-8",
+            )
+
+            command = store.build_command(job)
+            snapshot_path = root / job["strategy_snapshot_path"]
+            snapshot_content = snapshot_path.read_text(encoding="utf-8")
+            manifest_path = store.root / job["id"] / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            stored_request = json.loads(
+                (store.root / job["id"] / "request.json").read_text(encoding="utf-8")
+            )
+
+            descriptor = store.cache.descriptor(request)
+            descriptor["path"].write_text(
+                "code,time_key,open,high,low,close,volume\n"
+                "US.AAPL,2025-01-02,100,101,99,100.5,1000\n",
+                encoding="utf-8",
+            )
+            cache_entry = store.cache.record(request)
+            self.assertIsNotNone(cache_entry)
+            store._snapshot_market_data(job, cache_entry)
+            market_snapshot = root / job["market_data_path"]
+            descriptor["path"].write_text("changed", encoding="utf-8")
+            completed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            market_content = market_snapshot.read_text(encoding="utf-8")
+            market_hash = hashlib.sha256(market_snapshot.read_bytes()).hexdigest()
+
+            legacy_job = dict(job)
+            legacy_job.pop("strategy_snapshot_path")
+            snapshot_path.unlink()
+            legacy_command = store.build_command(legacy_job)
+
+        self.assertEqual(snapshot_content, original_source)
+        self.assertEqual(command[command.index("--strategy") + 1], str(snapshot_path))
+        self.assertEqual(
+            legacy_command[legacy_command.index("--strategy") + 1],
+            str(strategy),
+        )
+        self.assertEqual(stored_request, request)
+        self.assertEqual(
+            manifest["strategy_sha256"],
+            hashlib.sha256(original_source.encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(manifest["strategy_revision"], job["strategy_revision"])
+        self.assertEqual(
+            completed_manifest["market_data_sha256"],
+            market_hash,
+        )
+        self.assertIn("US.AAPL,2025-01-02", market_content)
+
     def test_diagnostics_endpoint_exposes_actionable_readiness_checks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

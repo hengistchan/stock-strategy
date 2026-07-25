@@ -9,9 +9,18 @@ class FakeJobStore:
     def __init__(self, root: Path):
         self.root = root
         self.jobs = {}
+        self.strategy_sources = []
 
-    def create_job(self, request, strategy_path):
+    def create_job(
+        self,
+        request,
+        strategy_path,
+        *,
+        strategy_source=None,
+        strategy_revision=None,
+    ):
         job_id = f"job-{len(self.jobs) + 1}"
+        self.strategy_sources.append((strategy_source, strategy_revision))
         self.jobs[job_id] = {
             "id": job_id,
             "status": "queued",
@@ -68,6 +77,10 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
                 strategy_path=strategy,
                 objective="sharpe_ratio",
             )
+            frozen_source = (store._directory(experiment["id"]) / "strategy.py").read_text(
+                encoding="utf-8"
+            )
+            strategy.write_text("class Strategy:\n    version = 2\n", encoding="utf-8")
             await store._run(experiment["id"])
             completed = store.get(experiment["id"])
 
@@ -76,6 +89,17 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
         ranked = sorted(completed["runs"], key=lambda run: run["rank"])
         self.assertEqual(ranked[0]["parameters"], {"fast": 20})
         self.assertEqual(jobs.jobs["job-2"]["request"]["parameters"]["slow"], 60)
+        self.assertEqual(frozen_source, "class Strategy: pass")
+        self.assertEqual(
+            [source for source, _revision in jobs.strategy_sources],
+            ["class Strategy: pass", "class Strategy: pass"],
+        )
+        self.assertTrue(
+            all(
+                revision == completed["strategy_revision"]
+                for _source, revision in jobs.strategy_sources
+            )
+        )
 
 
 if __name__ == "__main__":

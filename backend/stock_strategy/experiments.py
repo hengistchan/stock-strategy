@@ -6,8 +6,11 @@ from itertools import product
 import json
 from pathlib import Path
 import re
+import shutil
 from typing import Any, Mapping, Protocol, Sequence
 import uuid
+
+from .run_manifest import StrategySnapshot, atomic_write_json, atomic_write_text
 
 
 EXPERIMENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
@@ -19,7 +22,12 @@ EXPERIMENT_OBJECTIVES = frozenset(
 
 class JobStoreProtocol(Protocol):
     def create_job(
-        self, request: Mapping[str, Any], strategy_path: Path
+        self,
+        request: Mapping[str, Any],
+        strategy_path: Path,
+        *,
+        strategy_source: str | None = None,
+        strategy_revision: str | None = None,
     ) -> dict[str, Any]: ...
 
     async def run_job(self, job_id: str) -> None: ...
@@ -69,6 +77,8 @@ class ExperimentStore:
         base_request: Mapping[str, Any],
         parameter_grid: Mapping[str, Sequence[Any]],
         strategy_path: Path,
+        strategy_source: str | None = None,
+        strategy_revision: str | None = None,
         objective: str,
     ) -> dict[str, Any]:
         if objective not in EXPERIMENT_OBJECTIVES:
@@ -79,6 +89,21 @@ class ExperimentStore:
         )
         directory = self._directory(experiment_id)
         directory.mkdir(parents=True, exist_ok=False)
+        try:
+            snapshot = StrategySnapshot.create(
+                source_path=str(strategy_path.resolve().relative_to(self.project_root)),
+                content=(
+                    strategy_source
+                    if strategy_source is not None
+                    else strategy_path.read_text(encoding="utf-8")
+                ),
+                revision=strategy_revision,
+            )
+            snapshot_path = directory / "strategy.py"
+            atomic_write_text(snapshot_path, snapshot.content)
+        except Exception:
+            shutil.rmtree(directory, ignore_errors=True)
+            raise
         payload = {
             "id": experiment_id,
             "name": name.strip() or f"参数实验 {datetime.now().strftime('%m-%d %H:%M')}",
@@ -89,7 +114,9 @@ class ExperimentStore:
             "objective": objective,
             "base_request": dict(base_request),
             "parameter_grid": {key: list(values) for key, values in parameter_grid.items()},
-            "strategy_path": str(strategy_path.resolve().relative_to(self.project_root)),
+            "strategy_path": snapshot.source_path,
+            "strategy_revision": snapshot.revision,
+            "strategy_snapshot_path": str(snapshot_path.relative_to(self.project_root)),
             "progress": {"completed": 0, "total": len(combinations)},
             "runs": [
                 {
@@ -118,6 +145,14 @@ class ExperimentStore:
         experiment.update(status="running", started_at=_now())
         self._write(experiment)
         strategy_path = self.project_root / experiment["strategy_path"]
+        snapshot_value = experiment.get("strategy_snapshot_path")
+        snapshot_path = (
+            self.project_root / snapshot_value
+            if snapshot_value
+            else strategy_path
+        )
+        strategy_source = snapshot_path.read_text(encoding="utf-8")
+        strategy_revision = experiment.get("strategy_revision")
         for run_index, run in enumerate(experiment["runs"]):
             try:
                 request = dict(experiment["base_request"])
@@ -127,7 +162,12 @@ class ExperimentStore:
                 }
                 if run_index > 0:
                     request["refresh_cache"] = False
-                job = self.job_store.create_job(request, strategy_path)
+                job = self.job_store.create_job(
+                    request,
+                    strategy_path,
+                    strategy_source=strategy_source,
+                    strategy_revision=strategy_revision,
+                )
                 run.update(job_id=job["id"], status="running")
                 self._write(experiment)
                 await self.job_store.run_job(job["id"])
@@ -193,11 +233,7 @@ class ExperimentStore:
 
     def _write(self, payload: Mapping[str, Any]) -> None:
         path = self._directory(str(payload["id"])) / "experiment.json"
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-        temporary.replace(path)
+        atomic_write_json(path, payload)
 
     def _reconcile_interrupted(self) -> None:
         for experiment in self.list():
