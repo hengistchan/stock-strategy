@@ -170,10 +170,24 @@ def write_opend_fixture(path):
 
 def verify_run(run_dir):
     summary_path = run_dir / "summary.json"
+    orders_path = run_dir / "orders.csv"
+    fills_path = run_dir / "fills.csv"
     trades_path = run_dir / "trades.csv"
     equity_path = run_dir / "equity_curve.csv"
+    daily_returns_path = run_dir / "daily_returns.csv"
+    logs_path = run_dir / "logs.csv"
     report_path = run_dir / "report.svg"
-    for path in (summary_path, trades_path, equity_path, report_path):
+    artifact_paths = (
+        summary_path,
+        orders_path,
+        fills_path,
+        trades_path,
+        equity_path,
+        daily_returns_path,
+        logs_path,
+        report_path,
+    )
+    for path in artifact_paths:
         assert path.is_file(), "missing artifact: {0}".format(path.name)
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -196,6 +210,15 @@ def verify_run(run_dir):
     with trades_path.open("r", encoding="utf-8", newline="") as handle:
         trades = list(csv.DictReader(handle))
     assert len(trades) == summary["metrics"]["total_trades"], "trade count mismatch"
+    with orders_path.open("r", encoding="utf-8", newline="") as handle:
+        orders = list(csv.DictReader(handle))
+    with fills_path.open("r", encoding="utf-8", newline="") as handle:
+        fills = list(csv.DictReader(handle))
+    with daily_returns_path.open("r", encoding="utf-8", newline="") as handle:
+        daily_returns = list(csv.DictReader(handle))
+    assert orders, "order evidence is empty"
+    assert fills, "fill evidence is empty"
+    assert len(daily_returns) >= 20, "daily return evidence is incomplete"
 
     with equity_path.open("r", encoding="utf-8", newline="") as handle:
         equity = list(csv.DictReader(handle))
@@ -213,7 +236,7 @@ def verify_run(run_dir):
         "data_source_format": summary["settings"]["data_source_format"],
         "total_trades": summary["metrics"]["total_trades"],
         "final_equity": summary["metrics"]["final_equity"],
-        "artifacts": [path.name for path in (summary_path, trades_path, equity_path, report_path)],
+        "artifacts": [path.name for path in artifact_paths],
     }
 
 

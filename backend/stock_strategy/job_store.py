@@ -21,6 +21,7 @@ from .result_reader import (
 )
 from .run_manifest import (
     StrategySnapshot,
+    artifact_inventory,
     atomic_write_json,
     atomic_write_text,
     create_run_manifest,
@@ -197,6 +198,31 @@ class JobStore:
                 summaries[-1],
                 (self.project_root / job["market_data_path"]).resolve(),
             )
+        run_dir = summaries[-1].parent
+        required_artifacts = {
+            "summary.json",
+            "orders.csv",
+            "fills.csv",
+            "trades.csv",
+            "equity_curve.csv",
+            "daily_returns.csv",
+            "logs.csv",
+            "report.svg",
+        }
+        missing_artifacts = sorted(
+            name for name in required_artifacts if not (run_dir / name).is_file()
+        )
+        if missing_artifacts:
+            job.update(
+                status="failed",
+                error="回测结果缺少审计产物：" + ", ".join(missing_artifacts),
+            )
+            self._write_job(job)
+            return
+        update_run_manifest(
+            self._job_dir(job_id) / "manifest.json",
+            artifacts=artifact_inventory(run_dir, self._job_dir(job_id)),
+        )
         job.update(status="succeeded", run_dir=str(summaries[-1].parent.resolve()))
         self._write_job(job)
 

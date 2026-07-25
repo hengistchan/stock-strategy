@@ -1,3 +1,5 @@
+import csv
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ElementTree
@@ -278,8 +280,18 @@ class Strategy(StrategyBase):
         with tempfile.TemporaryDirectory() as directory:
             artifacts = write_artifacts(result, directory)
             self.assertTrue(Path(artifacts.summary_path).exists())
+            self.assertTrue(Path(artifacts.orders_path).exists())
+            self.assertTrue(Path(artifacts.fills_path).exists())
             self.assertTrue(Path(artifacts.trades_path).exists())
             self.assertTrue(Path(artifacts.equity_path).exists())
+            self.assertTrue(Path(artifacts.daily_returns_path).exists())
+            self.assertTrue(Path(artifacts.logs_path).exists())
+            summary = json.loads(Path(artifacts.summary_path).read_text())
+            self.assertEqual(summary["artifacts"]["orders"], "orders.csv")
+            with Path(artifacts.daily_returns_path).open(newline="") as handle:
+                daily_returns = list(csv.DictReader(handle))
+            self.assertEqual(len(daily_returns), len(result.daily_returns))
+            self.assertGreater(len(daily_returns), 0)
             ElementTree.parse(artifacts.chart_path)
 
 

@@ -68,10 +68,25 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             (run_dir / "trades.csv").write_text(
                 "trade_id,symbol\n1,US.AAPL\n", encoding="utf-8"
             )
+            (run_dir / "orders.csv").write_text(
+                "order_id,symbol\nSIM-000001,US.AAPL\n", encoding="utf-8"
+            )
+            (run_dir / "fills.csv").write_text(
+                "execution_id,order_id\nSIM-EXEC-000001,SIM-000001\n",
+                encoding="utf-8",
+            )
             (run_dir / "equity_curve.csv").write_text(
                 "date,equity,benchmark,drawdown\n"
                 "2025-01-02 09:30:00,100000,100000,0\n"
                 "2025-01-03 09:30:00,103000,101980,-0.5\n",
+                encoding="utf-8",
+            )
+            (run_dir / "daily_returns.csv").write_text(
+                "date,equity,return_pct\n2025-01-03,103000,3\n",
+                encoding="utf-8",
+            )
+            (run_dir / "logs.csv").write_text(
+                "date,level,message\n2025-01-03,FILL,filled\n",
                 encoding="utf-8",
             )
             (run_dir / "report.svg").write_text("<svg/>", encoding="utf-8")
@@ -101,10 +116,32 @@ class JobStoreTest(unittest.IsolatedAsyncioTestCase):
             snapshot_sha256 = sha256_file(snapshot_path)
             snapshot_value = str(snapshot_path)
             shared_cache_value = str(cache_path.resolve())
+            result_summary_sha256 = sha256_file(run_dir / "summary.json")
 
         self.assertEqual(completed["status"], "succeeded")
         self.assertEqual(strategy_snapshot_content, original_source)
         self.assertEqual(manifest["market_data_sha256"], snapshot_sha256)
+        self.assertEqual(
+            set(manifest["artifacts"]),
+            {
+                "daily_returns.csv",
+                "equity_curve.csv",
+                "fills.csv",
+                "logs.csv",
+                "orders.csv",
+                "report.svg",
+                "summary.json",
+                "trades.csv",
+            },
+        )
+        self.assertEqual(
+            manifest["artifacts"]["summary.json"]["path"],
+            "output/run/summary.json",
+        )
+        self.assertEqual(
+            manifest["artifacts"]["summary.json"]["sha256"],
+            result_summary_sha256,
+        )
         self.assertEqual(summary["settings"]["opend"]["cache_path"], snapshot_value)
         self.assertEqual(
             summary["settings"]["opend"]["shared_cache_path"],

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 
 from .execution_models import (
     BpsCommissionModel,
@@ -13,6 +12,7 @@ from .models import (
     Bar,
     BarType,
     Contract,
+    Fill,
     LogEntry,
     Order,
     OrderSide,
@@ -38,17 +38,6 @@ def _price_ge(left: float, right: float) -> bool:
     return left > right or math.isclose(
         left, right, rel_tol=1e-12, abs_tol=_PRICE_ABS_TOLERANCE
     )
-
-
-@dataclass(slots=True)
-class Fill:
-    execution_id: str
-    order_id: str
-    date: str
-    price: float
-    quantity: float
-    side: OrderSide
-    fee: float
 
 
 class Broker:

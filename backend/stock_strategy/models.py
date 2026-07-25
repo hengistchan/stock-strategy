@@ -409,6 +409,17 @@ class Order:
 
 
 @dataclass(slots=True)
+class Fill:
+    execution_id: str
+    order_id: str
+    date: str
+    price: float
+    quantity: float
+    side: OrderSide
+    fee: float
+
+
+@dataclass(slots=True)
 class Trade:
     trade_id: int
     symbol: str
@@ -438,6 +449,13 @@ class EquityPoint:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(slots=True)
+class DailyReturn:
+    date: str
+    equity: float
+    return_pct: float
 
 
 @dataclass(slots=True)
@@ -487,8 +505,12 @@ class Position:
 class BacktestArtifacts:
     output_dir: str
     summary_path: str
+    orders_path: str
+    fills_path: str
     trades_path: str
     equity_path: str
+    daily_returns_path: str
+    logs_path: str
     chart_path: str | None = None
 
 
@@ -501,7 +523,10 @@ class BacktestResult:
     bar_count: int
     metrics: Metrics
     settings: dict[str, Any] = field(default_factory=dict)
+    orders: list[Order] = field(default_factory=list)
+    fills: list[Fill] = field(default_factory=list)
     trades: list[Trade] = field(default_factory=list)
     equity_curve: list[EquityPoint] = field(default_factory=list)
+    daily_returns: list[DailyReturn] = field(default_factory=list)
     logs: list[LogEntry] = field(default_factory=list)
     artifacts: BacktestArtifacts | None = None

@@ -40,6 +40,8 @@ cd ..
 
 费用和滑点通过 `FeeModel` / `SlippageModel` 接口注入 Broker。默认模型继续解释现有的 bps 与最低佣金字段，并将模型名称和参数写入 `summary.settings.execution_models`，以便复核成交假设。
 
+成功运行必须生成 `orders.csv`、`fills.csv`、`trades.csv`、`equity_curve.csv`、`daily_returns.csv`、`logs.csv` 和 `report.svg`。Web 作业在发布结果前校验这些文件，并将相对路径、字节数和 SHA-256 写入 `manifest.json`。
+
 构建包含当前 React 生产资源的 wheel，并检查不存在陈旧哈希文件：
 
 ```bash

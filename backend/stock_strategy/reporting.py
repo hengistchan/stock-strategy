@@ -7,7 +7,16 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 
-from .models import BacktestArtifacts, BacktestResult, EquityPoint, Trade
+from .models import (
+    BacktestArtifacts,
+    BacktestResult,
+    DailyReturn,
+    EquityPoint,
+    Fill,
+    LogEntry,
+    Order,
+    Trade,
+)
 
 
 def write_artifacts(
@@ -21,8 +30,12 @@ def write_artifacts(
     output_dir.mkdir(parents=True, exist_ok=False)
 
     summary_path = output_dir / "summary.json"
+    orders_path = output_dir / "orders.csv"
+    fills_path = output_dir / "fills.csv"
     trades_path = output_dir / "trades.csv"
     equity_path = output_dir / "equity_curve.csv"
+    daily_returns_path = output_dir / "daily_returns.csv"
+    logs_path = output_dir / "logs.csv"
     chart_path = output_dir / "report.svg" if create_chart else None
 
     summary = {
@@ -32,22 +45,34 @@ def write_artifacts(
         "settings": result.settings,
         "metrics": result.metrics.to_dict(),
         "artifacts": {
+            "orders": orders_path.name,
+            "fills": fills_path.name,
             "trades": trades_path.name,
             "equity_curve": equity_path.name,
+            "daily_returns": daily_returns_path.name,
+            "logs": logs_path.name,
             "chart": chart_path.name if chart_path else None,
         },
     }
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_csv(orders_path, result.orders, Order)
+    _write_csv(fills_path, result.fills, Fill)
     _write_csv(trades_path, result.trades, Trade)
     _write_csv(equity_path, result.equity_curve, EquityPoint)
+    _write_csv(daily_returns_path, result.daily_returns, DailyReturn)
+    _write_csv(logs_path, result.logs, LogEntry)
     if chart_path:
         _write_chart(result, chart_path)
 
     artifacts = BacktestArtifacts(
         output_dir=str(output_dir),
         summary_path=str(summary_path),
+        orders_path=str(orders_path),
+        fills_path=str(fills_path),
         trades_path=str(trades_path),
         equity_path=str(equity_path),
+        daily_returns_path=str(daily_returns_path),
+        logs_path=str(logs_path),
         chart_path=str(chart_path) if chart_path else None,
     )
     result.artifacts = artifacts

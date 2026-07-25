@@ -66,6 +66,7 @@ def create_run_manifest(
         "market_data_sha256": None,
         "market_data_bytes": None,
         "market_data_rows": None,
+        "artifacts": {},
     }
 
 
@@ -76,6 +77,7 @@ def update_run_manifest(
     started_at: str | None = None,
     finished_at: str | None = None,
     market_data: Mapping[str, Any] | None = None,
+    artifacts: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if status is not None:
@@ -91,8 +93,23 @@ def update_run_manifest(
             market_data_bytes=market_data["bytes"],
             market_data_rows=market_data["rows"],
         )
+    if artifacts is not None:
+        payload["artifacts"] = dict(artifacts)
     atomic_write_json(path, payload)
     return payload
+
+
+def artifact_inventory(run_dir: Path, job_dir: Path) -> dict[str, dict[str, Any]]:
+    inventory: dict[str, dict[str, Any]] = {}
+    for path in sorted(run_dir.iterdir()):
+        if not path.is_file():
+            continue
+        inventory[path.name] = {
+            "path": str(path.relative_to(job_dir)),
+            "sha256": sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+    return inventory
 
 
 def canonical_json_bytes(payload: Mapping[str, Any]) -> bytes:

@@ -9,7 +9,15 @@ runs/web/<job-id>/
 ├── request.json
 ├── strategy.py
 ├── market-data.csv
-└── output/
+└── output/<run>/
+    ├── summary.json
+    ├── orders.csv
+    ├── fills.csv
+    ├── trades.csv
+    ├── equity_curve.csv
+    ├── daily_returns.csv
+    ├── logs.csv
+    └── report.svg
 ```
 
 `strategy.py` is written before the job enters the queue. The subprocess always executes this file, so saving the workspace strategy after submission cannot change the run.
@@ -23,5 +31,6 @@ runs/web/<job-id>/
 - the canonical request SHA-256;
 - the market-data snapshot path, SHA-256, byte size, and row count;
 - queued, running, and terminal timestamps and status.
+- relative path, SHA-256, and byte size for every result artifact.
 
 Existing jobs without a manifest remain readable through the legacy path contract. New jobs never fall back from a missing snapshot to mutable workspace source.

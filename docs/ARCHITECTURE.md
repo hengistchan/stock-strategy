@@ -72,6 +72,7 @@ FastAPI composition root (backend/stock_strategy/web.py)
 - 回测运行时将输入窗口拆成 warmup 与 evaluation：预热数据可供增量指标读取，但不会进入收益、基准、回撤或资金使用率。`summary.settings.data_window` 同时记录输入和评估边界。
 - 绩效收益率先按交易日最后一根 K 线聚合，再计算 Sharpe；少于 20 个交易日时不输出 CAGR，避免分钟级短样本产生误导性年化值。
 - `execution_models` 定义费用与滑点协议；默认 `bps-commission-v1` 和 `bps-slippage-v1` 保持现有请求兼容，Broker 只依赖模型接口并在结果中记录模型清单。
+- 每次运行持久化 `orders / fills / trades / equity_curve / daily_returns / logs / report`；JobStore 在发布成功状态前校验整套审计产物，并把每个文件的 SHA-256 写入运行清单。
 - `engine_contract` 为回测语义提供版本边界；缺少版本的历史结果只作为 legacy 工程证据展示。
 
 ## 依赖方向

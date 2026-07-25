@@ -11,7 +11,16 @@ from typing import Any
 from . import futu
 from .broker import Broker
 from .context import ExecutionContext, activate_context
-from .models import BacktestResult, Bar, BarType, Contract, EquityPoint, Metrics, THType
+from .models import (
+    BacktestResult,
+    Bar,
+    BarType,
+    Contract,
+    DailyReturn,
+    EquityPoint,
+    Metrics,
+    THType,
+)
 from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
 
 
@@ -143,6 +152,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
     )
     path = Path(config.strategy_path)
     ending_position = _ending_position(broker, bars[-1].close)
+    daily_returns = calculate_daily_returns(equity_curve, config.initial_cash)
     return BacktestResult(
         strategy_name=path.stem,
         symbol=str(symbol),
@@ -185,8 +195,11 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
                 ),
             },
         },
+        orders=list(broker.orders.values()),
+        fills=broker.fills,
         trades=broker.trades,
         equity_curve=equity_curve,
+        daily_returns=daily_returns,
         logs=broker.logs,
     )
 
@@ -240,8 +253,8 @@ def calculate_metrics(
     final_equity = equity_curve[-1].equity
     total_return = final_equity / initial_cash - 1
     benchmark_return = equity_curve[-1].benchmark / initial_cash - 1
-    daily_equity = _daily_closing_equity(equity_curve)
-    trading_days = len(daily_equity)
+    daily_returns = calculate_daily_returns(equity_curve, initial_cash)
+    trading_days = len(daily_returns)
     if trading_days >= MIN_ANNUALIZATION_TRADING_DAYS:
         annualized: float | None = (
             (final_equity / initial_cash) ** (252 / trading_days) - 1
@@ -251,16 +264,14 @@ def calculate_metrics(
     else:
         annualized = None
 
-    daily_returns: list[float] = []
-    previous = initial_cash
-    for point in daily_equity:
-        daily_returns.append(point.equity / previous - 1 if previous else 0.0)
-        previous = point.equity
+    daily_return_values = [point.return_pct / 100 for point in daily_returns]
     return_std = (
-        statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
+        statistics.stdev(daily_return_values)
+        if len(daily_return_values) > 1
+        else 0.0
     )
     sharpe = (
-        statistics.fmean(daily_returns)
+        statistics.fmean(daily_return_values)
         / return_std
         * math.sqrt(252)
         if return_std
@@ -292,11 +303,20 @@ def calculate_metrics(
     )
 
 
-def _daily_closing_equity(equity_curve: list[EquityPoint]) -> list[EquityPoint]:
+def calculate_daily_returns(
+    equity_curve: list[EquityPoint],
+    initial_cash: float,
+) -> list[DailyReturn]:
     by_date: dict[str, EquityPoint] = {}
     for point in equity_curve:
         by_date[point.date.strip()[:10]] = point
-    return list(by_date.values())
+    previous = initial_cash
+    result: list[DailyReturn] = []
+    for date, point in by_date.items():
+        return_pct = (point.equity / previous - 1) * 100 if previous else 0.0
+        result.append(DailyReturn(date=date, equity=point.equity, return_pct=return_pct))
+        previous = point.equity
+    return result
 
 
 def _ending_position(broker: Broker, mark_price: float) -> dict[str, float | str]:
