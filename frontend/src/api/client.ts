@@ -137,6 +137,17 @@ async function unwrap<T>(
   throw new ApiError(message, status, code, details);
 }
 
+async function unwrapResponse<T>(response: Response): Promise<T> {
+  const payload = await response.json().catch(() => undefined);
+  return unwrap<T>(
+    Promise.resolve(
+      response.ok
+        ? { data: payload, response }
+        : { error: payload, response },
+    ),
+  );
+}
+
 export const api = {
   health: () =>
     unwrap<HealthResponse>(healthApiHealthGet({ headers: requestHeaders() })),
@@ -203,6 +214,17 @@ export const api = {
       createJobApiJobsPost({
         headers: requestHeaders(),
         body: payload as GeneratedBacktestRequest,
+      }),
+    ),
+  importEvidence: async (bundle: File) =>
+    unwrapResponse<BacktestJob>(
+      await fetch("/api/evidence/import", {
+        method: "POST",
+        headers: {
+          ...requestHeaders(),
+          "Content-Type": "application/zip",
+        },
+        body: bundle,
       }),
     ),
   strategies: () =>

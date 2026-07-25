@@ -1782,6 +1782,71 @@ export type ReportApiJobsJobIdReportSvgGetResponses = {
     200: unknown;
 };
 
+export type ExportEvidenceApiEvidenceJobIdZipGetData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/evidence/{job_id}.zip';
+};
+
+export type ExportEvidenceApiEvidenceJobIdZipGetErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    409: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportEvidenceApiEvidenceJobIdZipGetError = ExportEvidenceApiEvidenceJobIdZipGetErrors[keyof ExportEvidenceApiEvidenceJobIdZipGetErrors];
+
+export type ExportEvidenceApiEvidenceJobIdZipGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ImportEvidenceApiEvidenceImportPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/evidence/import';
+};
+
+export type ImportEvidenceApiEvidenceImportPostErrors = {
+    /**
+     * Structured API error
+     */
+    413: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type ImportEvidenceApiEvidenceImportPostError = ImportEvidenceApiEvidenceImportPostErrors[keyof ImportEvidenceApiEvidenceImportPostErrors];
+
+export type ImportEvidenceApiEvidenceImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: BacktestJob;
+};
+
+export type ImportEvidenceApiEvidenceImportPostResponse = ImportEvidenceApiEvidenceImportPostResponses[keyof ImportEvidenceApiEvidenceImportPostResponses];
+
 export type ListExperimentsApiExperimentsGetData = {
     body?: never;
     path?: never;

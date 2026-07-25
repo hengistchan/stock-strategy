@@ -72,9 +72,18 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
           </h2>
           <p className="completion-time">{t("result.completedAt", { time: formatDateTime(job.finished_at, locale) })}</p>
         </div>
-        <div className="evidence-stamp" data-legacy={isLegacyResult}>
-          <span>{isLegacyResult ? "LEGACY RESULT" : `OPEND CONTRACT V${contractVersion}`}</span>
-          <small>{t("result.bars", { count: formatNumber(summary.period.bars, 0, locale) })} · {autype} · {session}</small>
+        <div className="evidence-actions">
+          <div className="evidence-stamp" data-legacy={isLegacyResult}>
+            <span>{isLegacyResult ? "LEGACY RESULT" : `OPEND CONTRACT V${contractVersion}`}</span>
+            <small>{t("result.bars", { count: formatNumber(summary.period.bars, 0, locale) })} · {autype} · {session}</small>
+          </div>
+          <a
+            className="evidence-download"
+            href={`/api/evidence/${encodeURIComponent(job.id)}.zip`}
+            download
+          >
+            {t("evidence.export")}
+          </a>
         </div>
       </div>
 

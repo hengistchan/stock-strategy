@@ -1130,6 +1130,43 @@ select:focus {
   font: 400 12px/1.4 var(--mono);
 }
 
+.evidence-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.evidence-download,
+.evidence-import {
+  color: var(--ocean);
+  cursor: pointer;
+  font: 700 9px/1.2 var(--mono);
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.evidence-download:hover,
+.evidence-import:hover {
+  color: var(--signal);
+}
+
+.evidence-import {
+  display: block;
+  margin: -8px 18px 14px;
+  text-align: right;
+}
+
+.evidence-import input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .evidence-stamp {
   min-width: 150px;
   border: 1px solid var(--signal);

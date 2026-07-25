@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import uuid
 
 from .backtest_command import build_backtest_command
+from .evidence_bundle import EvidenceBundleService
 from .event_stream import EventBroker
 from .market_cache import MarketDataCache
 from .job_lifecycle import InvalidJobTransition, JobStatus, TERMINAL_JOB_STATUSES
@@ -63,6 +64,7 @@ class JobStore:
         self.opend_host = opend_host or os.environ.get("OPEND_HOST", "127.0.0.1")
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
         self.cache = MarketDataCache(self.project_root)
+        self.evidence = EvidenceBundleService(self.project_root, self.root)
         self.events = event_broker or EventBroker()
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self.process_runner = StrategyProcessRunner(
@@ -370,6 +372,21 @@ class JobStore:
         if not path.is_file():
             raise RuntimeError("找不到回测图表。")
         return path
+
+    def evidence_bundle_path(self, job_id: str) -> Path:
+        job = self.get_job(job_id)
+        run_dir = validated_run_dir(self.root, job)
+        return self.evidence.export(job, self._job_dir(job_id), run_dir)
+
+    def import_evidence_bundle(self, content: bytes) -> dict[str, Any]:
+        payload = self.evidence.import_bundle(content)
+        try:
+            self._write_job(payload)
+            return payload
+        except Exception:
+            shutil.rmtree(self._job_dir(str(payload["id"])), ignore_errors=True)
+            self.repository.delete(str(payload["id"]))
+            raise
 
     def _job_dir(self, job_id: str) -> Path:
         if not JOB_ID_PATTERN.fullmatch(job_id):

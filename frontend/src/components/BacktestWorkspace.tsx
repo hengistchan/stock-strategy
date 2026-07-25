@@ -69,6 +69,17 @@ export function BacktestWorkspace({
     },
     onError: (error) => onNotice(error.message),
   });
+  const importMutation = useMutation({
+    mutationFn: (bundle: File) => api.importEvidence(bundle),
+    onSuccess: (importedJob) => {
+      queryClient.setQueryData(queryKeys.job(importedJob.id), importedJob);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
+      onActiveJobChange(importedJob.id);
+      onRailChange("archive");
+      onNotice(t("evidence.imported", { id: importedJob.id }));
+    },
+    onError: (error) => onNotice(error.message),
+  });
 
   useEffect(() => {
     if (jobQuery.data?.status === "succeeded" || jobQuery.data?.status === "failed") {
@@ -107,6 +118,21 @@ export function BacktestWorkspace({
             {rail === "create" ? t("history.viewArchive") : t("history.newBacktest")}
           </button>
         </div>
+        {rail === "archive" ? (
+          <label className="evidence-import">
+            <span>{importMutation.isPending ? t("evidence.importing") : t("evidence.import")}</span>
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              disabled={importMutation.isPending}
+              onChange={(event) => {
+                const bundle = event.currentTarget.files?.[0];
+                if (bundle) importMutation.mutate(bundle);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+        ) : null}
         {rail === "create" ? (
           <BacktestForm
             config={config}

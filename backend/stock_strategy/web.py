@@ -28,6 +28,7 @@ from .result_reader import (
 from .strategy_repository import StrategyRepository, StrategyRepositoryError
 from .web_cache import create_cache_router
 from .web_events import create_events_router
+from .web_evidence import create_evidence_router
 from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
 from .web_portfolios import create_portfolios_router
@@ -127,6 +128,7 @@ def create_app(
     app.include_router(create_symbols_router(directory))
     app.include_router(create_strategies_router(strategies, store, experiments))
     app.include_router(create_jobs_router(store, execution))
+    app.include_router(create_evidence_router(store))
     app.include_router(create_experiments_router(experiments, execution))
     app.include_router(create_portfolios_router(portfolios))
     app.include_router(create_cache_router(store))
