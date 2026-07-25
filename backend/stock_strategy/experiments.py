@@ -10,6 +10,7 @@ import shutil
 from typing import Any, Mapping, Protocol, Sequence
 import uuid
 
+from .event_stream import EventBroker
 from .run_manifest import StrategySnapshot, atomic_write_json, atomic_write_text
 
 
@@ -67,6 +68,7 @@ class ExperimentStore:
         self.root = (self.project_root / "runs" / "experiments").resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.job_store = job_store
+        self.events = getattr(job_store, "events", EventBroker())
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._reconcile_interrupted()
 
@@ -234,6 +236,16 @@ class ExperimentStore:
     def _write(self, payload: Mapping[str, Any]) -> None:
         path = self._directory(str(payload["id"])) / "experiment.json"
         atomic_write_json(path, payload)
+        self.events.publish(
+            "experiment.updated",
+            {
+                "id": str(payload["id"]),
+                "status": str(payload["status"]),
+                "completed": int(payload.get("progress", {}).get("completed", 0)),
+                "total": int(payload.get("progress", {}).get("total", 0)),
+                "updated_at": _now(),
+            },
+        )
 
     def _reconcile_interrupted(self) -> None:
         for experiment in self.list():

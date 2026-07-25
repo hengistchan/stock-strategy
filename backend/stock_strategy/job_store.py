@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import uuid
 
 from .backtest_command import build_backtest_command
+from .event_stream import EventBroker
 from .market_cache import MarketDataCache
 from .job_lifecycle import InvalidJobTransition, JobStatus, TERMINAL_JOB_STATUSES
 from .paths import BACKEND_ROOT, PROJECT_ROOT
@@ -49,6 +50,7 @@ class JobStore:
         timeout_seconds: int = 300,
         opend_host: str | None = None,
         opend_port: int | None = None,
+        event_broker: EventBroker | None = None,
     ):
         self.project_root = project_root.resolve()
         self.root = (self.project_root / "runs" / "web").resolve()
@@ -61,6 +63,7 @@ class JobStore:
         self.opend_host = opend_host or os.environ.get("OPEND_HOST", "127.0.0.1")
         self.opend_port = opend_port or int(os.environ.get("OPEND_PORT", "11111"))
         self.cache = MarketDataCache(self.project_root)
+        self.events = event_broker or EventBroker()
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self.process_runner = StrategyProcessRunner(
             backend_root=BACKEND_ROOT,
@@ -386,6 +389,7 @@ class JobStore:
                 started_at=payload.get("started_at"),
                 finished_at=payload.get("finished_at"),
             )
+        self._publish_job(payload)
 
     def _transition_job(
         self,
@@ -404,7 +408,18 @@ class JobStore:
                 started_at=payload.get("started_at"),
                 finished_at=payload.get("finished_at"),
             )
+        self._publish_job(payload)
         return payload
+
+    def _publish_job(self, payload: Mapping[str, Any]) -> None:
+        self.events.publish(
+            "job.updated",
+            {
+                "id": str(payload["id"]),
+                "status": str(payload["status"]),
+                "updated_at": _now(),
+            },
+        )
 
     def _strategy_execution_path(self, job: Mapping[str, Any]) -> Path:
         snapshot_value = job.get("strategy_snapshot_path")

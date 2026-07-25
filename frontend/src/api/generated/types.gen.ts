@@ -870,6 +870,22 @@ export type ConfigApiConfigGetResponses = {
 
 export type ConfigApiConfigGetResponse = ConfigApiConfigGetResponses[keyof ConfigApiConfigGetResponses];
 
+export type EventStreamApiEventsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/events';
+};
+
+export type EventStreamApiEventsGetResponses = {
+    /**
+     * Backtest and experiment state changes
+     */
+    200: string;
+};
+
+export type EventStreamApiEventsGetResponse = EventStreamApiEventsGetResponses[keyof EventStreamApiEventsGetResponses];
+
 export type SearchSymbolsApiSymbolsGetData = {
     body?: never;
     path?: never;

@@ -26,6 +26,7 @@ from .result_reader import (
 )
 from .strategy_repository import StrategyRepository, StrategyRepositoryError
 from .web_cache import create_cache_router
+from .web_events import create_events_router
 from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
 from .web_strategies import create_strategies_router
@@ -113,6 +114,7 @@ def create_app(
     if assets_root.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_root), name="assets")
     app.include_router(create_system_router(store, strategies, diagnostics, probe))
+    app.include_router(create_events_router(store.events))
     app.include_router(create_symbols_router(directory))
     app.include_router(create_strategies_router(strategies))
     app.include_router(create_jobs_router(store, execution))

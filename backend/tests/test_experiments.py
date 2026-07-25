@@ -101,6 +101,32 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
             )
         )
 
+    async def test_experiment_writes_publish_progress_events(self):
+        async def connected() -> bool:
+            return False
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            store = ExperimentStore(root, FakeJobStore(root))
+            stream = store.events.stream(connected)
+            await anext(stream)
+            experiment = store.create(
+                name="event test",
+                base_request={"symbol": "US.AAPL"},
+                parameter_grid={"fast": [10]},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+            )
+            update = await anext(stream)
+            await stream.aclose()
+
+        self.assertIn("event: experiment.updated", update)
+        self.assertIn(f'"id":"{experiment["id"]}"', update)
+        self.assertIn('"total":1', update)
+
 
 if __name__ == "__main__":
     unittest.main()

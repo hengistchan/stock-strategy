@@ -52,10 +52,6 @@ export function BacktestWorkspace({
     queryKey: queryKeys.job(resolvedJobId),
     queryFn: () => api.job(resolvedJobId!),
     enabled: Boolean(resolvedJobId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 900 : false;
-    },
   });
   const resultQuery = useQuery({
     queryKey: queryKeys.result(resolvedJobId),

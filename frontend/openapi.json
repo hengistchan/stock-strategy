@@ -73,6 +73,27 @@
         }
       }
     },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Event Stream",
+        "operationId": "event_stream_api_events_get",
+        "responses": {
+          "200": {
+            "description": "Backtest and experiment state changes",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/symbols": {
       "get": {
         "tags": [

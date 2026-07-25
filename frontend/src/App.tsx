@@ -5,6 +5,7 @@ import { api } from "./api/client";
 import { queryKeys } from "./api/queryKeys";
 import { useI18n } from "./i18n/I18nContext";
 import { useTransientNotice } from "./hooks/useTransientNotice";
+import { useApiEvents } from "./hooks/useApiEvents";
 import type { BacktestRail } from "./lib/backtestWorkspace";
 import { workspacePaths } from "./lib/workspaceRoutes";
 import { BacktestWorkspace } from "./components/BacktestWorkspace";
@@ -29,6 +30,7 @@ export function App() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [selectedStrategy, setSelectedStrategy] = useState("");
   const [toast, setToast] = useTransientNotice();
+  useApiEvents();
 
   const healthQuery = useQuery({
     queryKey: queryKeys.health,

@@ -36,10 +36,6 @@ export function IterationWorkspace({
     queryKey: queryKeys.experiment(resolvedExperimentId),
     queryFn: () => api.experiment(resolvedExperimentId!),
     enabled: Boolean(resolvedExperimentId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 700 : false;
-    },
   });
   const runMutation = useMutation({
     mutationFn: (request: ExperimentRequest) => api.runExperiment(request),

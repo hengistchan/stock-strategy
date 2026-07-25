@@ -19,6 +19,42 @@ class FakeProcess:
 
 
 class JobStoreTest(unittest.IsolatedAsyncioTestCase):
+    async def test_persisted_job_updates_are_published_to_the_event_stream(self):
+        request = {
+            "strategy": "strategies/demo.py",
+            "symbol": "US.AAPL",
+            "start": "2025-01-01",
+            "end": "2025-12-31",
+            "ktype": "K_DAY",
+            "autype": "QFQ",
+            "session": "ALL",
+            "initial_cash": 100_000,
+            "commission_bps": 3,
+            "min_commission": 1,
+            "slippage_bps": 5,
+            "warmup_bars": 0,
+            "allow_short": False,
+        }
+
+        async def connected() -> bool:
+            return False
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            strategy = root / "strategies" / "demo.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass\n", encoding="utf-8")
+            store = JobStore(root)
+            stream = store.events.stream(connected)
+            await anext(stream)
+            job = store.create_job(request, strategy)
+            update = await anext(stream)
+            await stream.aclose()
+
+        self.assertIn("event: job.updated", update)
+        self.assertIn(f'"id":"{job["id"]}"', update)
+        self.assertIn('"status":"queued"', update)
+
     async def test_queued_job_can_be_cancelled_and_retried_with_lineage(self):
         request = {
             "strategy": "strategies/demo.py",
