@@ -67,9 +67,16 @@ class ExperimentRequest(BaseModel):
     ] = "sharpe_ratio"
     validation: "EvaluationWindowRequest | None" = None
     test: "EvaluationWindowRequest | None" = None
+    walk_forward_folds: int = Field(default=0, ge=0, le=5)
 
     @model_validator(mode="after")
     def validate_research_windows(self) -> "ExperimentRequest":
+        if self.walk_forward_folds == 1:
+            raise ValueError("Walk-forward 至少需要 2 折。")
+        if self.walk_forward_folds and (
+            self.validation is not None or self.test is not None
+        ):
+            raise ValueError("Walk-forward 不能同时配置固定验证或测试区间。")
         if self.test is not None and self.validation is None:
             raise ValueError("测试区间需要先配置验证区间。")
         if self.validation is not None and self.validation.start <= self.base.end:
@@ -88,6 +95,7 @@ class ExperimentRequest(BaseModel):
             objective=self.objective,
             validation=self.validation.to_window() if self.validation else None,
             test=self.test.to_window() if self.test else None,
+            walk_forward_folds=self.walk_forward_folds,
         )
 
 

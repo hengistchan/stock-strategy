@@ -73,6 +73,7 @@ class ExecutionService:
                 request.validation.to_dict() if request.validation else None
             ),
             test_window=request.test.to_dict() if request.test else None,
+            walk_forward_folds=request.walk_forward_folds,
         )
         self.experiments.launch(experiment["id"])
         return experiment

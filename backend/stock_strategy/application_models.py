@@ -73,6 +73,7 @@ class ExperimentSpec:
     objective: str = "sharpe_ratio"
     validation: "EvaluationWindow | None" = None
     test: "EvaluationWindow | None" = None
+    walk_forward_folds: int = 0
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,7 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from stock_strategy.experiments import ExperimentStore, expand_parameter_grid
+from stock_strategy.experiments import (
+    ExperimentStore,
+    build_walk_forward_windows,
+    expand_parameter_grid,
+)
 
 
 class FakeJobStore:
@@ -86,6 +90,30 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
         )
         with self.assertRaisesRegex(ValueError, "maximum"):
             expand_parameter_grid({"a": list(range(7)), "b": list(range(7))})
+
+    def test_walk_forward_windows_use_only_past_data_for_each_fold(self):
+        self.assertEqual(
+            build_walk_forward_windows(
+                {"start": "2022-01-01", "end": "2022-01-12"},
+                2,
+            ),
+            [
+                {
+                    "train": {"start": "2022-01-01", "end": "2022-01-04"},
+                    "validation": {
+                        "start": "2022-01-05",
+                        "end": "2022-01-08",
+                    },
+                },
+                {
+                    "train": {"start": "2022-01-01", "end": "2022-01-08"},
+                    "validation": {
+                        "start": "2022-01-09",
+                        "end": "2022-01-12",
+                    },
+                },
+            ],
+        )
 
     async def test_experiment_runs_candidates_and_ranks_objective(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -213,6 +241,44 @@ class ExperimentsTest(unittest.IsolatedAsyncioTestCase):
             "train_validation_test",
         )
         self.assertTrue(completed["research_summary"]["out_of_sample"])
+
+    async def test_walk_forward_ranks_aggregate_validation_windows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            strategy = root / "examples" / "strategy.py"
+            strategy.parent.mkdir(parents=True)
+            strategy.write_text("class Strategy: pass", encoding="utf-8")
+            jobs = WindowAwareJobStore(root)
+            store = ExperimentStore(root, jobs)
+            experiment = store.create(
+                name="walk forward",
+                base_request={
+                    "symbol": "US.AAPL",
+                    "start": "2022-01-01",
+                    "end": "2022-12-31",
+                    "parameters": {},
+                },
+                walk_forward_folds=2,
+                parameter_grid={"fast": [10, 20]},
+                strategy_path=strategy,
+                objective="sharpe_ratio",
+            )
+
+            await store._run(experiment["id"])
+            completed = store.get(experiment["id"])
+
+        selected = next(run for run in completed["runs"] if run["rank"] == 1)
+        self.assertEqual(selected["parameters"], {"fast": 20})
+        self.assertEqual(len(jobs.jobs), 8)
+        self.assertEqual(completed["research_summary"]["mode"], "walk_forward")
+        self.assertEqual(
+            len(completed["research_summary"]["window_results"]),
+            2,
+        )
+        self.assertEqual(
+            completed["research_summary"]["parameter_stability"],
+            1.0,
+        )
 
 
 if __name__ == "__main__":

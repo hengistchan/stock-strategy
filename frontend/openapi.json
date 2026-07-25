@@ -1859,6 +1859,13 @@
                 "type": "null"
               }
             ]
+          },
+          "walk_forward_folds": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Walk Forward Folds",
+            "default": 0
           }
         },
         "type": "object",
@@ -1942,6 +1949,24 @@
               }
             ],
             "title": "Test Window"
+          },
+          "walk_forward_folds": {
+            "type": "integer",
+            "title": "Walk Forward Folds",
+            "default": 0
+          },
+          "walk_forward_windows": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Walk Forward Windows"
           },
           "parameter_grid": {
             "additionalProperties": {

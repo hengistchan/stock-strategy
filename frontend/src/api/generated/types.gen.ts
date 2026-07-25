@@ -411,6 +411,10 @@ export type ExperimentRequest = {
     objective?: 'total_return_pct' | 'sharpe_ratio' | 'max_drawdown_pct';
     validation?: EvaluationWindowRequest | null;
     test?: EvaluationWindowRequest | null;
+    /**
+     * Walk Forward Folds
+     */
+    walk_forward_folds?: number;
 };
 
 /**
@@ -458,6 +462,18 @@ export type ExperimentResponse = {
     test_window?: {
         [key: string]: string;
     } | null;
+    /**
+     * Walk Forward Folds
+     */
+    walk_forward_folds?: number;
+    /**
+     * Walk Forward Windows
+     */
+    walk_forward_windows?: Array<{
+        [key: string]: {
+            [key: string]: string;
+        };
+    }>;
     /**
      * Parameter Grid
      */

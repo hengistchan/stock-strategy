@@ -180,6 +180,10 @@ class ExperimentResponse(ApiModel):
     base_request: BacktestRequest
     validation_window: dict[str, str] | None = None
     test_window: dict[str, str] | None = None
+    walk_forward_folds: int = 0
+    walk_forward_windows: list[dict[str, dict[str, str]]] = Field(
+        default_factory=list
+    )
     parameter_grid: dict[str, list[Any]]
     strategy_path: str
     strategy_revision: str | None = None

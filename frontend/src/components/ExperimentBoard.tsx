@@ -104,6 +104,7 @@ export function ExperimentBoard({
                 <ResearchMetric label={t("experiment.testSharpe")} value={metricNumber(experiment.research_summary.test_metrics?.sharpe_ratio ?? undefined, locale)} />
                 <ResearchMetric label={t("experiment.positiveWindows")} value={experiment.research_summary.positive_window_ratio == null ? "—" : formatSignedPercent(experiment.research_summary.positive_window_ratio * 100, locale)} />
                 <ResearchMetric label={t("experiment.worstWindowDrawdown")} value={metricPercent(experiment.research_summary.worst_window_drawdown_pct ?? undefined, locale)} />
+                <ResearchMetric label={t("experiment.parameterStability")} value={experiment.research_summary.parameter_stability == null ? "—" : formatSignedPercent(experiment.research_summary.parameter_stability * 100, locale)} />
               </section>
             ) : null}
 

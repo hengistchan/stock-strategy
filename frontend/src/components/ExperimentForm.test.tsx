@@ -119,4 +119,31 @@ describe("ExperimentForm", () => {
       }),
     );
   });
+
+  it("submits bounded walk-forward folds instead of fixed windows", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ExperimentForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        parameterDefinitions={definitions}
+        onStrategyChange={() => undefined}
+        onSubmit={onSubmit}
+        running={false}
+        opendConnected
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("启用 Walk-forward 分析"));
+    expect(screen.getByText(/预计执行 24 个独立回测任务/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /运行 4 组参数/ }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        walk_forward_folds: 3,
+        validation: undefined,
+        test: undefined,
+      }),
+    );
+  });
 });

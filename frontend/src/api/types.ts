@@ -255,6 +255,7 @@ export interface ExperimentRequest {
   objective: ExperimentObjective;
   validation?: EvaluationWindow;
   test?: EvaluationWindow;
+  walk_forward_folds?: number;
 }
 
 export interface EvaluationWindow {
@@ -293,18 +294,28 @@ export interface Experiment {
   base_request: BacktestRequest;
   validation_window?: EvaluationWindow | null;
   test_window?: EvaluationWindow | null;
+  walk_forward_folds?: number;
+  walk_forward_windows?: Array<{
+    train: EvaluationWindow;
+    validation: EvaluationWindow;
+  }>;
   parameter_grid: Record<string, ParameterValue[]>;
   strategy_path: string;
   progress: { completed: number; total: number };
   runs: ExperimentRun[];
   research_summary?: {
-    mode: "in_sample" | "train_validation_test";
+    mode: "in_sample" | "train_validation_test" | "walk_forward";
     selected_parameters: Record<string, ParameterValue> | null;
     out_of_sample: boolean;
     validation_metrics?: BacktestMetrics | null;
     test_metrics?: BacktestMetrics | null;
     positive_window_ratio?: number | null;
     worst_window_drawdown_pct?: number | null;
+    parameter_stability?: number | null;
+    window_results?: Array<{
+      window: EvaluationWindow;
+      metrics: BacktestMetrics;
+    }>;
   };
 }
 

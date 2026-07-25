@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from itertools import product
 import json
 from pathlib import Path
 import re
 import shutil
+from statistics import fmean, pstdev
 from typing import Any, Mapping, Protocol, Sequence
 import uuid
 
@@ -16,6 +17,7 @@ from .run_manifest import StrategySnapshot, atomic_write_json, atomic_write_text
 
 EXPERIMENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9-]+$")
 MAX_EXPERIMENT_RUNS = 36
+MAX_EXPERIMENT_JOBS = 72
 EXPERIMENT_OBJECTIVES = frozenset(
     {"total_return_pct", "sharpe_ratio", "max_drawdown_pct"}
 )
@@ -84,10 +86,24 @@ class ExperimentStore:
         objective: str,
         validation_window: Mapping[str, str] | None = None,
         test_window: Mapping[str, str] | None = None,
+        walk_forward_folds: int = 0,
     ) -> dict[str, Any]:
         if objective not in EXPERIMENT_OBJECTIVES:
             raise ValueError(f"unsupported experiment objective: {objective}")
         combinations = expand_parameter_grid(parameter_grid)
+        walk_forward_windows = (
+            build_walk_forward_windows(base_request, walk_forward_folds)
+            if walk_forward_folds
+            else []
+        )
+        planned_jobs = len(combinations) * (
+            len(walk_forward_windows) * 2 if walk_forward_windows else 1
+        )
+        if planned_jobs > MAX_EXPERIMENT_JOBS:
+            raise ValueError(
+                f"experiment plans {planned_jobs} jobs; maximum is "
+                f"{MAX_EXPERIMENT_JOBS}"
+            )
         experiment_id = (
             f"exp-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         )
@@ -121,6 +137,8 @@ class ExperimentStore:
                 dict(validation_window) if validation_window else None
             ),
             "test_window": dict(test_window) if test_window else None,
+            "walk_forward_folds": walk_forward_folds,
+            "walk_forward_windows": walk_forward_windows,
             "parameter_grid": {key: list(values) for key, values in parameter_grid.items()},
             "strategy_path": snapshot.source_path,
             "strategy_revision": snapshot.revision,
@@ -170,41 +188,109 @@ class ExperimentStore:
                     **dict(run["parameters"]),
                 }
                 request["refresh_cache"] = False
-                train = await self._run_phase(
-                    experiment,
-                    run,
-                    "train",
-                    request,
-                    strategy_path,
-                    strategy_source,
-                    strategy_revision,
-                )
-                scoring_phase = train
-                validation_window = experiment.get("validation_window")
-                if train["status"] == "succeeded" and validation_window:
-                    validation_request = {
-                        **request,
-                        "start": validation_window["start"],
-                        "end": validation_window["end"],
-                    }
-                    scoring_phase = await self._run_phase(
+                walk_forward_windows = experiment.get("walk_forward_windows") or []
+                if walk_forward_windows:
+                    validation_phases: list[dict[str, Any]] = []
+                    for fold_index, fold in enumerate(
+                        walk_forward_windows,
+                        start=1,
+                    ):
+                        train_request = {
+                            **request,
+                            **fold["train"],
+                        }
+                        train = await self._run_phase(
+                            experiment,
+                            run,
+                            f"fold_{fold_index}_train",
+                            train_request,
+                            strategy_path,
+                            strategy_source,
+                            strategy_revision,
+                        )
+                        if train["status"] != "succeeded":
+                            break
+                        validation_request = {
+                            **request,
+                            **fold["validation"],
+                        }
+                        validation = await self._run_phase(
+                            experiment,
+                            run,
+                            f"fold_{fold_index}_validation",
+                            validation_request,
+                            strategy_path,
+                            strategy_source,
+                            strategy_revision,
+                        )
+                        validation_phases.append(validation)
+                        if validation["status"] != "succeeded":
+                            break
+                    successful = (
+                        len(validation_phases) == len(walk_forward_windows)
+                        and all(
+                            phase["status"] == "succeeded"
+                            for phase in validation_phases
+                        )
+                    )
+                    last_phase = (
+                        validation_phases[-1]
+                        if validation_phases
+                        else train
+                    )
+                    run["job_id"] = last_phase.get("job_id")
+                    run["status"] = "succeeded" if successful else "failed"
+                    run["metrics"] = (
+                        _aggregate_metrics(validation_phases)
+                        if successful
+                        else None
+                    )
+                    run["score"] = (
+                        run["metrics"].get(experiment["objective"])
+                        if run["metrics"]
+                        else None
+                    )
+                    run["error"] = (
+                        None if successful else last_phase.get("error")
+                    )
+                else:
+                    train = await self._run_phase(
                         experiment,
                         run,
-                        "validation",
-                        validation_request,
+                        "train",
+                        request,
                         strategy_path,
                         strategy_source,
                         strategy_revision,
                     )
-                run["job_id"] = scoring_phase.get("job_id")
-                run["status"] = scoring_phase["status"]
-                run["metrics"] = scoring_phase.get("metrics")
-                run["score"] = (
-                    scoring_phase.get("metrics", {}).get(experiment["objective"])
-                    if scoring_phase["status"] == "succeeded"
-                    else None
-                )
-                run["error"] = scoring_phase.get("error")
+                    scoring_phase = train
+                    validation_window = experiment.get("validation_window")
+                    if train["status"] == "succeeded" and validation_window:
+                        validation_request = {
+                            **request,
+                            "start": validation_window["start"],
+                            "end": validation_window["end"],
+                        }
+                        scoring_phase = await self._run_phase(
+                            experiment,
+                            run,
+                            "validation",
+                            validation_request,
+                            strategy_path,
+                            strategy_source,
+                            strategy_revision,
+                        )
+                    run["job_id"] = scoring_phase.get("job_id")
+                    run["status"] = scoring_phase["status"]
+                    run["metrics"] = scoring_phase.get("metrics")
+                    run["score"] = (
+                        scoring_phase.get("metrics", {}).get(
+                            experiment["objective"]
+                        )
+                        if scoring_phase["status"] == "succeeded"
+                        else None
+                    )
+                    run["error"] = scoring_phase.get("error")
             except Exception as error:
                 run.update(status="failed", error=str(error))
             experiment["progress"]["completed"] += 1
@@ -319,9 +405,19 @@ class ExperimentStore:
         phases = selected.get("phases", {})
         validation = phases.get("validation")
         test = phases.get("test")
+        validation_phases = [
+            phase
+            for name, phase in phases.items()
+            if name == "validation" or name.endswith("_validation")
+        ]
+        robustness_phases = [
+            phase
+            for phase in [*validation_phases, test]
+            if phase is not None
+        ]
         observed = [
             phase
-            for phase in phases.values()
+            for phase in (robustness_phases or phases.values())
             if phase.get("status") == "succeeded" and phase.get("metrics")
         ]
         returns = [
@@ -334,18 +430,54 @@ class ExperimentStore:
             for phase in observed
             if phase["metrics"].get("max_drawdown_pct") is not None
         ]
+        scores = [
+            float(phase["metrics"][experiment["objective"]])
+            for phase in observed
+            if phase["metrics"].get(experiment["objective"]) is not None
+        ]
+        score_mean = fmean(scores) if scores else None
+        score_stability = (
+            max(
+                0.0,
+                1.0 - pstdev(scores) / (abs(score_mean) + 1e-12),
+            )
+            if len(scores) > 1 and score_mean is not None
+            else (1.0 if scores else None)
+        )
+        walk_forward = bool(experiment.get("walk_forward_windows"))
         return {
             "mode": (
+                "walk_forward"
+                if walk_forward
+                else (
                 "train_validation_test"
                 if experiment.get("validation_window")
                 else "in_sample"
+                )
             ),
             "selected_parameters": dict(selected["parameters"]),
-            "out_of_sample": validation is not None,
+            "out_of_sample": bool(validation_phases),
             "validation_metrics": (
-                validation.get("metrics") if validation is not None else None
+                selected.get("metrics")
+                if walk_forward
+                else (
+                    validation.get("metrics")
+                    if validation is not None
+                    else None
+                )
             ),
             "test_metrics": test.get("metrics") if test is not None else None,
+            "walk_forward_windows": (
+                experiment.get("walk_forward_windows") if walk_forward else []
+            ),
+            "window_results": [
+                {
+                    "window": phase["window"],
+                    "metrics": phase["metrics"],
+                }
+                for phase in observed
+            ],
+            "parameter_stability": score_stability,
             "positive_window_ratio": (
                 sum(value > 0 for value in returns) / len(returns)
                 if returns
@@ -420,3 +552,64 @@ class ExperimentStore:
 
 def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def build_walk_forward_windows(
+    base_request: Mapping[str, Any],
+    folds: int,
+) -> list[dict[str, dict[str, str]]]:
+    if folds < 2 or folds > 5:
+        raise ValueError("walk_forward_folds must be between 2 and 5")
+    start = date.fromisoformat(str(base_request["start"]))
+    end = date.fromisoformat(str(base_request["end"]))
+    total_days = (end - start).days + 1
+    segment_count = folds + 1
+    if total_days < segment_count:
+        raise ValueError("backtest period is too short for walk-forward folds")
+
+    segments: list[dict[str, str]] = []
+    for index in range(segment_count):
+        segment_start = start + timedelta(days=total_days * index // segment_count)
+        segment_end = (
+            start
+            + timedelta(days=total_days * (index + 1) // segment_count)
+            - timedelta(days=1)
+        )
+        segments.append(
+            {
+                "start": segment_start.isoformat(),
+                "end": segment_end.isoformat(),
+            }
+        )
+    return [
+        {
+            "train": {
+                "start": segments[0]["start"],
+                "end": segments[index]["end"],
+            },
+            "validation": segments[index + 1],
+        }
+        for index in range(folds)
+    ]
+
+
+def _aggregate_metrics(phases: Sequence[Mapping[str, Any]]) -> dict[str, float]:
+    metrics = [
+        phase["metrics"]
+        for phase in phases
+        if phase.get("status") == "succeeded" and phase.get("metrics")
+    ]
+    names = {
+        name
+        for phase_metrics in metrics
+        for name, value in phase_metrics.items()
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+    return {
+        name: fmean(
+            float(phase_metrics[name])
+            for phase_metrics in metrics
+            if isinstance(phase_metrics.get(name), (int, float))
+        )
+        for name in names
+    }

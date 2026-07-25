@@ -45,6 +45,8 @@ export function ExperimentForm({
   );
   const [outOfSample, setOutOfSample] = useState(false);
   const [includeTest, setIncludeTest] = useState(false);
+  const [walkForward, setWalkForward] = useState(false);
+  const [walkForwardFolds, setWalkForwardFolds] = useState(3);
   const combinationCount = parameterDefinitions.reduce(
     (count, definition) => count * parseGridValues(gridText[definition.name] ?? "", definition).length,
     1,
@@ -80,6 +82,7 @@ export function ExperimentForm({
       parameter_grid: parameterGrid,
       validation,
       test,
+      walk_forward_folds: walkForward ? walkForwardFolds : 0,
       base: {
         strategy: selectedStrategy,
         symbol: String(data.get("symbol")).trim().toUpperCase(),
@@ -107,7 +110,8 @@ export function ExperimentForm({
     || !selectedStrategy
     || parameterDefinitions.length === 0
     || combinationCount < 1
-    || combinationCount > 36;
+    || combinationCount > 36
+    || (walkForward && combinationCount * walkForwardFolds * 2 > 72);
 
   return (
     <form className="experiment-form" onSubmit={handleSubmit}>
@@ -150,6 +154,7 @@ export function ExperimentForm({
             checked={outOfSample}
             onChange={(event) => {
               setOutOfSample(event.target.checked);
+              if (event.target.checked) setWalkForward(false);
               if (!event.target.checked) setIncludeTest(false);
             }}
           />
@@ -178,6 +183,33 @@ export function ExperimentForm({
             ) : null}
           </>
         ) : null}
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={walkForward}
+            onChange={(event) => {
+              setWalkForward(event.target.checked);
+              if (event.target.checked) {
+                setOutOfSample(false);
+                setIncludeTest(false);
+              }
+            }}
+          />
+          <span>{t("experiment.enableWalkForward")}</span>
+        </label>
+        {walkForward ? (
+          <label className="field">
+            <span>{t("experiment.walkForwardFolds")}</span>
+            <input
+              type="number"
+              min="2"
+              max="5"
+              value={walkForwardFolds}
+              onChange={(event) => setWalkForwardFolds(Number(event.target.value))}
+            />
+          </label>
+        ) : null}
+        <small>{t("experiment.plannedJobs", { count: walkForward ? combinationCount * walkForwardFolds * 2 : combinationCount * (outOfSample ? 2 : 1) + (includeTest ? 1 : 0) })}</small>
       </section>
 
       <section className="grid-editor" aria-labelledby="gridEditorTitle">
