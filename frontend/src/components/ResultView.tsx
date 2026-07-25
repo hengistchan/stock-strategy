@@ -2,6 +2,7 @@ import type { BacktestJob, BacktestResult } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime, formatNumber, formatSignedCurrency, shortDate } from "../lib/format";
 import { MetricsGrid } from "./MetricsGrid";
+import { PerformanceDistributionPanel } from "./PerformanceDistributionPanel";
 import { PerformanceChart } from "./PerformanceChart";
 import { PriceChart } from "./PriceChart";
 import { TradeTable } from "./TradeTable";
@@ -126,6 +127,9 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
         ktype={ktype}
         reportUrl={`${result.report_url}?v=${encodeURIComponent(job.finished_at ?? "")}`}
       />
+      {summary.settings.performance_analysis ? (
+        <PerformanceDistributionPanel analysis={summary.settings.performance_analysis} />
+      ) : null}
 
       <TradeTable key={`trades-${job.id}`} trades={trades} ktype={ktype} exposure={summary.metrics.exposure_pct} />
       <p className="research-note">{t("result.researchNote")}</p>

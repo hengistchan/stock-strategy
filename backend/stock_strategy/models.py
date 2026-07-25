@@ -473,6 +473,19 @@ class Metrics:
     total_trades: int
     exposure_pct: float
     total_fees: float
+    sortino_ratio: float | None = None
+    calmar_ratio: float | None = None
+    annualized_volatility_pct: float | None = None
+    alpha_pct: float | None = None
+    beta: float | None = None
+    information_ratio: float | None = None
+    expectancy: float = 0.0
+    average_win_loss_ratio: float | None = None
+    average_holding_bars: float = 0.0
+    max_consecutive_losses: int = 0
+    max_drawdown_duration_days: int = 0
+    recovery_factor: float | None = None
+    turnover_pct: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

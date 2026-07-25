@@ -204,6 +204,19 @@ export interface BacktestMetrics {
   total_fees: number;
   exposure_pct: number;
   annualized_return_pct?: number | null;
+  sortino_ratio?: number | null;
+  calmar_ratio?: number | null;
+  annualized_volatility_pct?: number | null;
+  alpha_pct?: number | null;
+  beta?: number | null;
+  information_ratio?: number | null;
+  expectancy?: number | null;
+  average_win_loss_ratio?: number | null;
+  average_holding_bars?: number | null;
+  max_consecutive_losses?: number | null;
+  max_drawdown_duration_days?: number | null;
+  recovery_factor?: number | null;
+  turnover_pct?: number | null;
   [key: string]: number | null | undefined;
 }
 
@@ -241,9 +254,59 @@ export interface BacktestSummary {
       [key: string]: unknown;
     };
     market_data_quality?: MarketDataQualityReport;
+    performance_analysis?: PerformanceAnalysis;
     [key: string]: unknown;
   };
   metrics: BacktestMetrics;
+}
+
+export interface DistributionSummary {
+  count: number;
+  unit: "percent" | "currency";
+  min: number | null;
+  p10: number | null;
+  p25: number | null;
+  median: number | null;
+  p75: number | null;
+  p90: number | null;
+  max: number | null;
+  mean: number | null;
+  std: number | null;
+}
+
+export interface PeriodReturn {
+  period: string;
+  return_pct: number;
+  observations: number;
+}
+
+export interface AttributionRow {
+  bucket: string;
+  return_pct: number;
+  average_return_pct: number;
+  positive_rate_pct: number;
+  observations: number;
+}
+
+export interface PerformanceAnalysis {
+  return_distribution: DistributionSummary;
+  drawdown_distribution: DistributionSummary;
+  trade_pnl_distribution: DistributionSummary;
+  monthly_returns: PeriodReturn[];
+  yearly_returns: PeriodReturn[];
+  rolling: Array<{
+    date: string;
+    window_days: number;
+    sharpe_ratio: number | null;
+    max_drawdown_pct: number;
+    return_pct: number;
+  }>;
+  attribution: {
+    weekday: AttributionRow[];
+    month: AttributionRow[];
+    session: AttributionRow[];
+    market_regime: AttributionRow[];
+  };
 }
 
 export interface MarketDataQualityReport {

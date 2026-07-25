@@ -6,7 +6,7 @@ import statistics
 import types
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from . import futu
 from .broker import Broker
@@ -23,11 +23,19 @@ from .models import (
     Contract,
     DailyReturn,
     EquityPoint,
+    Fill,
     Metrics,
     THType,
+    Trade,
 )
 from .strategy_parameters import load_parameter_definitions, resolve_parameter_values
 from .market_data_quality import build_market_data_quality_report
+from .performance_analytics import (
+    benchmark_statistics,
+    build_performance_analysis,
+    max_consecutive_losses,
+    max_drawdown_duration_days,
+)
 
 
 class StrategyLoadError(RuntimeError):
@@ -186,6 +194,7 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
         exposed_bars=exposed_bars,
         total_fees=broker.total_fees,
         bar_type=config.bar_type,
+        fills=broker.fills,
     )
     path = Path(config.strategy_path)
     ending_position = _ending_position(broker, bars[-1].close)
@@ -224,6 +233,13 @@ def run_backtest(config: BacktestConfig, bars: list[Bar]) -> BacktestResult:
                 bar_type=config.bar_type,
                 autype=config.autype,
                 source="opend",
+            ),
+            "performance_analysis": build_performance_analysis(
+                equity_curve=equity_curve,
+                daily_returns=daily_returns,
+                trades=broker.trades,
+                symbol=str(symbol),
+                initial_cash=config.initial_cash,
             ),
             "engine_contract": {
                 "version": ENGINE_CONTRACT_VERSION,
@@ -289,11 +305,12 @@ def load_strategy_class(path: str | Path) -> type[futu.StrategyBase]:
 def calculate_metrics(
     *,
     equity_curve: list[EquityPoint],
-    trades: list[Any],
+    trades: Sequence[Trade],
     initial_cash: float,
     exposed_bars: int,
     total_fees: float,
     bar_type: BarType,
+    fills: Sequence[Fill] = (),
 ) -> Metrics:
     del bar_type  # Metrics are normalized from daily closing equity for every K-line.
     final_equity = equity_curve[-1].equity
@@ -323,6 +340,22 @@ def calculate_metrics(
         if return_std
         else 0.0
     )
+    downside_deviation = (
+        math.sqrt(
+            statistics.fmean(
+                min(value, 0.0) ** 2 for value in daily_return_values
+            )
+        )
+        if daily_return_values
+        else 0.0
+    )
+    sortino = (
+        statistics.fmean(daily_return_values)
+        / downside_deviation
+        * math.sqrt(252)
+        if downside_deviation
+        else None
+    )
 
     wins = [trade.net_pnl for trade in trades if trade.net_pnl > 0]
     losses = [-trade.net_pnl for trade in trades if trade.net_pnl < 0]
@@ -332,6 +365,28 @@ def calculate_metrics(
         profit_factor = None
     else:
         profit_factor = 0.0
+    average_win = statistics.fmean(wins) if wins else 0.0
+    average_loss = statistics.fmean(losses) if losses else 0.0
+    average_win_loss_ratio = (
+        average_win / average_loss if average_win and average_loss else None
+    )
+    max_drawdown = min(point.drawdown for point in equity_curve)
+    peak_equity = initial_cash
+    max_drawdown_amount = 0.0
+    for point in equity_curve:
+        peak_equity = max(peak_equity, point.equity)
+        max_drawdown_amount = max(max_drawdown_amount, peak_equity - point.equity)
+    net_profit = final_equity - initial_cash
+    recovery_factor = (
+        net_profit / max_drawdown_amount if max_drawdown_amount > 0 else None
+    )
+    benchmark_metrics = benchmark_statistics(
+        equity_curve=equity_curve,
+        daily_returns=daily_returns,
+        initial_cash=initial_cash,
+    )
+    average_equity = statistics.fmean(point.equity for point in equity_curve)
+    traded_notional = sum(fill.price * fill.quantity for fill in fills)
 
     return Metrics(
         initial_equity=initial_cash,
@@ -339,13 +394,44 @@ def calculate_metrics(
         total_return_pct=total_return * 100,
         benchmark_return_pct=benchmark_return * 100,
         annualized_return_pct=annualized * 100 if annualized is not None else None,
-        max_drawdown_pct=min(point.drawdown for point in equity_curve) * 100,
+        max_drawdown_pct=max_drawdown * 100,
         sharpe_ratio=sharpe,
         win_rate_pct=(len(wins) / len(trades) * 100) if trades else 0.0,
         profit_factor=profit_factor,
         total_trades=len(trades),
         exposure_pct=exposed_bars / len(equity_curve) * 100,
         total_fees=total_fees,
+        sortino_ratio=sortino,
+        calmar_ratio=(
+            annualized / abs(max_drawdown)
+            if annualized is not None and max_drawdown < 0
+            else None
+        ),
+        annualized_volatility_pct=(
+            return_std * math.sqrt(252) * 100
+            if len(daily_return_values) > 1
+            else None
+        ),
+        alpha_pct=benchmark_metrics["alpha_pct"],
+        beta=benchmark_metrics["beta"],
+        information_ratio=benchmark_metrics["information_ratio"],
+        expectancy=statistics.fmean(
+            trade.net_pnl for trade in trades
+        )
+        if trades
+        else 0.0,
+        average_win_loss_ratio=average_win_loss_ratio,
+        average_holding_bars=statistics.fmean(
+            trade.bars_held for trade in trades
+        )
+        if trades
+        else 0.0,
+        max_consecutive_losses=max_consecutive_losses(trades),
+        max_drawdown_duration_days=max_drawdown_duration_days(equity_curve),
+        recovery_factor=recovery_factor,
+        turnover_pct=(
+            traded_notional / average_equity * 100 if average_equity else 0.0
+        ),
     )
 
 

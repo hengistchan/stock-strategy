@@ -148,6 +148,8 @@ class Strategy(StrategyBase):
             metrics.annualized_return_pct or 0,
             ((curve[-1].equity / 100_000) ** (252 / 20) - 1) * 100,
         )
+        self.assertIsNotNone(metrics.annualized_volatility_pct)
+        self.assertGreaterEqual(metrics.max_drawdown_duration_days, 0)
 
     def test_injected_futu_names_work_without_import(self):
         with tempfile.TemporaryDirectory() as directory:
