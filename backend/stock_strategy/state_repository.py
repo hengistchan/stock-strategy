@@ -6,9 +6,18 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Mapping
 
+from .database import (
+    STATE_SCHEMA_VERSION,
+    connect_database,
+    initialize_repository_metadata,
+)
 from .job_lifecycle import InvalidJobTransition, validate_job_transition
 
-STATE_SCHEMA_VERSION = 2
+__all__ = [
+    "STATE_SCHEMA_VERSION",
+    "SqliteExperimentRepository",
+    "SqliteJobRepository",
+]
 
 
 class SqliteJobRepository:
@@ -164,10 +173,6 @@ class SqliteJobRepository:
         with self._connect() as connection:
             connection.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS repository_metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
                 CREATE TABLE IF NOT EXISTS jobs (
                     id TEXT PRIMARY KEY,
                     status TEXT NOT NULL,
@@ -179,26 +184,10 @@ class SqliteJobRepository:
                     ON jobs(status, created_at DESC);
                 """
             )
-            connection.execute(
-                """
-                INSERT INTO repository_metadata(key, value)
-                VALUES ('schema_version', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (str(STATE_SCHEMA_VERSION),),
-            )
+            initialize_repository_metadata(connection)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(
-            self.database_path,
-            timeout=5,
-            isolation_level="DEFERRED",
-        )
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=5000")
-        return connection
+        return connect_database(self.database_path)
 
     def _existing_ids(self) -> set[str]:
         with self._connect() as connection:
@@ -392,10 +381,6 @@ class SqliteExperimentRepository:
         with self._connect() as connection:
             connection.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS repository_metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
                 CREATE TABLE IF NOT EXISTS experiments (
                     id TEXT PRIMARY KEY,
                     status TEXT NOT NULL,
@@ -439,26 +424,10 @@ class SqliteExperimentRepository:
                     ON experiment_phases(job_id);
                 """
             )
-            connection.execute(
-                """
-                INSERT INTO repository_metadata(key, value)
-                VALUES ('schema_version', ?)
-                ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                """,
-                (str(STATE_SCHEMA_VERSION),),
-            )
+            initialize_repository_metadata(connection)
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(
-            self.database_path,
-            timeout=5,
-            isolation_level="DEFERRED",
-        )
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=5000")
-        return connection
+        return connect_database(self.database_path)
 
     def _read_legacy_experiment(
         self,
