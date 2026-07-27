@@ -11,7 +11,7 @@ from .database import (
     set_component_schema_version,
 )
 
-MONITORING_SCHEMA_VERSION = 2
+MONITORING_SCHEMA_VERSION = 3
 
 
 class MonitoringRepository:
@@ -89,12 +89,16 @@ class MonitoringRepository:
                 """
                 INSERT INTO monitor_rules(
                     id, name, code, instrument_type, metric, operator,
-                    threshold, severity, cooldown_seconds, enabled,
+                    threshold, severity, cooldown_seconds, daily_trigger_limit,
+                    session, enabled,
                     created_at, updated_at, last_evaluated_at,
                     last_triggered_at, last_value, condition_active,
-                    last_observation_key, last_provider_time
+                    last_observation_key, last_provider_time,
+                    trigger_date, trigger_count
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
                     rule["id"],
@@ -106,6 +110,8 @@ class MonitoringRepository:
                     rule["threshold"],
                     rule["severity"],
                     rule["cooldown_seconds"],
+                    rule.get("daily_trigger_limit", 10),
+                    rule.get("session", "regular"),
                     int(bool(rule.get("enabled", True))),
                     rule["created_at"],
                     rule["updated_at"],
@@ -115,6 +121,8 @@ class MonitoringRepository:
                     int(bool(rule.get("condition_active", False))),
                     rule.get("last_observation_key"),
                     rule.get("last_provider_time"),
+                    rule.get("trigger_date"),
+                    rule.get("trigger_count", 0),
                 ),
             )
         return self.get_rule(str(rule["id"]))
@@ -167,6 +175,8 @@ class MonitoringRepository:
                 condition_active=False,
                 last_observation_key=None,
                 last_provider_time=None,
+                trigger_date=None,
+                trigger_count=0,
             )
         with self._connect() as connection:
             connection.execute(
@@ -174,7 +184,8 @@ class MonitoringRepository:
                 UPDATE monitor_rules SET
                     name = ?, code = ?, instrument_type = ?, metric = ?,
                     operator = ?, threshold = ?, severity = ?,
-                    cooldown_seconds = ?, enabled = ?, updated_at = ?,
+                    cooldown_seconds = ?, daily_trigger_limit = ?,
+                    session = ?, enabled = ?, updated_at = ?,
                     last_evaluated_at = ?, last_triggered_at = ?,
                     last_value = ?, condition_active = ?,
                     last_observation_key = ?, last_provider_time = ?
@@ -189,6 +200,8 @@ class MonitoringRepository:
                     merged["threshold"],
                     merged["severity"],
                     merged["cooldown_seconds"],
+                    merged["daily_trigger_limit"],
+                    merged["session"],
                     int(bool(merged["enabled"])),
                     merged["updated_at"],
                     merged.get("last_evaluated_at"),
@@ -234,6 +247,8 @@ class MonitoringRepository:
         condition_active: bool,
         alert: Mapping[str, Any] | None,
         triggered_at: str | None = None,
+        trigger_date: str | None = None,
+        increment_trigger: bool = False,
     ) -> tuple[dict[str, Any], dict[str, Any] | None, bool]:
         """Atomically persist rule state and immutable alert evidence."""
         connection = self._connect()
@@ -250,14 +265,24 @@ class MonitoringRepository:
                 connection.commit()
                 return current, None, False
             last_provider_time = current.get("last_provider_time")
-            if last_provider_time and provider_time < str(last_provider_time):
+            if last_provider_time and provider_time <= str(last_provider_time):
                 connection.commit()
                 return current, None, False
 
-            persisted_alert: dict[str, Any] | None = None
-            if alert is not None:
-                persisted_alert = _insert_alert(connection, alert)[0]
+            current_trigger_date = current.get("trigger_date")
+            trigger_count = int(current.get("trigger_count") or 0)
+            if trigger_date is not None and trigger_date != current_trigger_date:
+                trigger_count = 0
+            daily_trigger_limit = int(current["daily_trigger_limit"])
+            may_trigger = increment_trigger and trigger_count < daily_trigger_limit
 
+            persisted_alert: dict[str, Any] | None = None
+            alert_created = False
+            if alert is not None and (not increment_trigger or may_trigger):
+                persisted_alert, alert_created = _insert_alert(connection, alert)
+            if increment_trigger and alert_created:
+                trigger_count += 1
+            effective_triggered_at = triggered_at if alert_created else None
             connection.execute(
                 """
                 UPDATE monitor_rules SET
@@ -266,16 +291,20 @@ class MonitoringRepository:
                     condition_active = ?,
                     last_triggered_at = COALESCE(?, last_triggered_at),
                     last_observation_key = ?,
-                    last_provider_time = ?
+                    last_provider_time = ?,
+                    trigger_date = COALESCE(?, trigger_date),
+                    trigger_count = ?
                 WHERE id = ?
                 """,
                 (
                     evaluated_at,
                     value,
                     int(condition_active),
-                    triggered_at,
+                    effective_triggered_at,
                     observation_key,
                     provider_time,
+                    trigger_date,
+                    trigger_count,
                     rule_id,
                 ),
             )
@@ -390,6 +419,10 @@ class MonitoringRepository:
                         CHECK(severity IN ('info', 'warning', 'critical')),
                     cooldown_seconds INTEGER NOT NULL
                         CHECK(cooldown_seconds BETWEEN 0 AND 86400),
+                    daily_trigger_limit INTEGER NOT NULL DEFAULT 10
+                        CHECK(daily_trigger_limit BETWEEN 1 AND 1000),
+                    session TEXT NOT NULL DEFAULT 'regular'
+                        CHECK(session IN ('regular', 'extended', 'all')),
                     enabled INTEGER NOT NULL CHECK(enabled IN (0, 1)),
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -399,7 +432,10 @@ class MonitoringRepository:
                     condition_active INTEGER NOT NULL DEFAULT 0
                         CHECK(condition_active IN (0, 1)),
                     last_observation_key TEXT,
-                    last_provider_time TEXT
+                    last_provider_time TEXT,
+                    trigger_date TEXT,
+                    trigger_count INTEGER NOT NULL DEFAULT 0
+                        CHECK(trigger_count >= 0)
                 );
                 CREATE INDEX IF NOT EXISTS monitor_rules_target_idx
                     ON monitor_rules(code, enabled, created_at DESC);
@@ -440,6 +476,30 @@ class MonitoringRepository:
                 "monitor_rules",
                 "last_provider_time",
                 "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "daily_trigger_limit",
+                "INTEGER NOT NULL DEFAULT 10",
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "session",
+                "TEXT NOT NULL DEFAULT 'regular'",
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "trigger_date",
+                "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "trigger_count",
+                "INTEGER NOT NULL DEFAULT 0",
             )
             _ensure_column(
                 connection,
@@ -494,6 +554,8 @@ def _rule_payload(row: sqlite3.Row) -> dict[str, Any]:
         "threshold": float(row["threshold"]),
         "severity": str(row["severity"]),
         "cooldown_seconds": int(row["cooldown_seconds"]),
+        "daily_trigger_limit": int(row["daily_trigger_limit"]),
+        "session": str(row["session"]),
         "enabled": bool(row["enabled"]),
         "created_at": str(row["created_at"]),
         "updated_at": str(row["updated_at"]),
@@ -505,6 +567,8 @@ def _rule_payload(row: sqlite3.Row) -> dict[str, Any]:
         "condition_active": bool(row["condition_active"]),
         "last_observation_key": row["last_observation_key"],
         "last_provider_time": row["last_provider_time"],
+        "trigger_date": row["trigger_date"],
+        "trigger_count": int(row["trigger_count"]),
     }
 
 

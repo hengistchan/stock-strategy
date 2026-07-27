@@ -212,6 +212,121 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertIsNone(unchanged["last_value"])
         self.assertEqual(self.repository.list_alerts(), [])
 
+    def test_daily_trigger_limit_is_atomic_and_resets_on_a_new_market_date(self):
+        rule = self.repository.create_rule(
+            {
+                **_rule_payload(),
+                "daily_trigger_limit": 1,
+                "session": "all",
+            }
+        )
+
+        first, first_alert, applied = self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-27T10:00:05+08:00",
+            provider_time="2026-07-27 10:00:04",
+            observation_key="day-1-crossing-1",
+            value=3.2,
+            condition_active=True,
+            alert=_alert_payload(
+                alert_id="day-1-alert-1",
+                dedupe_key="rule-1:day-1-crossing-1",
+                triggered_at="2026-07-27T10:00:05+08:00",
+            ),
+            triggered_at="2026-07-27T10:00:05+08:00",
+            trigger_date="2026-07-27",
+            increment_trigger=True,
+        )
+        self.assertTrue(applied)
+        self.assertIsNotNone(first_alert)
+        self.assertEqual(first["trigger_count"], 1)
+        self.assertEqual(first["trigger_date"], "2026-07-27")
+
+        self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-27T10:01:05+08:00",
+            provider_time="2026-07-27 10:01:04",
+            observation_key="day-1-reset",
+            value=2.0,
+            condition_active=False,
+            alert=None,
+            trigger_date="2026-07-27",
+        )
+        limited, limited_alert, _ = self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-27T10:02:05+08:00",
+            provider_time="2026-07-27 10:02:04",
+            observation_key="day-1-crossing-2",
+            value=3.4,
+            condition_active=True,
+            alert=_alert_payload(
+                alert_id="day-1-alert-2",
+                dedupe_key="rule-1:day-1-crossing-2",
+                triggered_at="2026-07-27T10:02:05+08:00",
+            ),
+            triggered_at="2026-07-27T10:02:05+08:00",
+            trigger_date="2026-07-27",
+            increment_trigger=True,
+        )
+        self.assertIsNone(limited_alert)
+        self.assertEqual(limited["trigger_count"], 1)
+        self.assertEqual(len(self.repository.list_alerts()), 1)
+
+        self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-28T10:00:05+08:00",
+            provider_time="2026-07-28 10:00:04",
+            observation_key="day-2-reset",
+            value=2.0,
+            condition_active=False,
+            alert=None,
+            trigger_date="2026-07-28",
+        )
+        next_day, next_alert, _ = self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-28T10:01:05+08:00",
+            provider_time="2026-07-28 10:01:04",
+            observation_key="day-2-crossing-1",
+            value=3.5,
+            condition_active=True,
+            alert=_alert_payload(
+                alert_id="day-2-alert-1",
+                dedupe_key="rule-1:day-2-crossing-1",
+                triggered_at="2026-07-28T10:01:05+08:00",
+            ),
+            triggered_at="2026-07-28T10:01:05+08:00",
+            trigger_date="2026-07-28",
+            increment_trigger=True,
+        )
+        self.assertIsNotNone(next_alert)
+        self.assertEqual(next_day["trigger_count"], 1)
+        self.assertEqual(len(self.repository.list_alerts()), 2)
+
+    def test_rejects_a_distinct_observation_with_the_same_provider_time(self):
+        rule = self.repository.create_rule(_rule_payload())
+        first, _, _ = self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-27T10:00:05+08:00",
+            provider_time="2026-07-27 10:00:04",
+            observation_key="observation-1",
+            value=2.9,
+            condition_active=False,
+            alert=None,
+        )
+        duplicate_time, alert, applied = self.repository.record_evaluation(
+            rule["id"],
+            evaluated_at="2026-07-27T10:00:06+08:00",
+            provider_time="2026-07-27 10:00:04",
+            observation_key="observation-2",
+            value=3.2,
+            condition_active=True,
+            alert=None,
+        )
+
+        self.assertFalse(applied)
+        self.assertIsNone(alert)
+        self.assertEqual(duplicate_time, first)
+
     def test_migrates_monitoring_v1_without_losing_rules_or_alerts(self):
         legacy_root = self.root / "legacy"
         legacy_root.mkdir()
@@ -293,7 +408,32 @@ class MonitoringRepositoryTest(unittest.TestCase):
 
         self.assertEqual(rule["name"], "Apple daily move")
         self.assertIsNone(rule["last_observation_key"])
+        self.assertEqual(rule["daily_trigger_limit"], 10)
+        self.assertEqual(rule["session"], "regular")
+        self.assertEqual(rule["trigger_count"], 0)
         self.assertEqual(version, str(MONITORING_SCHEMA_VERSION))
+
+
+def _alert_payload(
+    *,
+    alert_id: str,
+    dedupe_key: str,
+    triggered_at: str,
+) -> dict[str, object]:
+    return {
+        "id": alert_id,
+        "dedupe_key": dedupe_key,
+        "rule_id": "rule-1",
+        "rule_name": "Apple daily move",
+        "code": "US.AAPL",
+        "triggered_at": triggered_at,
+        "severity": "warning",
+        "metric": "change_rate",
+        "operator": "above",
+        "threshold": 3,
+        "value": 3.2,
+        "snapshot": {"last_price": 339.15},
+    }
 
 
 def _rule_payload() -> dict[str, object]:
