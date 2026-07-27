@@ -11,7 +11,7 @@ from .database import (
     set_component_schema_version,
 )
 
-MONITORING_SCHEMA_VERSION = 3
+MONITORING_SCHEMA_VERSION = 4
 
 
 class MonitoringRepository:
@@ -360,6 +360,37 @@ class MonitoringRepository:
             rows = connection.execute(statement, parameters).fetchall()
         return [_alert_payload(row) for row in rows]
 
+    def list_alerts_page(
+        self,
+        *,
+        code: str | None = None,
+        unacknowledged_only: bool = False,
+        before: tuple[str, str] | None = None,
+        limit: int = 50,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        if limit < 1 or limit > 100:
+            raise ValueError("alert page limit must be between 1 and 100")
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        if code is not None:
+            clauses.append("code = ?")
+            parameters.append(code)
+        if unacknowledged_only:
+            clauses.append("acknowledged_at IS NULL")
+        if before is not None:
+            triggered_at, alert_id = before
+            clauses.append("(triggered_at < ? OR (triggered_at = ? AND id < ?))")
+            parameters.extend((triggered_at, triggered_at, alert_id))
+        statement = "SELECT * FROM monitor_alerts"
+        if clauses:
+            statement += " WHERE " + " AND ".join(clauses)
+        statement += " ORDER BY triggered_at DESC, id DESC LIMIT ?"
+        parameters.append(limit + 1)
+        with self._connect() as connection:
+            rows = connection.execute(statement, parameters).fetchall()
+        has_more = len(rows) > limit
+        return [_alert_payload(row) for row in rows[:limit]], has_more
+
     def acknowledge_alert(
         self,
         alert_id: str,
@@ -453,6 +484,7 @@ class MonitoringRepository:
                     operator TEXT NOT NULL,
                     threshold REAL NOT NULL,
                     value REAL NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'opend',
                     provider_time TEXT,
                     received_at TEXT,
                     snapshot_json TEXT NOT NULL
@@ -500,6 +532,12 @@ class MonitoringRepository:
                 "monitor_rules",
                 "trigger_count",
                 "INTEGER NOT NULL DEFAULT 0",
+            )
+            _ensure_column(
+                connection,
+                "monitor_alerts",
+                "source",
+                "TEXT NOT NULL DEFAULT 'opend'",
             )
             _ensure_column(
                 connection,
@@ -586,6 +624,7 @@ def _alert_payload(row: sqlite3.Row) -> dict[str, Any]:
         "operator": str(row["operator"]),
         "threshold": float(row["threshold"]),
         "value": float(row["value"]),
+        "source": str(row["source"]),
         "provider_time": str(row["provider_time"]),
         "received_at": str(row["received_at"]),
         "snapshot": json.loads(str(row["snapshot_json"])),
@@ -604,9 +643,9 @@ def _insert_alert(
         INSERT OR IGNORE INTO monitor_alerts(
             id, dedupe_key, rule_id, rule_name, code, triggered_at,
             acknowledged_at, severity, metric, operator, threshold,
-            value, provider_time, received_at, snapshot_json
+            value, source, provider_time, received_at, snapshot_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             alert["id"],
@@ -621,6 +660,7 @@ def _insert_alert(
             alert["operator"],
             alert["threshold"],
             alert["value"],
+            alert.get("source") or "opend",
             provider_time,
             received_at,
             json.dumps(

@@ -124,6 +124,7 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertTrue(created)
         self.assertFalse(duplicate_created)
         self.assertEqual(duplicate["id"], alert["id"])
+        self.assertEqual(alert["source"], "opend")
         self.assertEqual(
             self.repository.list_alerts(unacknowledged_only=True),
             [alert],
@@ -301,6 +302,31 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertIsNotNone(next_alert)
         self.assertEqual(next_day["trigger_count"], 1)
         self.assertEqual(len(self.repository.list_alerts()), 2)
+
+    def test_alert_ledger_pages_by_stable_time_and_id_cursor(self):
+        for alert_id, triggered_at in (
+            ("alert-c", "2026-07-27T10:02:00+08:00"),
+            ("alert-b", "2026-07-27T10:01:00+08:00"),
+            ("alert-a", "2026-07-27T10:01:00+08:00"),
+        ):
+            self.repository.create_alert(
+                _alert_payload(
+                    alert_id=alert_id,
+                    dedupe_key=f"rule-1:{alert_id}",
+                    triggered_at=triggered_at,
+                )
+            )
+
+        first, first_has_more = self.repository.list_alerts_page(limit=2)
+        second, second_has_more = self.repository.list_alerts_page(
+            before=(first[-1]["triggered_at"], first[-1]["id"]),
+            limit=2,
+        )
+
+        self.assertEqual([alert["id"] for alert in first], ["alert-c", "alert-b"])
+        self.assertTrue(first_has_more)
+        self.assertEqual([alert["id"] for alert in second], ["alert-a"])
+        self.assertFalse(second_has_more)
 
     def test_rejects_a_distinct_observation_with_the_same_provider_time(self):
         rule = self.repository.create_rule(_rule_payload())
