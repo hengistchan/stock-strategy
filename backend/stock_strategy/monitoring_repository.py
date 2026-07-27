@@ -5,7 +5,13 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Mapping
 
-from .database import connect_database, initialize_repository_metadata
+from .database import (
+    connect_database,
+    ensure_repository_metadata,
+    set_component_schema_version,
+)
+
+MONITORING_SCHEMA_VERSION = 2
 
 
 class MonitoringRepository:
@@ -85,9 +91,10 @@ class MonitoringRepository:
                     id, name, code, instrument_type, metric, operator,
                     threshold, severity, cooldown_seconds, enabled,
                     created_at, updated_at, last_evaluated_at,
-                    last_triggered_at, last_value, condition_active
+                    last_triggered_at, last_value, condition_active,
+                    last_observation_key, last_provider_time
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     rule["id"],
@@ -106,6 +113,8 @@ class MonitoringRepository:
                     rule.get("last_triggered_at"),
                     rule.get("last_value"),
                     int(bool(rule.get("condition_active", False))),
+                    rule.get("last_observation_key"),
+                    rule.get("last_provider_time"),
                 ),
             )
         return self.get_rule(str(rule["id"]))
@@ -156,6 +165,8 @@ class MonitoringRepository:
                 last_triggered_at=None,
                 last_value=None,
                 condition_active=False,
+                last_observation_key=None,
+                last_provider_time=None,
             )
         with self._connect() as connection:
             connection.execute(
@@ -165,7 +176,8 @@ class MonitoringRepository:
                     operator = ?, threshold = ?, severity = ?,
                     cooldown_seconds = ?, enabled = ?, updated_at = ?,
                     last_evaluated_at = ?, last_triggered_at = ?,
-                    last_value = ?, condition_active = ?
+                    last_value = ?, condition_active = ?,
+                    last_observation_key = ?, last_provider_time = ?
                 WHERE id = ?
                 """,
                 (
@@ -183,6 +195,8 @@ class MonitoringRepository:
                     merged.get("last_triggered_at"),
                     merged.get("last_value"),
                     int(bool(merged.get("condition_active"))),
+                    merged.get("last_observation_key"),
+                    merged.get("last_provider_time"),
                     rule_id,
                 ),
             )
@@ -197,14 +211,62 @@ class MonitoringRepository:
         condition_active: bool,
         triggered_at: str | None = None,
     ) -> dict[str, Any]:
-        with self._connect() as connection:
-            cursor = connection.execute(
+        rule, _alert, _applied = self.record_evaluation(
+            rule_id,
+            evaluated_at=evaluated_at,
+            provider_time=evaluated_at,
+            observation_key=f"legacy:{rule_id}:{evaluated_at}",
+            value=value,
+            condition_active=condition_active,
+            alert=None,
+            triggered_at=triggered_at,
+        )
+        return rule
+
+    def record_evaluation(
+        self,
+        rule_id: str,
+        *,
+        evaluated_at: str,
+        provider_time: str,
+        observation_key: str,
+        value: float,
+        condition_active: bool,
+        alert: Mapping[str, Any] | None,
+        triggered_at: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None, bool]:
+        """Atomically persist rule state and immutable alert evidence."""
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            current_row = connection.execute(
+                "SELECT * FROM monitor_rules WHERE id = ?",
+                (rule_id,),
+            ).fetchone()
+            if current_row is None:
+                raise KeyError(rule_id)
+            current = _rule_payload(current_row)
+            if current.get("last_observation_key") == observation_key:
+                connection.commit()
+                return current, None, False
+            last_provider_time = current.get("last_provider_time")
+            if last_provider_time and provider_time < str(last_provider_time):
+                connection.commit()
+                return current, None, False
+
+            persisted_alert: dict[str, Any] | None = None
+            if alert is not None:
+                persisted_alert = _insert_alert(connection, alert)[0]
+
+            connection.execute(
                 """
                 UPDATE monitor_rules SET
                     last_evaluated_at = ?,
                     last_value = ?,
                     condition_active = ?,
-                    last_triggered_at = COALESCE(?, last_triggered_at)
+                    last_triggered_at = COALESCE(?, last_triggered_at),
+                    last_observation_key = ?,
+                    last_provider_time = ?
                 WHERE id = ?
                 """,
                 (
@@ -212,12 +274,24 @@ class MonitoringRepository:
                     value,
                     int(condition_active),
                     triggered_at,
+                    observation_key,
+                    provider_time,
                     rule_id,
                 ),
             )
-        if cursor.rowcount != 1:
-            raise KeyError(rule_id)
-        return self.get_rule(rule_id)
+            updated_row = connection.execute(
+                "SELECT * FROM monitor_rules WHERE id = ?",
+                (rule_id,),
+            ).fetchone()
+            if updated_row is None:
+                raise KeyError(rule_id)
+            connection.commit()
+            return _rule_payload(updated_row), persisted_alert, True
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def delete_rule(self, rule_id: str) -> None:
         with self._connect() as connection:
@@ -229,45 +303,8 @@ class MonitoringRepository:
             raise KeyError(rule_id)
 
     def create_alert(self, payload: Mapping[str, Any]) -> tuple[dict[str, Any], bool]:
-        alert = dict(payload)
         with self._connect() as connection:
-            cursor = connection.execute(
-                """
-                INSERT OR IGNORE INTO monitor_alerts(
-                    id, dedupe_key, rule_id, rule_name, code, triggered_at,
-                    acknowledged_at, severity, metric, operator, threshold,
-                    value, snapshot_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    alert["id"],
-                    alert["dedupe_key"],
-                    alert["rule_id"],
-                    alert["rule_name"],
-                    alert["code"],
-                    alert["triggered_at"],
-                    alert.get("acknowledged_at"),
-                    alert["severity"],
-                    alert["metric"],
-                    alert["operator"],
-                    alert["threshold"],
-                    alert["value"],
-                    json.dumps(
-                        alert.get("snapshot", {}),
-                        ensure_ascii=False,
-                        separators=(",", ":"),
-                    ),
-                ),
-            )
-            created = cursor.rowcount == 1
-            row = connection.execute(
-                "SELECT * FROM monitor_alerts WHERE dedupe_key = ?",
-                (alert["dedupe_key"],),
-            ).fetchone()
-        if row is None:
-            raise RuntimeError("monitor alert was not persisted")
-        return _alert_payload(row), created
+            return _insert_alert(connection, payload)
 
     def list_alerts(
         self,
@@ -323,7 +360,7 @@ class MonitoringRepository:
 
     def _initialize(self) -> None:
         with self._connect() as connection:
-            initialize_repository_metadata(connection)
+            ensure_repository_metadata(connection)
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS monitored_instruments (
@@ -360,7 +397,9 @@ class MonitoringRepository:
                     last_triggered_at TEXT,
                     last_value REAL,
                     condition_active INTEGER NOT NULL DEFAULT 0
-                        CHECK(condition_active IN (0, 1))
+                        CHECK(condition_active IN (0, 1)),
+                    last_observation_key TEXT,
+                    last_provider_time TEXT
                 );
                 CREATE INDEX IF NOT EXISTS monitor_rules_target_idx
                     ON monitor_rules(code, enabled, created_at DESC);
@@ -378,6 +417,8 @@ class MonitoringRepository:
                     operator TEXT NOT NULL,
                     threshold REAL NOT NULL,
                     value REAL NOT NULL,
+                    provider_time TEXT,
+                    received_at TEXT,
                     snapshot_json TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS monitor_alerts_time_idx
@@ -387,6 +428,42 @@ class MonitoringRepository:
                 CREATE INDEX IF NOT EXISTS monitor_alerts_unread_idx
                     ON monitor_alerts(acknowledged_at, triggered_at DESC);
                 """
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "last_observation_key",
+                "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "last_provider_time",
+                "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_alerts",
+                "provider_time",
+                "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_alerts",
+                "received_at",
+                "TEXT",
+            )
+            connection.execute(
+                """
+                UPDATE monitor_alerts
+                SET provider_time = COALESCE(provider_time, triggered_at),
+                    received_at = COALESCE(received_at, triggered_at)
+                """
+            )
+            set_component_schema_version(
+                connection,
+                key="monitoring_schema_version",
+                version=MONITORING_SCHEMA_VERSION,
             )
 
     def _connect(self) -> sqlite3.Connection:
@@ -426,6 +503,8 @@ def _rule_payload(row: sqlite3.Row) -> dict[str, Any]:
             float(row["last_value"]) if row["last_value"] is not None else None
         ),
         "condition_active": bool(row["condition_active"]),
+        "last_observation_key": row["last_observation_key"],
+        "last_provider_time": row["last_provider_time"],
     }
 
 
@@ -443,5 +522,69 @@ def _alert_payload(row: sqlite3.Row) -> dict[str, Any]:
         "operator": str(row["operator"]),
         "threshold": float(row["threshold"]),
         "value": float(row["value"]),
+        "provider_time": str(row["provider_time"]),
+        "received_at": str(row["received_at"]),
         "snapshot": json.loads(str(row["snapshot_json"])),
     }
+
+
+def _insert_alert(
+    connection: sqlite3.Connection,
+    payload: Mapping[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    alert = dict(payload)
+    provider_time = alert.get("provider_time") or alert["triggered_at"]
+    received_at = alert.get("received_at") or alert["triggered_at"]
+    cursor = connection.execute(
+        """
+        INSERT OR IGNORE INTO monitor_alerts(
+            id, dedupe_key, rule_id, rule_name, code, triggered_at,
+            acknowledged_at, severity, metric, operator, threshold,
+            value, provider_time, received_at, snapshot_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            alert["id"],
+            alert["dedupe_key"],
+            alert["rule_id"],
+            alert["rule_name"],
+            alert["code"],
+            alert["triggered_at"],
+            alert.get("acknowledged_at"),
+            alert["severity"],
+            alert["metric"],
+            alert["operator"],
+            alert["threshold"],
+            alert["value"],
+            provider_time,
+            received_at,
+            json.dumps(
+                alert.get("snapshot", {}),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+        ),
+    )
+    created = cursor.rowcount == 1
+    row = connection.execute(
+        "SELECT * FROM monitor_alerts WHERE dedupe_key = ?",
+        (alert["dedupe_key"],),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("monitor alert was not persisted")
+    return _alert_payload(row), created
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table: str,
+    column: str,
+    definition: str,
+) -> None:
+    columns = {
+        str(row["name"])
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
