@@ -62,14 +62,35 @@ class MonitoringModelsTest(unittest.TestCase):
         self.assertFalse(missing_history.triggered)
         self.assertTrue(crossing.triggered)
 
+    def test_first_level_observation_establishes_a_baseline_without_alerting(self):
+        baseline = evaluate_rule(
+            operator=RuleOperator.ABOVE,
+            threshold=100,
+            value=101,
+            previous_value=None,
+            was_active=False,
+        )
+
+        self.assertTrue(baseline.active)
+        self.assertFalse(baseline.triggered)
+
     def test_derived_option_metrics_handle_invalid_market_values(self):
         snapshot = {
             "bid_price": 9.5,
             "ask_price": 10.5,
             "volume": 150,
             "option_open_interest": 100,
+            "option_implied_volatility": 35.5,
+            "historical_volatility": 28.2,
+            "underlying_price": 102,
+            "strike_price": 100,
+            "option_gamma": 0.08,
+            "option_theta": -0.3,
+            "days_to_expiry": 4,
         }
 
+        self.assertEqual(metric_value(snapshot, RuleMetric.MID_PRICE), 10)
+        self.assertEqual(metric_value(snapshot, RuleMetric.BID_ASK_SPREAD), 1)
         self.assertAlmostEqual(
             metric_value(snapshot, RuleMetric.BID_ASK_SPREAD_PCT) or 0,
             10,
@@ -78,10 +99,45 @@ class MonitoringModelsTest(unittest.TestCase):
             metric_value(snapshot, RuleMetric.VOLUME_OPEN_INTEREST_RATIO),
             1.5,
         )
+        self.assertAlmostEqual(
+            metric_value(snapshot, RuleMetric.IV_HV_PREMIUM) or 0,
+            7.3,
+        )
+        self.assertEqual(
+            metric_value(snapshot, RuleMetric.STRIKE_DISTANCE_PCT),
+            2,
+        )
+        self.assertEqual(
+            metric_value(snapshot, RuleMetric.EXPIRY_GAMMA_RISK),
+            2,
+        )
+        self.assertEqual(
+            metric_value(snapshot, RuleMetric.EXPIRY_THETA_RISK),
+            0.075,
+        )
         self.assertIsNone(
             metric_value(
                 {"volume": 10, "option_open_interest": 0},
                 RuleMetric.VOLUME_OPEN_INTEREST_RATIO,
+            )
+        )
+        self.assertIsNone(
+            metric_value(
+                {"bid_price": 10.5, "ask_price": 9.5},
+                RuleMetric.BID_ASK_SPREAD_PCT,
+            )
+        )
+
+    def test_moving_average_spread_supports_cross_rules(self):
+        snapshot = {"ma20": 102, "ma60": 100}
+
+        value = metric_value(snapshot, RuleMetric.MA20_MA60_SPREAD_PCT)
+
+        self.assertEqual(value, 2)
+        self.assertIsNone(
+            metric_value(
+                {"ma20": 102, "ma60": 0},
+                RuleMetric.MA20_MA60_SPREAD_PCT,
             )
         )
 
@@ -91,6 +147,18 @@ class MonitoringModelsTest(unittest.TestCase):
                 InstrumentType.STOCK,
                 RuleMetric.OPTION_IMPLIED_VOLATILITY,
             )
+
+    def test_option_rule_support_matrix_includes_anomaly_and_chain_metrics(self):
+        for metric in (
+            RuleMetric.CHANGE_RATE_5M,
+            RuleMetric.IV_HV_PREMIUM,
+            RuleMetric.STRIKE_DISTANCE_PCT,
+            RuleMetric.EXPIRY_GAMMA_RISK,
+            RuleMetric.EXPIRY_THETA_RISK,
+            RuleMetric.CALL_PUT_VOLUME_RATIO,
+            RuleMetric.CALL_PUT_OPEN_INTEREST_RATIO,
+        ):
+            validate_rule_metric(InstrumentType.OPTION, metric)
 
 
 if __name__ == "__main__":
