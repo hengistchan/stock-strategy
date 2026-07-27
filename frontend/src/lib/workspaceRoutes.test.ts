@@ -12,6 +12,7 @@ describe("workspace routes", () => {
       "/experiments/exp%201",
     );
     expect(workspacePaths.strategies).toBe("/strategies");
+    expect(workspacePaths.monitors).toBe("/monitors");
     expect(workspacePaths.strategyDetail("strategies/my strategy.py")).toBe(
       "/strategies/strategies/my%20strategy.py",
     );

@@ -31,6 +31,8 @@ describe("Header", () => {
     expect(statusCell).toHaveTextContent("127.0.0.1:11111");
     expect(screen.getByRole("link", { name: /回测实验/ })).toHaveAttribute("href", "/backtests");
     expect(screen.getByRole("link", { name: /参数实验/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /实时监控/ })).toHaveAttribute("href", "/monitors");
+    expect(screen.getByText("SL/05")).toBeInTheDocument();
   });
 
   it("loads detailed readiness checks when the OpenD status is opened", async () => {

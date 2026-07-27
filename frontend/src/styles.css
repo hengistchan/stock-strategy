@@ -15,6 +15,10 @@
   --display: Baskerville, "Iowan Old Style", "Times New Roman", serif;
   --body: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
   --mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  --teal: var(--signal);
+  --teal-dark: var(--ocean);
+  --profit: var(--signal);
+  --sans: var(--body);
 }
 
 * {
@@ -69,7 +73,7 @@ summary:focus-visible {
 .app-header {
   min-height: 132px;
   display: grid;
-  grid-template-columns: minmax(300px, 0.75fr) minmax(480px, 1.25fr) 230px;
+  grid-template-columns: minmax(280px, 0.65fr) minmax(540px, 1.35fr) 230px;
   align-items: stretch;
   border-bottom: 1px solid var(--rule-dark);
   background: var(--sheet);
@@ -77,7 +81,7 @@ summary:focus-visible {
 
 .workspace-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(108px, 1fr));
+  grid-template-columns: repeat(5, minmax(104px, 1fr));
   border-right: 1px solid var(--rule);
 }
 
@@ -89,7 +93,7 @@ summary:focus-visible {
   gap: 8px;
   border: 0;
   border-right: 1px solid var(--rule);
-  padding: 24px 32px;
+  padding: 24px clamp(16px, 2vw, 26px);
   color: var(--muted);
   background: transparent;
   cursor: pointer;
@@ -100,6 +104,9 @@ summary:focus-visible {
 
 .workspace-tabs a:last-child { border-right: 0; }
 .workspace-tabs a:hover { background: rgba(39, 135, 121, 0.055); }
+.workspace-tabs a:focus-visible {
+  box-shadow: inset 0 0 0 3px rgba(39, 135, 121, 0.25);
+}
 .workspace-tabs a[aria-current="page"] {
   color: var(--ink);
   background: linear-gradient(90deg, rgba(39, 135, 121, 0.11), transparent 72%);
@@ -2490,6 +2497,19 @@ td {
 .portfolio-ledger table { width: 100%; border-collapse: collapse; }
 .portfolio-ledger th, .portfolio-ledger td { border-bottom: 1px solid var(--rule); padding: 9px 11px; text-align: right; font: 9px/1 var(--mono); }
 .portfolio-ledger th:first-child, .portfolio-ledger td:first-child { text-align: left; }
+.monitor-placeholder { display: grid; grid-template-columns: 376px minmax(0, 1fr); min-height: calc(100vh - 182px); }
+.monitor-placeholder-intro { border-right: 1px solid var(--rule-dark); padding: 28px 26px; background: rgba(231, 238, 236, 0.86); }
+.monitor-placeholder-intro h2 { margin: 6px 0 14px; font: 600 26px/1.08 var(--display); }
+.monitor-placeholder-intro p { max-width: 300px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.monitor-placeholder-desk { min-width: 0; min-height: 560px; display: grid; grid-template-columns: minmax(220px, 0.52fr) minmax(300px, 0.8fr); align-items: center; gap: clamp(36px, 7vw, 108px); padding: 64px clamp(32px, 7vw, 104px); }
+.monitor-placeholder-desk h2 { max-width: 640px; margin: 8px 0 18px; font: 500 clamp(34px, 4vw, 62px)/1.02 var(--display); letter-spacing: -0.035em; }
+.monitor-placeholder-desk p:last-child { max-width: 540px; margin: 0; color: var(--muted); line-height: 1.75; }
+.monitor-placeholder-mark { position: relative; height: 230px; overflow: hidden; border: 1px solid var(--rule-dark); background: linear-gradient(rgba(41, 83, 87, 0.055) 1px, transparent 1px), var(--sheet); background-size: 100% 46px; }
+.monitor-placeholder-mark::after { content: ""; position: absolute; inset: 50% 0 auto; border-top: 1px solid var(--ink); transform: rotate(-7deg); transform-origin: center; }
+.monitor-placeholder-mark span { position: absolute; bottom: 24px; width: 1px; background: var(--signal); }
+.monitor-placeholder-mark span:nth-child(1) { left: 24%; height: 38%; }
+.monitor-placeholder-mark span:nth-child(2) { left: 50%; height: 70%; }
+.monitor-placeholder-mark span:nth-child(3) { left: 76%; height: 52%; }
 .data-quality-panel { margin: 0 0 16px; border: 1px solid var(--rule-dark); background: var(--sheet); }
 .data-quality-panel summary { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
 .data-quality-panel summary span { color: var(--ocean); font: 700 8px/1 var(--mono); letter-spacing: 0.1em; }
@@ -2555,6 +2575,7 @@ td {
   .workspace-tabs {
     grid-row: 2;
     grid-column: 1 / -1;
+    grid-template-columns: repeat(5, minmax(132px, 1fr));
     min-height: 82px;
     border-top: 1px solid var(--rule);
     border-right: 0;
@@ -2603,9 +2624,19 @@ td {
   .workspace-tabs {
     grid-row: auto;
     grid-column: auto;
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: thin;
   }
 
-  .workspace-tabs a { padding: 18px; }
+  .workspace-tabs a {
+    flex: 0 0 min(168px, 42vw);
+    min-width: 142px;
+    padding: 18px;
+    scroll-snap-align: start;
+  }
 
   .backtest-workspace {
     display: block;
@@ -2630,6 +2661,11 @@ td {
     border-right: 0;
     border-bottom: 1px solid var(--rule-dark);
   }
+
+  .monitor-placeholder { display: block; }
+  .monitor-placeholder-intro { border-right: 0; border-bottom: 1px solid var(--rule-dark); }
+  .monitor-placeholder-desk { min-height: 500px; grid-template-columns: 1fr; padding: 48px 28px; }
+  .monitor-placeholder-mark { height: 170px; }
 
   .result-empty,
   .job-state {
@@ -2694,6 +2730,8 @@ td {
   .trade-pagination > span { width: 100%; }
   .desk-note { display: none; }
   .workspace-tabs a { font-size: 16px; }
+  .monitor-placeholder-intro { padding: 24px 18px; }
+  .monitor-placeholder-desk { min-height: 440px; padding: 38px 18px; }
   .editor-toolbar { display: block; }
   .editor-actions { flex-wrap: wrap; margin-top: 16px; }
   .editor-actions button { flex: 1 1 auto; }

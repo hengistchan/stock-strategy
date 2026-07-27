@@ -15,6 +15,7 @@ import { useApiEvents } from "./hooks/useApiEvents";
 import { workspacePaths } from "./lib/workspaceRoutes";
 import { BacktestWorkspace } from "./components/BacktestWorkspace";
 import { Header } from "./components/Header";
+import { MonitorPlaceholder } from "./components/MonitorPlaceholder";
 
 const StrategyWorkspace = lazy(() =>
   import("./components/StrategyWorkspace").then((module) => ({
@@ -148,6 +149,10 @@ export function App() {
               <PortfolioWorkspace opendConnected={opendConnected} />
             </Suspense>
           )}
+        />
+        <Route
+          path={workspacePaths.monitors}
+          element={<MonitorPlaceholder />}
         />
         <Route
           path="/strategies/*"

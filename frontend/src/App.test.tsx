@@ -69,4 +69,30 @@ describe("workspace entity routes", () => {
     );
     expect(screen.getByText("INPUT")).toBeInTheDocument();
   });
+
+  it("keeps the monitoring workspace on its stable URL", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/monitors"]}>
+          <I18nProvider>
+            <App />
+            <LocationProbe />
+          </I18nProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /股票与期权监控|Stock and option monitoring/,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("current-path")).toHaveTextContent("/monitors");
+    expect(
+      screen.getByRole("link", { name: /实时监控|Live monitor/ }),
+    ).toHaveAttribute("aria-current", "page");
+  });
 });

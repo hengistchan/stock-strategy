@@ -13,7 +13,7 @@ export function Header({ health }: HeaderProps) {
   return (
     <header className="app-header">
       <div className="brand-lockup">
-        <div className="brand-index" aria-hidden="true">SL/04</div>
+        <div className="brand-index" aria-hidden="true">SL/05</div>
         <div>
           <p className="eyebrow">{t("header.eyebrow")}</p>
           <h1>Strategy Lab</h1>
@@ -36,6 +36,10 @@ export function Header({ health }: HeaderProps) {
         <NavLink to={workspacePaths.portfolios}>
           {t("header.portfolio")}
           <small>{t("header.portfolioHint")}</small>
+        </NavLink>
+        <NavLink to={workspacePaths.monitors}>
+          {t("header.monitor")}
+          <small>{t("header.monitorHint")}</small>
         </NavLink>
       </nav>
 
