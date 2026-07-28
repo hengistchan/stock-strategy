@@ -188,7 +188,8 @@ class MonitoringRepository:
                     session = ?, enabled = ?, updated_at = ?,
                     last_evaluated_at = ?, last_triggered_at = ?,
                     last_value = ?, condition_active = ?,
-                    last_observation_key = ?, last_provider_time = ?
+                    last_observation_key = ?, last_provider_time = ?,
+                    trigger_date = ?, trigger_count = ?
                 WHERE id = ?
                 """,
                 (
@@ -210,6 +211,8 @@ class MonitoringRepository:
                     int(bool(merged.get("condition_active"))),
                     merged.get("last_observation_key"),
                     merged.get("last_provider_time"),
+                    merged.get("trigger_date"),
+                    merged.get("trigger_count", 0),
                     rule_id,
                 ),
             )

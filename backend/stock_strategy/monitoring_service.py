@@ -5,7 +5,7 @@ import base64
 import json
 import uuid
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import date, datetime, timezone
 from time import monotonic
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -486,7 +486,8 @@ class MonitoringService:
         expiration: str,
     ) -> dict[str, Any]:
         code = _normalize_code(underlying)
-        key = (code, expiration)
+        normalized_expiration = _normalize_expiration(expiration)
+        key = (code, normalized_expiration)
         cached = self._chain_cache.get(key)
         if (
             cached is not None
@@ -497,7 +498,7 @@ class MonitoringService:
         contracts = await self._call_market(
             self.market_data.option_chain,
             code,
-            expiration,
+            normalized_expiration,
         )
         contract_codes = [str(contract["code"]) for contract in contracts]
         snapshots = await self._call_market(
@@ -532,7 +533,7 @@ class MonitoringService:
             )
         payload = {
             "underlying": code,
-            "expiration": expiration,
+            "expiration": normalized_expiration,
             "underlying_snapshot": underlying_snapshot,
             "contracts": merged_contracts,
             "summary": summary,
@@ -897,7 +898,7 @@ class MonitoringService:
                 self.repository.record_evaluation,
                 str(rule["id"]),
                 evaluated_at=_iso(self._now()),
-                provider_time=provider_time.isoformat(),
+                provider_time=_utc_iso(provider_time),
                 observation_key=observation_key,
                 value=decision.value,
                 condition_active=decision.condition_active,
@@ -974,7 +975,11 @@ class MonitoringService:
             if history:
                 latest = history[-1]
                 snapshot["historical_volatility"] = _number(
-                    latest.get("history_volatility")
+                    (
+                        latest.get("historical_volatility")
+                        if latest.get("historical_volatility") is not None
+                        else latest.get("history_volatility")
+                    )
                     if isinstance(latest, Mapping)
                     else None
                 )
@@ -1201,6 +1206,13 @@ def _normalize_code(value: str) -> str:
     return code
 
 
+def _normalize_expiration(value: str) -> str:
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError as error:
+        raise ValueError(f"invalid option expiration: {value!r}") from error
+
+
 def _number(value: Any) -> float | None:
     try:
         number = float(value)
@@ -1217,3 +1229,9 @@ def _iso(value: datetime) -> str:
     if value.tzinfo is None:
         raise ValueError("monitoring timestamps must be timezone-aware")
     return value.isoformat(timespec="seconds")
+
+
+def _utc_iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        raise ValueError("monitoring timestamps must be timezone-aware")
+    return value.astimezone(timezone.utc).isoformat(timespec="seconds")

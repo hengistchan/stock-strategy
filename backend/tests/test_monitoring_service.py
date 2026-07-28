@@ -345,6 +345,22 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(snapshot["rsi14"], 100)
         self.assertLess(snapshot["change_rate_5m"], 100)
 
+    async def test_option_iv_hv_premium_accepts_opend_history_field(self):
+        rule = self.service.create_rule(
+            {
+                **_rule_request(),
+                "name": "Option volatility premium",
+                "code": "US.AAPL260731C100000",
+                "instrument_type": "option",
+                "metric": "iv_hv_premium",
+                "threshold": 5,
+            }
+        )
+
+        await self.service.poll_once()
+
+        self.assertEqual(self.repository.get_rule(rule["id"])["last_value"], 10)
+
     async def test_stop_releases_only_subscriptions_owned_by_this_service(self):
         self.service.add_instrument(_instrument_request())
         await self.service.poll_once()

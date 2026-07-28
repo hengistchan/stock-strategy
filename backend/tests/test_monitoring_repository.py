@@ -353,6 +353,26 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertIsNone(alert)
         self.assertEqual(duplicate_time, first)
 
+    def test_definition_change_resets_daily_delivery_state(self):
+        rule = self.repository.create_rule(
+            {
+                **_rule_payload(),
+                "trigger_date": "2026-07-27",
+                "trigger_count": 4,
+            }
+        )
+
+        changed = self.repository.update_rule(
+            rule["id"],
+            {
+                "threshold": 4,
+                "updated_at": "2026-07-27T10:03:00+08:00",
+            },
+        )
+
+        self.assertIsNone(changed["trigger_date"])
+        self.assertEqual(changed["trigger_count"], 0)
+
     def test_migrates_monitoring_v1_without_losing_rules_or_alerts(self):
         legacy_root = self.root / "legacy"
         legacy_root.mkdir()
@@ -410,6 +430,35 @@ class MonitoringRepositoryTest(unittest.TestCase):
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE jobs (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    payload_json TEXT NOT NULL
+                );
+                INSERT INTO jobs VALUES (
+                    'job-existing', 'succeeded',
+                    '2026-07-26T10:00:00+08:00',
+                    '2026-07-26T10:01:00+08:00',
+                    '{"id":"job-existing","status":"succeeded"}'
+                );
+                CREATE TABLE experiments (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    strategy_path TEXT NOT NULL,
+                    objective TEXT NOT NULL,
+                    payload_json TEXT NOT NULL
+                );
+                INSERT INTO experiments VALUES (
+                    'experiment-existing', 'succeeded',
+                    '2026-07-26T10:00:00+08:00',
+                    '2026-07-26T10:02:00+08:00',
+                    'examples/ma_cross.py', 'sharpe_ratio',
+                    '{"id":"experiment-existing","status":"succeeded"}'
+                );
                 """
             )
             payload = _rule_payload()
@@ -431,6 +480,10 @@ class MonitoringRepositoryTest(unittest.TestCase):
                 WHERE key='monitoring_schema_version'
                 """
             ).fetchone()[0]
+            jobs = connection.execute("SELECT id, payload_json FROM jobs").fetchall()
+            experiments = connection.execute(
+                "SELECT id, payload_json FROM experiments"
+            ).fetchall()
 
         self.assertEqual(rule["name"], "Apple daily move")
         self.assertIsNone(rule["last_observation_key"])
@@ -438,6 +491,24 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertEqual(rule["session"], "regular")
         self.assertEqual(rule["trigger_count"], 0)
         self.assertEqual(version, str(MONITORING_SCHEMA_VERSION))
+        self.assertEqual(
+            jobs,
+            [
+                (
+                    "job-existing",
+                    '{"id":"job-existing","status":"succeeded"}',
+                )
+            ],
+        )
+        self.assertEqual(
+            experiments,
+            [
+                (
+                    "experiment-existing",
+                    '{"id":"experiment-existing","status":"succeeded"}',
+                )
+            ],
+        )
 
 
 def _alert_payload(
