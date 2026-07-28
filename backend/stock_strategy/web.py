@@ -4,6 +4,7 @@ import argparse
 import os
 import secrets
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
@@ -18,6 +19,9 @@ from .diagnostics import DiagnosticsService, is_opend_available
 from .execution_service import ExecutionService
 from .experiments import ExperimentStore
 from .job_store import JobStore
+from .monitoring_market_data import OpenDMonitoringDataSource
+from .monitoring_repository import MonitoringRepository
+from .monitoring_service import MonitoringService
 from .opend import OpenDSymbolDirectory
 from .paths import FRONTEND_ROOT, PROJECT_ROOT
 from .portfolio import PortfolioService
@@ -29,6 +33,7 @@ from .web_evidence import create_evidence_router
 from .web_experiments import create_experiments_router
 from .web_jobs import create_jobs_router
 from .web_migrations import create_migrations_router
+from .web_monitoring import create_monitoring_router
 from .web_portfolios import create_portfolios_router
 from .web_strategies import create_strategies_router
 from .web_symbols import create_symbols_router
@@ -45,6 +50,7 @@ def create_app(
     frontend_root: Path | None = None,
     api_token: str | None = None,
     portfolio_service: PortfolioService | None = None,
+    monitoring_service: MonitoringService | None = None,
 ) -> FastAPI:
     root = project_root.resolve()
     store = job_store or JobStore(root)
@@ -70,12 +76,29 @@ def create_app(
         connection_probe=probe,
         quote_probe=lambda: _probe_quote_directory(directory),
     )
+    monitoring = monitoring_service or MonitoringService(
+        MonitoringRepository(root / "runs" / "state.sqlite3"),
+        OpenDMonitoringDataSource(
+            host=store.opend_host,
+            port=store.opend_port,
+        ),
+        store.events,
+    )
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        await monitoring.start()
+        try:
+            yield
+        finally:
+            await monitoring.stop()
 
     app = FastAPI(
         title="Strategy Lab",
         docs_url=None,
         redoc_url=None,
         servers=[{"url": "/"}],
+        lifespan=lifespan,
     )
     app.state.job_store = store
     app.state.experiment_store = experiments
@@ -85,6 +108,7 @@ def create_app(
     app.state.portfolio_service = portfolios
     app.state.symbol_directory = directory
     app.state.diagnostics_service = diagnostics
+    app.state.monitoring_service = monitoring
     app.state.api_auth_enabled = api_token is not None
     install_api_error_handlers(app)
     app.add_middleware(
@@ -130,6 +154,7 @@ def create_app(
     app.include_router(create_migrations_router(migrations))
     app.include_router(create_experiments_router(experiments, execution))
     app.include_router(create_portfolios_router(portfolios))
+    app.include_router(create_monitoring_router(monitoring))
     app.include_router(create_cache_router(store))
 
     @app.get("/")

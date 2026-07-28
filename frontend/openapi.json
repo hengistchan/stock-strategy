@@ -1429,6 +1429,884 @@
         }
       }
     },
+    "/api/monitoring/status": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Monitoring Status",
+        "operationId": "monitoring_status_api_monitoring_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/diagnostics": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Monitoring Diagnostics",
+        "operationId": "monitoring_diagnostics_api_monitoring_diagnostics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringDiagnosticsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/watchlist": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Watchlist",
+        "operationId": "watchlist_api_monitoring_watchlist_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Add To Watchlist",
+        "operationId": "add_to_watchlist_api_monitoring_watchlist_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitorInstrumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoredInstrument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/watchlist/{code}": {
+      "patch": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Update Watchlist Item",
+        "operationId": "update_watchlist_item_api_monitoring_watchlist__code__patch",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitorInstrumentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoredInstrument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Delete Watchlist Item",
+        "operationId": "delete_watchlist_item_api_monitoring_watchlist__code__delete",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/underlyings/{code}/snapshot": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Underlying Snapshot",
+        "operationId": "underlying_snapshot_api_monitoring_underlyings__code__snapshot_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/underlyings/{code}/bars": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Underlying Bars",
+        "operationId": "underlying_bars_api_monitoring_underlyings__code__bars_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 2,
+              "default": 120,
+              "title": "Count"
+            }
+          },
+          {
+            "name": "ktype",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^K_[A-Z0-9]+$",
+              "default": "K_5M",
+              "title": "Ktype"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorBarsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/underlyings/{code}/option-expirations": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Option Expirations",
+        "operationId": "option_expirations_api_monitoring_underlyings__code__option_expirations_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionExpirationsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/underlyings/{code}/option-chain": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Option Chain",
+        "operationId": "option_chain_api_monitoring_underlyings__code__option_chain_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "expiration",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "title": "Expiration"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionChainResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/contracts/{code}": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Option Contract",
+        "operationId": "option_contract_api_monitoring_contracts__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionContractResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/rules": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Monitor Rules",
+        "operationId": "monitor_rules_api_monitoring_rules_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Enabled"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorRulesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Create Monitor Rule",
+        "operationId": "create_monitor_rule_api_monitoring_rules_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitorRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorRule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/rules/{rule_id}": {
+      "patch": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Update Monitor Rule",
+        "operationId": "update_monitor_rule_api_monitoring_rules__rule_id__patch",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitorRuleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorRule"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Delete Monitor Rule",
+        "operationId": "delete_monitor_rule_api_monitoring_rules__rule_id__delete",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/alerts": {
+      "get": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Monitor Alerts",
+        "operationId": "monitor_alerts_api_monitoring_alerts_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "unacknowledged_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Unacknowledged Only"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorAlertsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/monitoring/alerts/{alert_id}/ack": {
+      "post": {
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Acknowledge Monitor Alert",
+        "operationId": "acknowledge_monitor_alert_api_monitoring_alerts__alert_id__ack_post",
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorAlert"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cache": {
       "get": {
         "tags": [
@@ -2744,6 +3622,14 @@
         ],
         "title": "HealthResponse"
       },
+      "InstrumentType": {
+        "type": "string",
+        "enum": [
+          "stock",
+          "option"
+        ],
+        "title": "InstrumentType"
+      },
       "JobsResponse": {
         "properties": {
           "jobs": {
@@ -2759,6 +3645,95 @@
           "jobs"
         ],
         "title": "JobsResponse"
+      },
+      "MarketSnapshot": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "instrument_type": {
+            "$ref": "#/components/schemas/InstrumentType"
+          },
+          "source": {
+            "type": "string",
+            "const": "opend",
+            "title": "Source",
+            "default": "opend"
+          },
+          "source_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Time"
+          },
+          "fetched_at": {
+            "type": "string",
+            "title": "Fetched At"
+          },
+          "last_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price"
+          },
+          "bid_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Price"
+          },
+          "ask_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Price"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "code",
+          "instrument_type",
+          "fetched_at"
+        ],
+        "title": "MarketSnapshot"
       },
       "MetricConstraintRequest": {
         "properties": {
@@ -2795,6 +3770,806 @@
         ],
         "title": "MetricConstraintRequest"
       },
+      "MonitorAlert": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dedupe_key": {
+            "type": "string",
+            "title": "Dedupe Key"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "rule_name": {
+            "type": "string",
+            "title": "Rule Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "triggered_at": {
+            "type": "string",
+            "title": "Triggered At"
+          },
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/RuleSeverity"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/RuleMetric"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/RuleOperator"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "source": {
+            "type": "string",
+            "const": "opend",
+            "title": "Source"
+          },
+          "provider_time": {
+            "type": "string",
+            "title": "Provider Time"
+          },
+          "received_at": {
+            "type": "string",
+            "title": "Received At"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "dedupe_key",
+          "rule_id",
+          "rule_name",
+          "code",
+          "triggered_at",
+          "acknowledged_at",
+          "severity",
+          "metric",
+          "operator",
+          "threshold",
+          "value",
+          "source",
+          "provider_time",
+          "received_at",
+          "snapshot"
+        ],
+        "title": "MonitorAlert"
+      },
+      "MonitorAlertsResponse": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorAlert"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alerts",
+          "next_cursor"
+        ],
+        "title": "MonitorAlertsResponse"
+      },
+      "MonitorBar": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "source_time": {
+            "type": "string",
+            "title": "Source Time"
+          },
+          "ktype": {
+            "type": "string",
+            "title": "Ktype"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "close": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Close"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          },
+          "is_closed": {
+            "type": "boolean",
+            "title": "Is Closed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "code",
+          "source_time",
+          "ktype",
+          "is_closed"
+        ],
+        "title": "MonitorBar"
+      },
+      "MonitorBarsResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "ktype": {
+            "type": "string",
+            "title": "Ktype"
+          },
+          "bars": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorBar"
+            },
+            "type": "array",
+            "title": "Bars"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "ktype",
+          "bars"
+        ],
+        "title": "MonitorBarsResponse"
+      },
+      "MonitorInstrumentRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z]{2,8}\\.[A-Z0-9.-]{1,24}$",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "instrument_type": {
+            "$ref": "#/components/schemas/InstrumentType",
+            "default": "stock"
+          },
+          "underlying_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2,8}\\.[A-Z0-9.-]{1,24}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Code"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "MonitorInstrumentRequest"
+      },
+      "MonitorInstrumentUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "title": "MonitorInstrumentUpdate"
+      },
+      "MonitorRule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "instrument_type": {
+            "$ref": "#/components/schemas/InstrumentType"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/RuleMetric"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/RuleOperator"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/RuleSeverity"
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "title": "Cooldown Seconds"
+          },
+          "daily_trigger_limit": {
+            "type": "integer",
+            "title": "Daily Trigger Limit"
+          },
+          "session": {
+            "type": "string",
+            "enum": [
+              "regular",
+              "extended",
+              "all"
+            ],
+            "title": "Session"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "code",
+          "instrument_type",
+          "metric",
+          "operator",
+          "threshold",
+          "severity",
+          "cooldown_seconds",
+          "daily_trigger_limit",
+          "session",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MonitorRule"
+      },
+      "MonitorRuleRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z]{2,8}\\.[A-Z0-9.-]{1,24}$",
+            "title": "Code"
+          },
+          "instrument_type": {
+            "$ref": "#/components/schemas/InstrumentType"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/RuleMetric"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/RuleOperator"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/RuleSeverity",
+            "default": "warning"
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 0.0,
+            "title": "Cooldown Seconds",
+            "default": 300
+          },
+          "daily_trigger_limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Daily Trigger Limit",
+            "default": 10
+          },
+          "session": {
+            "type": "string",
+            "enum": [
+              "regular",
+              "extended",
+              "all"
+            ],
+            "title": "Session",
+            "default": "regular"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "instrument_type",
+          "metric",
+          "operator",
+          "threshold"
+        ],
+        "title": "MonitorRuleRequest"
+      },
+      "MonitorRuleUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleMetric"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleOperator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cooldown_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Seconds"
+          },
+          "daily_trigger_limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Trigger Limit"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "regular",
+                  "extended",
+                  "all"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "title": "MonitorRuleUpdate"
+      },
+      "MonitorRulesResponse": {
+        "properties": {
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rules"
+        ],
+        "title": "MonitorRulesResponse"
+      },
+      "MonitoredInstrument": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "market": {
+            "type": "string",
+            "title": "Market"
+          },
+          "instrument_type": {
+            "$ref": "#/components/schemas/InstrumentType"
+          },
+          "underlying_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Code"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "live",
+              "stale",
+              "market_closed",
+              "unavailable"
+            ],
+            "title": "Freshness",
+            "default": "unavailable"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "market",
+          "instrument_type",
+          "underlying_code",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MonitoredInstrument"
+      },
+      "MonitoringDiagnosticCheck": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "blocked"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "detail"
+        ],
+        "title": "MonitoringDiagnosticCheck"
+      },
+      "MonitoringDiagnosticsResponse": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/MonitoringDiagnosticCheck"
+            },
+            "type": "array",
+            "title": "Checks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ready",
+          "checks"
+        ],
+        "title": "MonitoringDiagnosticsResponse"
+      },
+      "MonitoringStatusResponse": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "stopped",
+              "starting",
+              "ready",
+              "degraded",
+              "reconnecting"
+            ],
+            "title": "Phase"
+          },
+          "rules_paused": {
+            "type": "boolean",
+            "title": "Rules Paused"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "market_states": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Market States"
+          },
+          "generic_subscription_budget": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generic Subscription Budget"
+          },
+          "freshness": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Freshness"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "phase",
+          "rules_paused",
+          "last_success_at",
+          "last_error",
+          "market_states",
+          "generic_subscription_budget",
+          "freshness"
+        ],
+        "title": "MonitoringStatusResponse"
+      },
       "OpenDHealth": {
         "properties": {
           "connected": {
@@ -2817,6 +4592,193 @@
           "port"
         ],
         "title": "OpenDHealth"
+      },
+      "OptionChainResponse": {
+        "properties": {
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          },
+          "expiration": {
+            "type": "string",
+            "title": "Expiration"
+          },
+          "underlying_snapshot": {
+            "$ref": "#/components/schemas/MarketSnapshot"
+          },
+          "contracts": {
+            "items": {
+              "$ref": "#/components/schemas/OptionContract"
+            },
+            "type": "array",
+            "title": "Contracts"
+          },
+          "summary": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Summary"
+          },
+          "fetched_at": {
+            "type": "string",
+            "title": "Fetched At"
+          },
+          "source": {
+            "type": "string",
+            "const": "opend",
+            "title": "Source",
+            "default": "opend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "underlying",
+          "expiration",
+          "underlying_snapshot",
+          "contracts",
+          "summary",
+          "fetched_at"
+        ],
+        "title": "OptionChainResponse"
+      },
+      "OptionContract": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "underlying_code": {
+            "type": "string",
+            "title": "Underlying Code"
+          },
+          "option_type": {
+            "type": "string",
+            "enum": [
+              "CALL",
+              "PUT"
+            ],
+            "title": "Option Type"
+          },
+          "expiration": {
+            "type": "string",
+            "title": "Expiration"
+          },
+          "strike_price": {
+            "type": "number",
+            "title": "Strike Price"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "underlying_code",
+          "option_type",
+          "expiration",
+          "strike_price"
+        ],
+        "title": "OptionContract"
+      },
+      "OptionContractResponse": {
+        "properties": {
+          "contract": {
+            "$ref": "#/components/schemas/OptionContract"
+          },
+          "analytics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Analytics"
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "live",
+              "stale",
+              "market_closed",
+              "unavailable"
+            ],
+            "title": "Freshness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contract",
+          "analytics",
+          "freshness"
+        ],
+        "title": "OptionContractResponse"
+      },
+      "OptionExpiration": {
+        "properties": {
+          "expiration": {
+            "type": "string",
+            "title": "Expiration"
+          },
+          "days_to_expiry": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days To Expiry"
+          },
+          "cycle": {
+            "type": "string",
+            "title": "Cycle",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "expiration"
+        ],
+        "title": "OptionExpiration"
+      },
+      "OptionExpirationsResponse": {
+        "properties": {
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          },
+          "expirations": {
+            "items": {
+              "$ref": "#/components/schemas/OptionExpiration"
+            },
+            "type": "array",
+            "title": "Expirations"
+          },
+          "fetched_at": {
+            "type": "string",
+            "title": "Fetched At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "underlying",
+          "expirations",
+          "fetched_at"
+        ],
+        "title": "OptionExpirationsResponse"
       },
       "PortfolioRequest": {
         "properties": {
@@ -3073,6 +5035,98 @@
           "points"
         ],
         "title": "PriceWindowResponse"
+      },
+      "RuleMetric": {
+        "type": "string",
+        "enum": [
+          "last_price",
+          "change_rate",
+          "change_rate_5m",
+          "volume",
+          "mid_price",
+          "bid_ask_spread",
+          "bid_ask_spread_pct",
+          "ma20",
+          "ma60",
+          "ma20_ma60_spread_pct",
+          "rsi14",
+          "option_implied_volatility",
+          "historical_volatility",
+          "iv_hv_premium",
+          "option_open_interest",
+          "volume_open_interest_ratio",
+          "option_delta",
+          "option_gamma",
+          "option_vega",
+          "option_theta",
+          "option_rho",
+          "days_to_expiry",
+          "strike_distance_pct",
+          "expiry_gamma_risk",
+          "expiry_theta_risk",
+          "call_put_volume_ratio",
+          "call_put_open_interest_ratio"
+        ],
+        "title": "RuleMetric"
+      },
+      "RuleOperator": {
+        "type": "string",
+        "enum": [
+          "above",
+          "below",
+          "crosses_above",
+          "crosses_below"
+        ],
+        "title": "RuleOperator"
+      },
+      "RuleSeverity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warning",
+          "critical"
+        ],
+        "title": "RuleSeverity"
+      },
+      "SnapshotResponse": {
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/MarketSnapshot"
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "live",
+              "stale",
+              "market_closed",
+              "unavailable"
+            ],
+            "title": "Freshness"
+          },
+          "market_state": {
+            "type": "string",
+            "title": "Market State"
+          },
+          "age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot",
+          "freshness",
+          "market_state",
+          "age_seconds"
+        ],
+        "title": "SnapshotResponse"
       },
       "StrategiesResponse": {
         "properties": {
@@ -3560,6 +5614,22 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WatchlistResponse": {
+        "properties": {
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/MonitoredInstrument"
+            },
+            "type": "array",
+            "title": "Instruments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instruments"
+        ],
+        "title": "WatchlistResponse"
       }
     }
   }

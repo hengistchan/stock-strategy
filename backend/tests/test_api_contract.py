@@ -26,6 +26,15 @@ class ApiContractTest(unittest.TestCase):
         self.assertIn("ExperimentResponse", schema["components"]["schemas"])
         self.assertIn("StrategyDocument", schema["components"]["schemas"])
         self.assertIn("CacheResponse", schema["components"]["schemas"])
+        self.assertIn("MonitoringStatusResponse", schema["components"]["schemas"])
+        self.assertIn("OptionChainResponse", schema["components"]["schemas"])
+        self.assertIn("MonitorRuleRequest", schema["components"]["schemas"])
+        self.assertIn("/api/monitoring/watchlist", schema["paths"])
+        self.assertIn(
+            "/api/monitoring/underlyings/{code}/option-chain",
+            schema["paths"],
+        )
+        self.assertIn("/api/monitoring/alerts", schema["paths"])
         self.assertIn("/api/migrations/scan", schema["paths"])
         self.assertIn("/api/migrations/fixture", schema["paths"])
         self.assertIn("/api/migrations/import", schema["paths"])

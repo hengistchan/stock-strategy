@@ -662,6 +662,11 @@ export type HealthResponse = {
 };
 
 /**
+ * InstrumentType
+ */
+export type InstrumentType = 'stock' | 'option';
+
+/**
  * JobsResponse
  */
 export type JobsResponse = {
@@ -669,6 +674,50 @@ export type JobsResponse = {
      * Jobs
      */
     jobs: Array<BacktestJob>;
+};
+
+/**
+ * MarketSnapshot
+ */
+export type MarketSnapshot = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name?: string;
+    instrument_type: InstrumentType;
+    /**
+     * Source
+     */
+    source?: 'opend';
+    /**
+     * Source Time
+     */
+    source_time?: string | null;
+    /**
+     * Fetched At
+     */
+    fetched_at: string;
+    /**
+     * Last Price
+     */
+    last_price?: number | null;
+    /**
+     * Bid Price
+     */
+    bid_price?: number | null;
+    /**
+     * Ask Price
+     */
+    ask_price?: number | null;
+    /**
+     * Volume
+     */
+    volume?: number | null;
+    [key: string]: unknown;
 };
 
 /**
@@ -690,6 +739,432 @@ export type MetricConstraintRequest = {
 };
 
 /**
+ * MonitorAlert
+ */
+export type MonitorAlert = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Dedupe Key
+     */
+    dedupe_key: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Rule Name
+     */
+    rule_name: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Triggered At
+     */
+    triggered_at: string;
+    /**
+     * Acknowledged At
+     */
+    acknowledged_at: string | null;
+    severity: RuleSeverity;
+    metric: RuleMetric;
+    operator: RuleOperator;
+    /**
+     * Threshold
+     */
+    threshold: number;
+    /**
+     * Value
+     */
+    value: number;
+    /**
+     * Source
+     */
+    source: 'opend';
+    /**
+     * Provider Time
+     */
+    provider_time: string;
+    /**
+     * Received At
+     */
+    received_at: string;
+    /**
+     * Snapshot
+     */
+    snapshot: {
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+};
+
+/**
+ * MonitorAlertsResponse
+ */
+export type MonitorAlertsResponse = {
+    /**
+     * Alerts
+     */
+    alerts: Array<MonitorAlert>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * MonitorBar
+ */
+export type MonitorBar = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Source Time
+     */
+    source_time: string;
+    /**
+     * Ktype
+     */
+    ktype: string;
+    /**
+     * Open
+     */
+    open?: number | null;
+    /**
+     * High
+     */
+    high?: number | null;
+    /**
+     * Low
+     */
+    low?: number | null;
+    /**
+     * Close
+     */
+    close?: number | null;
+    /**
+     * Volume
+     */
+    volume?: number | null;
+    /**
+     * Is Closed
+     */
+    is_closed: boolean;
+    [key: string]: unknown;
+};
+
+/**
+ * MonitorBarsResponse
+ */
+export type MonitorBarsResponse = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Ktype
+     */
+    ktype: string;
+    /**
+     * Bars
+     */
+    bars: Array<MonitorBar>;
+};
+
+/**
+ * MonitorInstrumentRequest
+ */
+export type MonitorInstrumentRequest = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    instrument_type?: InstrumentType;
+    /**
+     * Underlying Code
+     */
+    underlying_code?: string | null;
+    /**
+     * Enabled
+     */
+    enabled?: boolean;
+};
+
+/**
+ * MonitorInstrumentUpdate
+ */
+export type MonitorInstrumentUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Enabled
+     */
+    enabled?: boolean | null;
+};
+
+/**
+ * MonitorRule
+ */
+export type MonitorRule = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+    instrument_type: InstrumentType;
+    metric: RuleMetric;
+    operator: RuleOperator;
+    /**
+     * Threshold
+     */
+    threshold: number;
+    severity: RuleSeverity;
+    /**
+     * Cooldown Seconds
+     */
+    cooldown_seconds: number;
+    /**
+     * Daily Trigger Limit
+     */
+    daily_trigger_limit: number;
+    /**
+     * Session
+     */
+    session: 'regular' | 'extended' | 'all';
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    [key: string]: unknown;
+};
+
+/**
+ * MonitorRuleRequest
+ */
+export type MonitorRuleRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Code
+     */
+    code: string;
+    instrument_type: InstrumentType;
+    metric: RuleMetric;
+    operator: RuleOperator;
+    /**
+     * Threshold
+     */
+    threshold: number;
+    severity?: RuleSeverity;
+    /**
+     * Cooldown Seconds
+     */
+    cooldown_seconds?: number;
+    /**
+     * Daily Trigger Limit
+     */
+    daily_trigger_limit?: number;
+    /**
+     * Session
+     */
+    session?: 'regular' | 'extended' | 'all';
+    /**
+     * Enabled
+     */
+    enabled?: boolean;
+};
+
+/**
+ * MonitorRuleUpdate
+ */
+export type MonitorRuleUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    metric?: RuleMetric | null;
+    operator?: RuleOperator | null;
+    /**
+     * Threshold
+     */
+    threshold?: number | null;
+    severity?: RuleSeverity | null;
+    /**
+     * Cooldown Seconds
+     */
+    cooldown_seconds?: number | null;
+    /**
+     * Daily Trigger Limit
+     */
+    daily_trigger_limit?: number | null;
+    /**
+     * Session
+     */
+    session?: 'regular' | 'extended' | 'all' | null;
+    /**
+     * Enabled
+     */
+    enabled?: boolean | null;
+};
+
+/**
+ * MonitorRulesResponse
+ */
+export type MonitorRulesResponse = {
+    /**
+     * Rules
+     */
+    rules: Array<MonitorRule>;
+};
+
+/**
+ * MonitoredInstrument
+ */
+export type MonitoredInstrument = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Market
+     */
+    market: string;
+    instrument_type: InstrumentType;
+    /**
+     * Underlying Code
+     */
+    underlying_code: string | null;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    snapshot?: MarketSnapshot | null;
+    /**
+     * Freshness
+     */
+    freshness?: 'live' | 'stale' | 'market_closed' | 'unavailable';
+    [key: string]: unknown;
+};
+
+/**
+ * MonitoringDiagnosticCheck
+ */
+export type MonitoringDiagnosticCheck = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Status
+     */
+    status: 'pass' | 'fail' | 'blocked';
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * Hint
+     */
+    hint?: string | null;
+};
+
+/**
+ * MonitoringDiagnosticsResponse
+ */
+export type MonitoringDiagnosticsResponse = {
+    /**
+     * Ready
+     */
+    ready: boolean;
+    /**
+     * Checks
+     */
+    checks: Array<MonitoringDiagnosticCheck>;
+};
+
+/**
+ * MonitoringStatusResponse
+ */
+export type MonitoringStatusResponse = {
+    /**
+     * Phase
+     */
+    phase: 'stopped' | 'starting' | 'ready' | 'degraded' | 'reconnecting';
+    /**
+     * Rules Paused
+     */
+    rules_paused: boolean;
+    /**
+     * Last Success At
+     */
+    last_success_at: string | null;
+    /**
+     * Last Error
+     */
+    last_error: string | null;
+    /**
+     * Market States
+     */
+    market_states: {
+        [key: string]: string;
+    };
+    /**
+     * Generic Subscription Budget
+     */
+    generic_subscription_budget: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Freshness
+     */
+    freshness: {
+        [key: string]: string;
+    };
+    [key: string]: unknown;
+};
+
+/**
  * OpenDHealth
  */
 export type OpenDHealth = {
@@ -705,6 +1180,124 @@ export type OpenDHealth = {
      * Port
      */
     port: number;
+};
+
+/**
+ * OptionChainResponse
+ */
+export type OptionChainResponse = {
+    /**
+     * Underlying
+     */
+    underlying: string;
+    /**
+     * Expiration
+     */
+    expiration: string;
+    underlying_snapshot: MarketSnapshot;
+    /**
+     * Contracts
+     */
+    contracts: Array<OptionContract>;
+    /**
+     * Summary
+     */
+    summary: {
+        [key: string]: number | number | null;
+    };
+    /**
+     * Fetched At
+     */
+    fetched_at: string;
+    /**
+     * Source
+     */
+    source?: 'opend';
+};
+
+/**
+ * OptionContract
+ */
+export type OptionContract = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Underlying Code
+     */
+    underlying_code: string;
+    /**
+     * Option Type
+     */
+    option_type: 'CALL' | 'PUT';
+    /**
+     * Expiration
+     */
+    expiration: string;
+    /**
+     * Strike Price
+     */
+    strike_price: number;
+    [key: string]: unknown;
+};
+
+/**
+ * OptionContractResponse
+ */
+export type OptionContractResponse = {
+    contract: OptionContract;
+    /**
+     * Analytics
+     */
+    analytics: {
+        [key: string]: unknown;
+    };
+    /**
+     * Freshness
+     */
+    freshness: 'live' | 'stale' | 'market_closed' | 'unavailable';
+};
+
+/**
+ * OptionExpiration
+ */
+export type OptionExpiration = {
+    /**
+     * Expiration
+     */
+    expiration: string;
+    /**
+     * Days To Expiry
+     */
+    days_to_expiry?: number | null;
+    /**
+     * Cycle
+     */
+    cycle?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * OptionExpirationsResponse
+ */
+export type OptionExpirationsResponse = {
+    /**
+     * Underlying
+     */
+    underlying: string;
+    /**
+     * Expirations
+     */
+    expirations: Array<OptionExpiration>;
+    /**
+     * Fetched At
+     */
+    fetched_at: string;
 };
 
 /**
@@ -883,6 +1476,40 @@ export type PriceWindowResponse = {
      * Points
      */
     points: Array<PricePoint>;
+};
+
+/**
+ * RuleMetric
+ */
+export type RuleMetric = 'last_price' | 'change_rate' | 'change_rate_5m' | 'volume' | 'mid_price' | 'bid_ask_spread' | 'bid_ask_spread_pct' | 'ma20' | 'ma60' | 'ma20_ma60_spread_pct' | 'rsi14' | 'option_implied_volatility' | 'historical_volatility' | 'iv_hv_premium' | 'option_open_interest' | 'volume_open_interest_ratio' | 'option_delta' | 'option_gamma' | 'option_vega' | 'option_theta' | 'option_rho' | 'days_to_expiry' | 'strike_distance_pct' | 'expiry_gamma_risk' | 'expiry_theta_risk' | 'call_put_volume_ratio' | 'call_put_open_interest_ratio';
+
+/**
+ * RuleOperator
+ */
+export type RuleOperator = 'above' | 'below' | 'crosses_above' | 'crosses_below';
+
+/**
+ * RuleSeverity
+ */
+export type RuleSeverity = 'info' | 'warning' | 'critical';
+
+/**
+ * SnapshotResponse
+ */
+export type SnapshotResponse = {
+    snapshot: MarketSnapshot;
+    /**
+     * Freshness
+     */
+    freshness: 'live' | 'stale' | 'market_closed' | 'unavailable';
+    /**
+     * Market State
+     */
+    market_state: string;
+    /**
+     * Age Seconds
+     */
+    age_seconds: number | null;
 };
 
 /**
@@ -1227,6 +1854,16 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * WatchlistResponse
+ */
+export type WatchlistResponse = {
+    /**
+     * Instruments
+     */
+    instruments: Array<MonitoredInstrument>;
 };
 
 export type HealthApiHealthGetData = {
@@ -2096,6 +2733,546 @@ export type RunPortfolioApiPortfoliosPostResponses = {
 };
 
 export type RunPortfolioApiPortfoliosPostResponse = RunPortfolioApiPortfoliosPostResponses[keyof RunPortfolioApiPortfoliosPostResponses];
+
+export type MonitoringStatusApiMonitoringStatusGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/monitoring/status';
+};
+
+export type MonitoringStatusApiMonitoringStatusGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitoringStatusResponse;
+};
+
+export type MonitoringStatusApiMonitoringStatusGetResponse = MonitoringStatusApiMonitoringStatusGetResponses[keyof MonitoringStatusApiMonitoringStatusGetResponses];
+
+export type MonitoringDiagnosticsApiMonitoringDiagnosticsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/monitoring/diagnostics';
+};
+
+export type MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitoringDiagnosticsResponse;
+};
+
+export type MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponse = MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses[keyof MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses];
+
+export type WatchlistApiMonitoringWatchlistGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/monitoring/watchlist';
+};
+
+export type WatchlistApiMonitoringWatchlistGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: WatchlistResponse;
+};
+
+export type WatchlistApiMonitoringWatchlistGetResponse = WatchlistApiMonitoringWatchlistGetResponses[keyof WatchlistApiMonitoringWatchlistGetResponses];
+
+export type AddToWatchlistApiMonitoringWatchlistPostData = {
+    body: MonitorInstrumentRequest;
+    path?: never;
+    query?: never;
+    url: '/api/monitoring/watchlist';
+};
+
+export type AddToWatchlistApiMonitoringWatchlistPostErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type AddToWatchlistApiMonitoringWatchlistPostError = AddToWatchlistApiMonitoringWatchlistPostErrors[keyof AddToWatchlistApiMonitoringWatchlistPostErrors];
+
+export type AddToWatchlistApiMonitoringWatchlistPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: MonitoredInstrument;
+};
+
+export type AddToWatchlistApiMonitoringWatchlistPostResponse = AddToWatchlistApiMonitoringWatchlistPostResponses[keyof AddToWatchlistApiMonitoringWatchlistPostResponses];
+
+export type DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: never;
+    url: '/api/monitoring/watchlist/{code}';
+};
+
+export type DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteError = DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors[keyof DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors];
+
+export type DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponse = DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses[keyof DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses];
+
+export type UpdateWatchlistItemApiMonitoringWatchlistCodePatchData = {
+    body: MonitorInstrumentUpdate;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: never;
+    url: '/api/monitoring/watchlist/{code}';
+};
+
+export type UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type UpdateWatchlistItemApiMonitoringWatchlistCodePatchError = UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors[keyof UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors];
+
+export type UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitoredInstrument;
+};
+
+export type UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponse = UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses[keyof UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses];
+
+export type UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: never;
+    url: '/api/monitoring/underlyings/{code}/snapshot';
+};
+
+export type UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetError = UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors[keyof UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors];
+
+export type UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SnapshotResponse;
+};
+
+export type UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponse = UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses[keyof UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses];
+
+export type UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: {
+        /**
+         * Count
+         */
+        count?: number;
+        /**
+         * Ktype
+         */
+        ktype?: string;
+    };
+    url: '/api/monitoring/underlyings/{code}/bars';
+};
+
+export type UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetError = UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors[keyof UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors];
+
+export type UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitorBarsResponse;
+};
+
+export type UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponse = UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses[keyof UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses];
+
+export type OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: never;
+    url: '/api/monitoring/underlyings/{code}/option-expirations';
+};
+
+export type OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetError = OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors[keyof OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors];
+
+export type OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: OptionExpirationsResponse;
+};
+
+export type OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponse = OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses[keyof OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses];
+
+export type OptionChainApiMonitoringUnderlyingsCodeOptionChainGetData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query: {
+        /**
+         * Expiration
+         */
+        expiration: string;
+    };
+    url: '/api/monitoring/underlyings/{code}/option-chain';
+};
+
+export type OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type OptionChainApiMonitoringUnderlyingsCodeOptionChainGetError = OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors[keyof OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors];
+
+export type OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: OptionChainResponse;
+};
+
+export type OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponse = OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses[keyof OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses];
+
+export type OptionContractApiMonitoringContractsCodeGetData = {
+    body?: never;
+    path: {
+        /**
+         * Code
+         */
+        code: string;
+    };
+    query?: never;
+    url: '/api/monitoring/contracts/{code}';
+};
+
+export type OptionContractApiMonitoringContractsCodeGetErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    503: ErrorResponse;
+};
+
+export type OptionContractApiMonitoringContractsCodeGetError = OptionContractApiMonitoringContractsCodeGetErrors[keyof OptionContractApiMonitoringContractsCodeGetErrors];
+
+export type OptionContractApiMonitoringContractsCodeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: OptionContractResponse;
+};
+
+export type OptionContractApiMonitoringContractsCodeGetResponse = OptionContractApiMonitoringContractsCodeGetResponses[keyof OptionContractApiMonitoringContractsCodeGetResponses];
+
+export type MonitorRulesApiMonitoringRulesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Code
+         */
+        code?: string | null;
+        /**
+         * Enabled
+         */
+        enabled?: boolean | null;
+    };
+    url: '/api/monitoring/rules';
+};
+
+export type MonitorRulesApiMonitoringRulesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MonitorRulesApiMonitoringRulesGetError = MonitorRulesApiMonitoringRulesGetErrors[keyof MonitorRulesApiMonitoringRulesGetErrors];
+
+export type MonitorRulesApiMonitoringRulesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitorRulesResponse;
+};
+
+export type MonitorRulesApiMonitoringRulesGetResponse = MonitorRulesApiMonitoringRulesGetResponses[keyof MonitorRulesApiMonitoringRulesGetResponses];
+
+export type CreateMonitorRuleApiMonitoringRulesPostData = {
+    body: MonitorRuleRequest;
+    path?: never;
+    query?: never;
+    url: '/api/monitoring/rules';
+};
+
+export type CreateMonitorRuleApiMonitoringRulesPostErrors = {
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type CreateMonitorRuleApiMonitoringRulesPostError = CreateMonitorRuleApiMonitoringRulesPostErrors[keyof CreateMonitorRuleApiMonitoringRulesPostErrors];
+
+export type CreateMonitorRuleApiMonitoringRulesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: MonitorRule;
+};
+
+export type CreateMonitorRuleApiMonitoringRulesPostResponse = CreateMonitorRuleApiMonitoringRulesPostResponses[keyof CreateMonitorRuleApiMonitoringRulesPostResponses];
+
+export type DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/api/monitoring/rules/{rule_id}';
+};
+
+export type DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteError = DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors[keyof DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors];
+
+export type DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponse = DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses[keyof DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses];
+
+export type UpdateMonitorRuleApiMonitoringRulesRuleIdPatchData = {
+    body: MonitorRuleUpdate;
+    path: {
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/api/monitoring/rules/{rule_id}';
+};
+
+export type UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Structured API error
+     */
+    422: ErrorResponse;
+};
+
+export type UpdateMonitorRuleApiMonitoringRulesRuleIdPatchError = UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors[keyof UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors];
+
+export type UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitorRule;
+};
+
+export type UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponse = UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses[keyof UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses];
+
+export type MonitorAlertsApiMonitoringAlertsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Code
+         */
+        code?: string | null;
+        /**
+         * Unacknowledged Only
+         */
+        unacknowledged_only?: boolean;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/monitoring/alerts';
+};
+
+export type MonitorAlertsApiMonitoringAlertsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MonitorAlertsApiMonitoringAlertsGetError = MonitorAlertsApiMonitoringAlertsGetErrors[keyof MonitorAlertsApiMonitoringAlertsGetErrors];
+
+export type MonitorAlertsApiMonitoringAlertsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitorAlertsResponse;
+};
+
+export type MonitorAlertsApiMonitoringAlertsGetResponse = MonitorAlertsApiMonitoringAlertsGetResponses[keyof MonitorAlertsApiMonitoringAlertsGetResponses];
+
+export type AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostData = {
+    body?: never;
+    path: {
+        /**
+         * Alert Id
+         */
+        alert_id: string;
+    };
+    query?: never;
+    url: '/api/monitoring/alerts/{alert_id}/ack';
+};
+
+export type AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors = {
+    /**
+     * Structured API error
+     */
+    404: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostError = AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors[keyof AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors];
+
+export type AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: MonitorAlert;
+};
+
+export type AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponse = AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses[keyof AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses];
 
 export type ListCacheApiCacheGetData = {
     body?: never;

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CancelJobApiJobsJobIdDeleteData, CancelJobApiJobsJobIdDeleteErrors, CancelJobApiJobsJobIdDeleteResponses, ConfigApiConfigGetData, ConfigApiConfigGetResponses, CreateExperimentApiExperimentsPostData, CreateExperimentApiExperimentsPostErrors, CreateExperimentApiExperimentsPostResponses, CreateJobApiJobsPostData, CreateJobApiJobsPostErrors, CreateJobApiJobsPostResponses, CreateStrategyApiStrategiesPostData, CreateStrategyApiStrategiesPostErrors, CreateStrategyApiStrategiesPostResponses, DeleteCacheApiCacheCacheIdDeleteData, DeleteCacheApiCacheCacheIdDeleteErrors, DeleteCacheApiCacheCacheIdDeleteResponses, DiagnosticsReportApiDiagnosticsGetData, DiagnosticsReportApiDiagnosticsGetResponses, EventStreamApiEventsGetData, EventStreamApiEventsGetResponse, EventStreamApiEventsGetResponses, ExportEvidenceApiEvidenceJobIdZipGetData, ExportEvidenceApiEvidenceJobIdZipGetErrors, ExportEvidenceApiEvidenceJobIdZipGetResponses, FrontendFallbackFrontendPathGetData, FrontendFallbackFrontendPathGetErrors, FrontendFallbackFrontendPathGetResponses, GetExperimentApiExperimentsExperimentIdGetData, GetExperimentApiExperimentsExperimentIdGetErrors, GetExperimentApiExperimentsExperimentIdGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, ImportEvidenceApiEvidenceImportPostData, ImportEvidenceApiEvidenceImportPostErrors, ImportEvidenceApiEvidenceImportPostResponses, ImportStrategyApiMigrationsImportPostData, ImportStrategyApiMigrationsImportPostErrors, ImportStrategyApiMigrationsImportPostResponses, IndexGetData, IndexGetResponses, JobApiJobsJobIdGetData, JobApiJobsJobIdGetErrors, JobApiJobsJobIdGetResponses, JobsApiJobsGetData, JobsApiJobsGetResponses, ListCacheApiCacheGetData, ListCacheApiCacheGetResponses, ListExperimentsApiExperimentsGetData, ListExperimentsApiExperimentsGetResponses, ListStrategyDocumentsApiStrategiesGetData, ListStrategyDocumentsApiStrategiesGetResponses, ListStrategyVersionsApiStrategiesVersionsGetData, ListStrategyVersionsApiStrategiesVersionsGetErrors, ListStrategyVersionsApiStrategiesVersionsGetResponses, PricesApiJobsJobIdPricesGetData, PricesApiJobsJobIdPricesGetErrors, PricesApiJobsJobIdPricesGetResponses, ReadStrategyApiStrategiesStrategyPathGetData, ReadStrategyApiStrategiesStrategyPathGetErrors, ReadStrategyApiStrategiesStrategyPathGetResponses, ReportApiJobsJobIdReportSvgGetData, ReportApiJobsJobIdReportSvgGetErrors, ReportApiJobsJobIdReportSvgGetResponses, ResolveSymbolsApiSymbolsResolveGetData, ResolveSymbolsApiSymbolsResolveGetErrors, ResolveSymbolsApiSymbolsResolveGetResponses, RestoreStrategyVersionApiStrategiesVersionsRestorePostData, RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors, RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses, ResultApiJobsJobIdResultGetData, ResultApiJobsJobIdResultGetErrors, ResultApiJobsJobIdResultGetResponses, RetryJobApiJobsJobIdRetryPostData, RetryJobApiJobsJobIdRetryPostErrors, RetryJobApiJobsJobIdRetryPostResponses, RunPortfolioApiPortfoliosPostData, RunPortfolioApiPortfoliosPostErrors, RunPortfolioApiPortfoliosPostResponses, SaveStrategyApiStrategiesStrategyPathPutData, SaveStrategyApiStrategiesStrategyPathPutErrors, SaveStrategyApiStrategiesStrategyPathPutResponses, ScanStrategyApiMigrationsScanPostData, ScanStrategyApiMigrationsScanPostErrors, ScanStrategyApiMigrationsScanPostResponses, SearchSymbolsApiSymbolsGetData, SearchSymbolsApiSymbolsGetErrors, SearchSymbolsApiSymbolsGetResponses, ValidateStrategyFixtureApiMigrationsFixturePostData, ValidateStrategyFixtureApiMigrationsFixturePostErrors, ValidateStrategyFixtureApiMigrationsFixturePostResponses } from './types.gen';
+import type { AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostData, AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors, AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses, AddToWatchlistApiMonitoringWatchlistPostData, AddToWatchlistApiMonitoringWatchlistPostErrors, AddToWatchlistApiMonitoringWatchlistPostResponses, CancelJobApiJobsJobIdDeleteData, CancelJobApiJobsJobIdDeleteErrors, CancelJobApiJobsJobIdDeleteResponses, ConfigApiConfigGetData, ConfigApiConfigGetResponses, CreateExperimentApiExperimentsPostData, CreateExperimentApiExperimentsPostErrors, CreateExperimentApiExperimentsPostResponses, CreateJobApiJobsPostData, CreateJobApiJobsPostErrors, CreateJobApiJobsPostResponses, CreateMonitorRuleApiMonitoringRulesPostData, CreateMonitorRuleApiMonitoringRulesPostErrors, CreateMonitorRuleApiMonitoringRulesPostResponses, CreateStrategyApiStrategiesPostData, CreateStrategyApiStrategiesPostErrors, CreateStrategyApiStrategiesPostResponses, DeleteCacheApiCacheCacheIdDeleteData, DeleteCacheApiCacheCacheIdDeleteErrors, DeleteCacheApiCacheCacheIdDeleteResponses, DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteData, DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors, DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses, DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteData, DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors, DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses, DiagnosticsReportApiDiagnosticsGetData, DiagnosticsReportApiDiagnosticsGetResponses, EventStreamApiEventsGetData, EventStreamApiEventsGetResponse, EventStreamApiEventsGetResponses, ExportEvidenceApiEvidenceJobIdZipGetData, ExportEvidenceApiEvidenceJobIdZipGetErrors, ExportEvidenceApiEvidenceJobIdZipGetResponses, FrontendFallbackFrontendPathGetData, FrontendFallbackFrontendPathGetErrors, FrontendFallbackFrontendPathGetResponses, GetExperimentApiExperimentsExperimentIdGetData, GetExperimentApiExperimentsExperimentIdGetErrors, GetExperimentApiExperimentsExperimentIdGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, ImportEvidenceApiEvidenceImportPostData, ImportEvidenceApiEvidenceImportPostErrors, ImportEvidenceApiEvidenceImportPostResponses, ImportStrategyApiMigrationsImportPostData, ImportStrategyApiMigrationsImportPostErrors, ImportStrategyApiMigrationsImportPostResponses, IndexGetData, IndexGetResponses, JobApiJobsJobIdGetData, JobApiJobsJobIdGetErrors, JobApiJobsJobIdGetResponses, JobsApiJobsGetData, JobsApiJobsGetResponses, ListCacheApiCacheGetData, ListCacheApiCacheGetResponses, ListExperimentsApiExperimentsGetData, ListExperimentsApiExperimentsGetResponses, ListStrategyDocumentsApiStrategiesGetData, ListStrategyDocumentsApiStrategiesGetResponses, ListStrategyVersionsApiStrategiesVersionsGetData, ListStrategyVersionsApiStrategiesVersionsGetErrors, ListStrategyVersionsApiStrategiesVersionsGetResponses, MonitorAlertsApiMonitoringAlertsGetData, MonitorAlertsApiMonitoringAlertsGetErrors, MonitorAlertsApiMonitoringAlertsGetResponses, MonitoringDiagnosticsApiMonitoringDiagnosticsGetData, MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses, MonitoringStatusApiMonitoringStatusGetData, MonitoringStatusApiMonitoringStatusGetResponses, MonitorRulesApiMonitoringRulesGetData, MonitorRulesApiMonitoringRulesGetErrors, MonitorRulesApiMonitoringRulesGetResponses, OptionChainApiMonitoringUnderlyingsCodeOptionChainGetData, OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors, OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses, OptionContractApiMonitoringContractsCodeGetData, OptionContractApiMonitoringContractsCodeGetErrors, OptionContractApiMonitoringContractsCodeGetResponses, OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetData, OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors, OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses, PricesApiJobsJobIdPricesGetData, PricesApiJobsJobIdPricesGetErrors, PricesApiJobsJobIdPricesGetResponses, ReadStrategyApiStrategiesStrategyPathGetData, ReadStrategyApiStrategiesStrategyPathGetErrors, ReadStrategyApiStrategiesStrategyPathGetResponses, ReportApiJobsJobIdReportSvgGetData, ReportApiJobsJobIdReportSvgGetErrors, ReportApiJobsJobIdReportSvgGetResponses, ResolveSymbolsApiSymbolsResolveGetData, ResolveSymbolsApiSymbolsResolveGetErrors, ResolveSymbolsApiSymbolsResolveGetResponses, RestoreStrategyVersionApiStrategiesVersionsRestorePostData, RestoreStrategyVersionApiStrategiesVersionsRestorePostErrors, RestoreStrategyVersionApiStrategiesVersionsRestorePostResponses, ResultApiJobsJobIdResultGetData, ResultApiJobsJobIdResultGetErrors, ResultApiJobsJobIdResultGetResponses, RetryJobApiJobsJobIdRetryPostData, RetryJobApiJobsJobIdRetryPostErrors, RetryJobApiJobsJobIdRetryPostResponses, RunPortfolioApiPortfoliosPostData, RunPortfolioApiPortfoliosPostErrors, RunPortfolioApiPortfoliosPostResponses, SaveStrategyApiStrategiesStrategyPathPutData, SaveStrategyApiStrategiesStrategyPathPutErrors, SaveStrategyApiStrategiesStrategyPathPutResponses, ScanStrategyApiMigrationsScanPostData, ScanStrategyApiMigrationsScanPostErrors, ScanStrategyApiMigrationsScanPostResponses, SearchSymbolsApiSymbolsGetData, SearchSymbolsApiSymbolsGetErrors, SearchSymbolsApiSymbolsGetResponses, UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetData, UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors, UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses, UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetData, UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors, UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses, UpdateMonitorRuleApiMonitoringRulesRuleIdPatchData, UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors, UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses, UpdateWatchlistItemApiMonitoringWatchlistCodePatchData, UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors, UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses, ValidateStrategyFixtureApiMigrationsFixturePostData, ValidateStrategyFixtureApiMigrationsFixturePostErrors, ValidateStrategyFixtureApiMigrationsFixturePostResponses, WatchlistApiMonitoringWatchlistGetData, WatchlistApiMonitoringWatchlistGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -225,6 +225,119 @@ export const runPortfolioApiPortfoliosPost = <ThrowOnError extends boolean = fal
         ...options.headers
     }
 });
+
+/**
+ * Monitoring Status
+ */
+export const monitoringStatusApiMonitoringStatusGet = <ThrowOnError extends boolean = false>(options?: Options<MonitoringStatusApiMonitoringStatusGetData, ThrowOnError>): RequestResult<MonitoringStatusApiMonitoringStatusGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<MonitoringStatusApiMonitoringStatusGetResponses, unknown, ThrowOnError>({ url: '/api/monitoring/status', ...options });
+
+/**
+ * Monitoring Diagnostics
+ */
+export const monitoringDiagnosticsApiMonitoringDiagnosticsGet = <ThrowOnError extends boolean = false>(options?: Options<MonitoringDiagnosticsApiMonitoringDiagnosticsGetData, ThrowOnError>): RequestResult<MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<MonitoringDiagnosticsApiMonitoringDiagnosticsGetResponses, unknown, ThrowOnError>({ url: '/api/monitoring/diagnostics', ...options });
+
+/**
+ * Watchlist
+ */
+export const watchlistApiMonitoringWatchlistGet = <ThrowOnError extends boolean = false>(options?: Options<WatchlistApiMonitoringWatchlistGetData, ThrowOnError>): RequestResult<WatchlistApiMonitoringWatchlistGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<WatchlistApiMonitoringWatchlistGetResponses, unknown, ThrowOnError>({ url: '/api/monitoring/watchlist', ...options });
+
+/**
+ * Add To Watchlist
+ */
+export const addToWatchlistApiMonitoringWatchlistPost = <ThrowOnError extends boolean = false>(options: Options<AddToWatchlistApiMonitoringWatchlistPostData, ThrowOnError>): RequestResult<AddToWatchlistApiMonitoringWatchlistPostResponses, AddToWatchlistApiMonitoringWatchlistPostErrors, ThrowOnError> => (options.client ?? client).post<AddToWatchlistApiMonitoringWatchlistPostResponses, AddToWatchlistApiMonitoringWatchlistPostErrors, ThrowOnError>({
+    url: '/api/monitoring/watchlist',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Watchlist Item
+ */
+export const deleteWatchlistItemApiMonitoringWatchlistCodeDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteData, ThrowOnError>): RequestResult<DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses, DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteResponses, DeleteWatchlistItemApiMonitoringWatchlistCodeDeleteErrors, ThrowOnError>({ url: '/api/monitoring/watchlist/{code}', ...options });
+
+/**
+ * Update Watchlist Item
+ */
+export const updateWatchlistItemApiMonitoringWatchlistCodePatch = <ThrowOnError extends boolean = false>(options: Options<UpdateWatchlistItemApiMonitoringWatchlistCodePatchData, ThrowOnError>): RequestResult<UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses, UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateWatchlistItemApiMonitoringWatchlistCodePatchResponses, UpdateWatchlistItemApiMonitoringWatchlistCodePatchErrors, ThrowOnError>({
+    url: '/api/monitoring/watchlist/{code}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Underlying Snapshot
+ */
+export const underlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGet = <ThrowOnError extends boolean = false>(options: Options<UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetData, ThrowOnError>): RequestResult<UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses, UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors, ThrowOnError> => (options.client ?? client).get<UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetResponses, UnderlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGetErrors, ThrowOnError>({ url: '/api/monitoring/underlyings/{code}/snapshot', ...options });
+
+/**
+ * Underlying Bars
+ */
+export const underlyingBarsApiMonitoringUnderlyingsCodeBarsGet = <ThrowOnError extends boolean = false>(options: Options<UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetData, ThrowOnError>): RequestResult<UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses, UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors, ThrowOnError> => (options.client ?? client).get<UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetResponses, UnderlyingBarsApiMonitoringUnderlyingsCodeBarsGetErrors, ThrowOnError>({ url: '/api/monitoring/underlyings/{code}/bars', ...options });
+
+/**
+ * Option Expirations
+ */
+export const optionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGet = <ThrowOnError extends boolean = false>(options: Options<OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetData, ThrowOnError>): RequestResult<OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses, OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors, ThrowOnError> => (options.client ?? client).get<OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetResponses, OptionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGetErrors, ThrowOnError>({ url: '/api/monitoring/underlyings/{code}/option-expirations', ...options });
+
+/**
+ * Option Chain
+ */
+export const optionChainApiMonitoringUnderlyingsCodeOptionChainGet = <ThrowOnError extends boolean = false>(options: Options<OptionChainApiMonitoringUnderlyingsCodeOptionChainGetData, ThrowOnError>): RequestResult<OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses, OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors, ThrowOnError> => (options.client ?? client).get<OptionChainApiMonitoringUnderlyingsCodeOptionChainGetResponses, OptionChainApiMonitoringUnderlyingsCodeOptionChainGetErrors, ThrowOnError>({ url: '/api/monitoring/underlyings/{code}/option-chain', ...options });
+
+/**
+ * Option Contract
+ */
+export const optionContractApiMonitoringContractsCodeGet = <ThrowOnError extends boolean = false>(options: Options<OptionContractApiMonitoringContractsCodeGetData, ThrowOnError>): RequestResult<OptionContractApiMonitoringContractsCodeGetResponses, OptionContractApiMonitoringContractsCodeGetErrors, ThrowOnError> => (options.client ?? client).get<OptionContractApiMonitoringContractsCodeGetResponses, OptionContractApiMonitoringContractsCodeGetErrors, ThrowOnError>({ url: '/api/monitoring/contracts/{code}', ...options });
+
+/**
+ * Monitor Rules
+ */
+export const monitorRulesApiMonitoringRulesGet = <ThrowOnError extends boolean = false>(options?: Options<MonitorRulesApiMonitoringRulesGetData, ThrowOnError>): RequestResult<MonitorRulesApiMonitoringRulesGetResponses, MonitorRulesApiMonitoringRulesGetErrors, ThrowOnError> => (options?.client ?? client).get<MonitorRulesApiMonitoringRulesGetResponses, MonitorRulesApiMonitoringRulesGetErrors, ThrowOnError>({ url: '/api/monitoring/rules', ...options });
+
+/**
+ * Create Monitor Rule
+ */
+export const createMonitorRuleApiMonitoringRulesPost = <ThrowOnError extends boolean = false>(options: Options<CreateMonitorRuleApiMonitoringRulesPostData, ThrowOnError>): RequestResult<CreateMonitorRuleApiMonitoringRulesPostResponses, CreateMonitorRuleApiMonitoringRulesPostErrors, ThrowOnError> => (options.client ?? client).post<CreateMonitorRuleApiMonitoringRulesPostResponses, CreateMonitorRuleApiMonitoringRulesPostErrors, ThrowOnError>({
+    url: '/api/monitoring/rules',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Monitor Rule
+ */
+export const deleteMonitorRuleApiMonitoringRulesRuleIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteData, ThrowOnError>): RequestResult<DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses, DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteResponses, DeleteMonitorRuleApiMonitoringRulesRuleIdDeleteErrors, ThrowOnError>({ url: '/api/monitoring/rules/{rule_id}', ...options });
+
+/**
+ * Update Monitor Rule
+ */
+export const updateMonitorRuleApiMonitoringRulesRuleIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateMonitorRuleApiMonitoringRulesRuleIdPatchData, ThrowOnError>): RequestResult<UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses, UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMonitorRuleApiMonitoringRulesRuleIdPatchResponses, UpdateMonitorRuleApiMonitoringRulesRuleIdPatchErrors, ThrowOnError>({
+    url: '/api/monitoring/rules/{rule_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Monitor Alerts
+ */
+export const monitorAlertsApiMonitoringAlertsGet = <ThrowOnError extends boolean = false>(options?: Options<MonitorAlertsApiMonitoringAlertsGetData, ThrowOnError>): RequestResult<MonitorAlertsApiMonitoringAlertsGetResponses, MonitorAlertsApiMonitoringAlertsGetErrors, ThrowOnError> => (options?.client ?? client).get<MonitorAlertsApiMonitoringAlertsGetResponses, MonitorAlertsApiMonitoringAlertsGetErrors, ThrowOnError>({ url: '/api/monitoring/alerts', ...options });
+
+/**
+ * Acknowledge Monitor Alert
+ */
+export const acknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPost = <ThrowOnError extends boolean = false>(options: Options<AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostData, ThrowOnError>): RequestResult<AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses, AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors, ThrowOnError> => (options.client ?? client).post<AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostResponses, AcknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPostErrors, ThrowOnError>({ url: '/api/monitoring/alerts/{alert_id}/ack', ...options });
 
 /**
  * List Cache
