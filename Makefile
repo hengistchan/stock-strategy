@@ -1,4 +1,4 @@
-.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance api-schema api-schema-check dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance monitor-acceptance api-schema api-schema-check dev-api dev-web serve
 
 PYTHON ?= .venv/bin/python
 
@@ -44,6 +44,9 @@ quality: backend-lint backend-typecheck backend-coverage backend-security
 
 acceptance: build
 	.venv/bin/python backend/scripts/acceptance.py
+
+monitor-acceptance:
+	PYTHONPATH=backend .venv/bin/python backend/scripts/monitoring_acceptance.py
 
 api-schema:
 	PYTHONPATH=backend $(PYTHON) backend/scripts/export_openapi.py frontend/openapi.json
