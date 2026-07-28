@@ -32,6 +32,17 @@ describe("workspace entity routes", () => {
           },
           "/api/strategies": { strategies: [] },
           "/api/jobs": { jobs: [] },
+          "/api/monitoring/status": {
+            phase: "ready",
+            rules_paused: false,
+            last_success_at: null,
+            last_error: null,
+            market_states: {},
+            generic_subscription_budget: null,
+            freshness: {},
+          },
+          "/api/monitoring/diagnostics": { ready: true, checks: [] },
+          "/api/monitoring/watchlist": { instruments: [] },
         };
         return new Response(JSON.stringify(payloads[path] ?? {}), {
           status: 200,

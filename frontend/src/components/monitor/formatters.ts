@@ -35,6 +35,16 @@ export function formatMonitorPrice(
   return formatNumber(number, locale, Math.abs(number) < 1 ? 4 : 2);
 }
 
+export function formatMonitorSignedPrice(
+  value: unknown,
+  locale: Locale = "zh-CN",
+): string {
+  const number = finiteNumber(value);
+  if (number === null) return MONITOR_MISSING_VALUE;
+  const prefix = number > 0 ? "+" : "";
+  return `${prefix}${formatNumber(number, locale, Math.abs(number) < 1 ? 4 : 2)}`;
+}
+
 export function formatMonitorInteger(
   value: unknown,
   locale: Locale = "zh-CN",
@@ -53,6 +63,18 @@ export function formatMonitorRatio(
   return number === null || number < 0
     ? MONITOR_MISSING_VALUE
     : `${formatNumber(number, locale, digits)}×`;
+}
+
+export function formatMonitorPercent(
+  value: unknown,
+  locale: Locale = "zh-CN",
+  digits = 2,
+  signed = false,
+): string {
+  const number = finiteNumber(value);
+  if (number === null) return MONITOR_MISSING_VALUE;
+  const prefix = signed && number > 0 ? "+" : "";
+  return `${prefix}${formatNumber(number, locale, digits)}%`;
 }
 
 /**

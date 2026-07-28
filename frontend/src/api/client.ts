@@ -10,23 +10,45 @@ import type {
   ExperimentsResponse,
   HealthResponse,
   JobsResponse,
+  MonitorAlert,
+  MonitorAlertsResponse,
+  MonitorBarsResponse,
+  MonitorInstrumentRequest,
+  MonitorInstrumentUpdate,
+  MonitorRule,
+  MonitorRuleRequest,
+  MonitorRulesResponse,
+  MonitorRuleUpdate,
+  MonitoredInstrument,
+  MonitoringDiagnosticsResponse,
+  MonitoringStatusResponse,
+  OptionChainResponse,
+  OptionContractResponse,
+  OptionExpirationsResponse,
   PriceWindow,
   PortfolioRequest,
   PortfolioResult,
+  SnapshotResponse,
   StrategiesResponse,
   StrategyDocument,
   StrategyVersionsResponse,
   SymbolResolveResponse,
   SymbolSearchResponse,
+  WatchlistResponse,
 } from "./types";
 import { translations } from "../i18n/translations";
 import {
+  acknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPost,
+  addToWatchlistApiMonitoringWatchlistPost,
   cancelJobApiJobsJobIdDelete,
   configApiConfigGet,
+  createMonitorRuleApiMonitoringRulesPost,
   createExperimentApiExperimentsPost,
   createJobApiJobsPost,
   createStrategyApiStrategiesPost,
   deleteCacheApiCacheCacheIdDelete,
+  deleteMonitorRuleApiMonitoringRulesRuleIdDelete,
+  deleteWatchlistItemApiMonitoringWatchlistCodeDelete,
   diagnosticsReportApiDiagnosticsGet,
   getExperimentApiExperimentsExperimentIdGet,
   healthApiHealthGet,
@@ -36,6 +58,13 @@ import {
   listExperimentsApiExperimentsGet,
   listStrategyDocumentsApiStrategiesGet,
   listStrategyVersionsApiStrategiesVersionsGet,
+  monitorAlertsApiMonitoringAlertsGet,
+  monitoringDiagnosticsApiMonitoringDiagnosticsGet,
+  monitoringStatusApiMonitoringStatusGet,
+  monitorRulesApiMonitoringRulesGet,
+  optionChainApiMonitoringUnderlyingsCodeOptionChainGet,
+  optionContractApiMonitoringContractsCodeGet,
+  optionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGet,
   pricesApiJobsJobIdPricesGet,
   readStrategyApiStrategiesStrategyPathGet,
   resolveSymbolsApiSymbolsResolveGet,
@@ -47,7 +76,12 @@ import {
   saveStrategyApiStrategiesStrategyPathPut,
   scanStrategyApiMigrationsScanPost,
   searchSymbolsApiSymbolsGet,
+  underlyingBarsApiMonitoringUnderlyingsCodeBarsGet,
+  underlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGet,
+  updateMonitorRuleApiMonitoringRulesRuleIdPatch,
+  updateWatchlistItemApiMonitoringWatchlistCodePatch,
   validateStrategyFixtureApiMigrationsFixturePost,
+  watchlistApiMonitoringWatchlistGet,
 } from "./generated";
 import { client as generatedClient } from "./generated/client.gen";
 import type {
@@ -341,6 +375,132 @@ export const api = {
       deleteCacheApiCacheCacheIdDelete({
         headers: requestHeaders(),
         path: { cache_id: cacheId },
+      }),
+    ),
+  monitoringStatus: () =>
+    unwrap<MonitoringStatusResponse>(
+      monitoringStatusApiMonitoringStatusGet({ headers: requestHeaders() }),
+    ),
+  monitoringDiagnostics: () =>
+    unwrap<MonitoringDiagnosticsResponse>(
+      monitoringDiagnosticsApiMonitoringDiagnosticsGet({
+        headers: requestHeaders(),
+      }),
+    ),
+  watchlist: () =>
+    unwrap<WatchlistResponse>(
+      watchlistApiMonitoringWatchlistGet({ headers: requestHeaders() }),
+    ),
+  addWatchlistItem: (payload: MonitorInstrumentRequest) =>
+    unwrap<MonitoredInstrument>(
+      addToWatchlistApiMonitoringWatchlistPost({
+        headers: requestHeaders(),
+        body: payload,
+      }),
+    ),
+  deleteWatchlistItem: (code: string) =>
+    unwrap<void>(
+      deleteWatchlistItemApiMonitoringWatchlistCodeDelete({
+        headers: requestHeaders(),
+        path: { code },
+      }),
+    ),
+  updateWatchlistItem: (code: string, payload: MonitorInstrumentUpdate) =>
+    unwrap<MonitoredInstrument>(
+      updateWatchlistItemApiMonitoringWatchlistCodePatch({
+        headers: requestHeaders(),
+        path: { code },
+        body: payload,
+      }),
+    ),
+  underlyingSnapshot: (code: string) =>
+    unwrap<SnapshotResponse>(
+      underlyingSnapshotApiMonitoringUnderlyingsCodeSnapshotGet({
+        headers: requestHeaders(),
+        path: { code },
+      }),
+    ),
+  underlyingBars: (code: string, count = 60, ktype = "K_1M") =>
+    unwrap<MonitorBarsResponse>(
+      underlyingBarsApiMonitoringUnderlyingsCodeBarsGet({
+        headers: requestHeaders(),
+        path: { code },
+        query: { count, ktype },
+      }),
+    ),
+  optionExpirations: (code: string) =>
+    unwrap<OptionExpirationsResponse>(
+      optionExpirationsApiMonitoringUnderlyingsCodeOptionExpirationsGet({
+        headers: requestHeaders(),
+        path: { code },
+      }),
+    ),
+  optionChain: (code: string, expiration: string) =>
+    unwrap<OptionChainResponse>(
+      optionChainApiMonitoringUnderlyingsCodeOptionChainGet({
+        headers: requestHeaders(),
+        path: { code },
+        query: { expiration },
+      }),
+    ),
+  optionContract: (code: string) =>
+    unwrap<OptionContractResponse>(
+      optionContractApiMonitoringContractsCodeGet({
+        headers: requestHeaders(),
+        path: { code },
+      }),
+    ),
+  monitorRules: (code?: string, enabled?: boolean) =>
+    unwrap<MonitorRulesResponse>(
+      monitorRulesApiMonitoringRulesGet({
+        headers: requestHeaders(),
+        query: { code, enabled },
+      }),
+    ),
+  createMonitorRule: (payload: MonitorRuleRequest) =>
+    unwrap<MonitorRule>(
+      createMonitorRuleApiMonitoringRulesPost({
+        headers: requestHeaders(),
+        body: payload,
+      }),
+    ),
+  deleteMonitorRule: (ruleId: string) =>
+    unwrap<void>(
+      deleteMonitorRuleApiMonitoringRulesRuleIdDelete({
+        headers: requestHeaders(),
+        path: { rule_id: ruleId },
+      }),
+    ),
+  updateMonitorRule: (ruleId: string, payload: MonitorRuleUpdate) =>
+    unwrap<MonitorRule>(
+      updateMonitorRuleApiMonitoringRulesRuleIdPatch({
+        headers: requestHeaders(),
+        path: { rule_id: ruleId },
+        body: payload,
+      }),
+    ),
+  monitorAlerts: (
+    code?: string,
+    unacknowledgedOnly = false,
+    cursor?: string,
+    limit = 100,
+  ) =>
+    unwrap<MonitorAlertsResponse>(
+      monitorAlertsApiMonitoringAlertsGet({
+        headers: requestHeaders(),
+        query: {
+          code,
+          unacknowledged_only: unacknowledgedOnly,
+          cursor,
+          limit,
+        },
+      }),
+    ),
+  acknowledgeMonitorAlert: (alertId: string) =>
+    unwrap<MonitorAlert>(
+      acknowledgeMonitorAlertApiMonitoringAlertsAlertIdAckPost({
+        headers: requestHeaders(),
+        path: { alert_id: alertId },
       }),
     ),
 };

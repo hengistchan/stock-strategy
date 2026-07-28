@@ -15,7 +15,6 @@ import { useApiEvents } from "./hooks/useApiEvents";
 import { workspacePaths } from "./lib/workspaceRoutes";
 import { BacktestWorkspace } from "./components/BacktestWorkspace";
 import { Header } from "./components/Header";
-import { MonitorPlaceholder } from "./components/MonitorPlaceholder";
 
 const StrategyWorkspace = lazy(() =>
   import("./components/StrategyWorkspace").then((module) => ({
@@ -32,6 +31,12 @@ const IterationWorkspace = lazy(() =>
 const PortfolioWorkspace = lazy(() =>
   import("./components/PortfolioWorkspace").then((module) => ({
     default: module.PortfolioWorkspace,
+  })),
+);
+
+const MonitorWorkspace = lazy(() =>
+  import("./components/monitor/MonitorWorkspace").then((module) => ({
+    default: module.MonitorWorkspace,
   })),
 );
 
@@ -62,6 +67,9 @@ export function App() {
   const routeStrategy = strategyMatch?.params["*"] ?? "";
   const resolvedStrategy = routeStrategy || selectedStrategy || strategies[0]?.path || "";
   const opendConnected = healthQuery.data?.opend.connected === true;
+  const monitorOpenDConnected = healthQuery.data
+    ? healthQuery.data.opend.connected === true
+    : null;
   const activeJobId = backtestNewMatch
     ? null
     : backtestDetailMatch?.params.jobId ?? null;
@@ -123,6 +131,18 @@ export function App() {
       />
     </Suspense>
   );
+  const monitorWorkspace = (
+    <Suspense
+      fallback={
+        <div className="workspace-loading">{t("monitor.workspaceLoading")}</div>
+      }
+    >
+      <MonitorWorkspace
+        opendConnected={monitorOpenDConnected}
+        onNotice={setToast}
+      />
+    </Suspense>
+  );
 
   return (
     <div className="page-shell">
@@ -152,8 +172,15 @@ export function App() {
         />
         <Route
           path={workspacePaths.monitors}
-          element={<MonitorPlaceholder />}
+          element={monitorWorkspace}
         />
+        <Route path="/monitors/:symbol" element={monitorWorkspace} />
+        <Route path="/monitors/:symbol/options" element={monitorWorkspace} />
+        <Route
+          path="/monitors/:symbol/options/:contractCode"
+          element={monitorWorkspace}
+        />
+        <Route path="/monitors/:symbol/alerts" element={monitorWorkspace} />
         <Route
           path="/strategies/*"
           element={(

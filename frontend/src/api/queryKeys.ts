@@ -15,4 +15,22 @@ export const queryKeys = {
     ["experiment", experimentId] as const,
   cache: ["cache"] as const,
   symbolNames: (symbols: string[]) => ["symbol-names", symbols] as const,
+  monitoring: ["monitoring"] as const,
+  monitoringStatus: ["monitoring", "status"] as const,
+  monitoringDiagnostics: ["monitoring", "diagnostics"] as const,
+  watchlist: ["monitoring", "watchlist"] as const,
+  monitorSnapshot: (code: string | null) =>
+    ["monitoring", "snapshot", code] as const,
+  monitorBars: (code: string | null, count: number, ktype: string) =>
+    ["monitoring", "bars", code, count, ktype] as const,
+  optionExpirations: (code: string | null) =>
+    ["monitoring", "option-expirations", code] as const,
+  optionChain: (code: string | null, expiration: string | null) =>
+    ["monitoring", "option-chain", code, expiration] as const,
+  optionContract: (code: string | null) =>
+    ["monitoring", "option-contract", code] as const,
+  monitorRules: (code?: string) =>
+    ["monitoring", "rules", code ?? "all"] as const,
+  monitorAlerts: (code?: string, unacknowledgedOnly = false) =>
+    ["monitoring", "alerts", code ?? "all", unacknowledgedOnly] as const,
 };

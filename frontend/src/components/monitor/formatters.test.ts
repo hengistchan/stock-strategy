@@ -3,8 +3,10 @@ import {
   MONITOR_MISSING_VALUE,
   formatGreek,
   formatMonitorInteger,
+  formatMonitorPercent,
   formatMonitorPrice,
   formatMonitorRatio,
+  formatMonitorSignedPrice,
   formatOptionIv,
   formatQuoteTimestamp,
 } from "./formatters";
@@ -20,8 +22,12 @@ describe("monitor formatters", () => {
     expect(formatGreek(-0.0123, "en-US")).toBe("-0.0123");
     expect(formatMonitorPrice(0.125, "en-US")).toBe("0.1250");
     expect(formatMonitorPrice(125.5, "en-US")).toBe("125.50");
+    expect(formatMonitorSignedPrice(-1.25, "en-US")).toBe("-1.25");
+    expect(formatMonitorSignedPrice(1.25, "en-US")).toBe("+1.25");
     expect(formatMonitorInteger(12345, "en-US")).toBe("12,345");
     expect(formatMonitorRatio(1.5, "en-US")).toBe("1.50×");
+    expect(formatMonitorPercent(1.25, "en-US", 2, true)).toBe("+1.25%");
+    expect(formatMonitorPercent(-0.5, "en-US", 2, true)).toBe("-0.50%");
   });
 
   it("uses an em dash for absent, invalid, and non-finite values", () => {

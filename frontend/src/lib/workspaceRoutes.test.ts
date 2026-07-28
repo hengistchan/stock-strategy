@@ -13,6 +13,16 @@ describe("workspace routes", () => {
     );
     expect(workspacePaths.strategies).toBe("/strategies");
     expect(workspacePaths.monitors).toBe("/monitors");
+    expect(workspacePaths.monitorSymbol("US.AAPL")).toBe("/monitors/US.AAPL");
+    expect(workspacePaths.monitorOptions("US.AAPL")).toBe(
+      "/monitors/US.AAPL/options",
+    );
+    expect(workspacePaths.monitorContract("US.AAPL", "US.AAPL 260731 C100")).toBe(
+      "/monitors/US.AAPL/options/US.AAPL%20260731%20C100",
+    );
+    expect(workspacePaths.monitorAlerts("US.AAPL")).toBe(
+      "/monitors/US.AAPL/alerts",
+    );
     expect(workspacePaths.strategyDetail("strategies/my strategy.py")).toBe(
       "/strategies/strategies/my%20strategy.py",
     );
