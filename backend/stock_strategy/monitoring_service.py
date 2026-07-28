@@ -1083,14 +1083,10 @@ def _option_chain_summary(
 ) -> dict[str, float | int | None]:
     calls = [item for item in contracts if str(item.get("option_type")) == "CALL"]
     puts = [item for item in contracts if str(item.get("option_type")) == "PUT"]
-    call_volume = sum(_number(item.get("volume")) or 0 for item in calls)
-    put_volume = sum(_number(item.get("volume")) or 0 for item in puts)
-    call_open_interest = sum(
-        _number(item.get("option_open_interest")) or 0 for item in calls
-    )
-    put_open_interest = sum(
-        _number(item.get("option_open_interest")) or 0 for item in puts
-    )
+    call_volume = _complete_sum(calls, "volume")
+    put_volume = _complete_sum(puts, "volume")
+    call_open_interest = _complete_sum(calls, "option_open_interest")
+    put_open_interest = _complete_sum(puts, "option_open_interest")
     strikes = sorted(
         {
             value
@@ -1117,6 +1113,16 @@ def _option_chain_summary(
             put_open_interest,
         ),
     }
+
+
+def _complete_sum(
+    contracts: list[dict[str, Any]],
+    field: str,
+) -> float | None:
+    values = [_number(contract.get(field)) for contract in contracts]
+    if not values or any(value is None for value in values):
+        return None
+    return sum(value for value in values if value is not None)
 
 
 def _diagnostic_check(

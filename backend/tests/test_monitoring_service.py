@@ -310,6 +310,21 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.market_data.subscribe_calls, [])
 
+    async def test_option_chain_does_not_treat_missing_aggregates_as_zero(self):
+        self.market_data.snapshot_values["US.AAPL260731P100000"].pop("volume")
+        self.market_data.snapshot_values["US.AAPL260731C100000"].pop(
+            "option_open_interest"
+        )
+
+        chain = await self.service.option_chain("US.AAPL", "2026-07-31")
+
+        self.assertEqual(chain["summary"]["call_volume"], 120)
+        self.assertIsNone(chain["summary"]["put_volume"])
+        self.assertIsNone(chain["summary"]["call_open_interest"])
+        self.assertEqual(chain["summary"]["put_open_interest"], 20)
+        self.assertIsNone(chain["summary"]["call_put_volume_ratio"])
+        self.assertIsNone(chain["summary"]["call_put_open_interest_ratio"])
+
     async def test_subscription_budget_prioritizes_exact_rule_target(self):
         self.market_data.generic_remaining = 1
         self.service.add_instrument(_instrument_request())
