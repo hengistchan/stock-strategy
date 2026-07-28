@@ -10,10 +10,34 @@ from .opend import OpenDRequestError, OpenDUnavailableError
 
 MAX_SNAPSHOT_BATCH = 400
 HK_SNAPSHOT_BATCH = 20
+MAX_RECENT_BAR_COUNT = 1000
+
+_MARKET_STATE_FIELDS = {
+    "sz": "market_sz",
+    "us": "market_us",
+    "sh": "market_sh",
+    "hk": "market_hk",
+    "hk_future": "market_hkfuture",
+    "us_future": "market_usfuture",
+    "sg_future": "market_sgfuture",
+    "jp_future": "market_jpfuture",
+}
 
 
 class QuoteContextProtocol(Protocol):
+    def get_global_state(self) -> tuple[int, Any]: ...
+
     def get_market_snapshot(self, code_list: list[str]) -> tuple[int, Any]: ...
+
+    def request_history_kline(
+        self,
+        code: str,
+        *,
+        ktype: str,
+        autype: str,
+        max_count: int,
+        page_req_key: Any,
+    ) -> tuple[int, Any, Any]: ...
 
     def get_option_expiration_date(
         self,
@@ -61,7 +85,16 @@ class QuoteContextProtocol(Protocol):
 
 
 class MonitoringMarketDataSource(Protocol):
+    def global_state(self) -> dict[str, Any]: ...
+
     def snapshots(self, codes: Iterable[str]) -> list[dict[str, Any]]: ...
+
+    def recent_bars(
+        self,
+        code: str,
+        count: int,
+        ktype: str,
+    ) -> list[dict[str, Any]]: ...
 
     def option_expirations(self, underlying: str) -> list[dict[str, Any]]: ...
 
@@ -102,6 +135,25 @@ class OpenDMonitoringDataSource:
         self._context: QuoteContextProtocol | None = None
         self._lock = RLock()
 
+    def global_state(self) -> dict[str, Any]:
+        payload = self._call("get_global_state")
+        if not isinstance(payload, Mapping):
+            raise OpenDRequestError("OpenD returned an unexpected global state payload")
+        market_states = {
+            market: state
+            for market, field in _MARKET_STATE_FIELDS.items()
+            if (state := _optional_text(payload.get(field))) is not None
+        }
+        return {
+            "source": "opend",
+            "market_states": market_states,
+            "server_version": _optional_text(payload.get("server_ver")),
+            "quote_logged_in": _optional_boolean(payload.get("qot_logined")),
+            "trade_logged_in": _optional_boolean(payload.get("trd_logined")),
+            "server_timestamp": _integer(payload.get("timestamp")),
+            "local_timestamp": _number(payload.get("local_timestamp")),
+        }
+
     def snapshots(self, codes: Iterable[str]) -> list[dict[str, Any]]:
         requested = _normalize_codes(codes)
         if not requested:
@@ -125,6 +177,49 @@ class OpenDMonitoringDataSource:
             if record.get("code")
         }
         return [normalized[code] for code in requested if code in normalized]
+
+    def recent_bars(
+        self,
+        code: str,
+        count: int,
+        ktype: str,
+    ) -> list[dict[str, Any]]:
+        normalized_code = _normalize_code(code)
+        normalized_ktype = ktype.strip().upper()
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 1 <= count <= MAX_RECENT_BAR_COUNT
+        ):
+            raise ValueError(
+                f"recent bar count must be between 1 and {MAX_RECENT_BAR_COUNT}"
+            )
+        if not normalized_ktype or len(normalized_ktype) > 32:
+            raise ValueError(f"invalid OpenD kline type: {ktype!r}")
+
+        frame = self._call_history(
+            normalized_code,
+            ktype=normalized_ktype,
+            autype="qfq",
+            max_count=count,
+            page_req_key=None,
+        )
+        records = _records(frame, "recent history")
+        fetched_at = self._now().isoformat(timespec="seconds")
+        bars = [
+            _normalize_recent_bar(
+                record,
+                fallback_code=normalized_code,
+                ktype=normalized_ktype,
+                fetched_at=fetched_at,
+            )
+            for record in records[-count:]
+        ]
+        for bar in bars:
+            bar["is_closed"] = True
+        if bars:
+            bars[-1]["is_closed"] = False
+        return bars
 
     def option_expirations(self, underlying: str) -> list[dict[str, Any]]:
         code = _normalize_code(underlying)
@@ -187,7 +282,7 @@ class OpenDMonitoringDataSource:
         }
 
     def subscription_status(self) -> dict[str, Any]:
-        payload = self._call("query_subscription")
+        payload = self._call("query_subscription", is_all_conn=True)
         if not isinstance(payload, Mapping):
             raise OpenDRequestError(
                 "OpenD returned an unexpected subscription status payload"
@@ -203,9 +298,10 @@ class OpenDMonitoringDataSource:
             else {}
         )
         return {
-            "total_used": _integer(payload.get("total_used")) or 0,
-            "own_used": _integer(payload.get("own_used")) or 0,
-            "remaining": _integer(payload.get("remain")) or 0,
+            "scope": "all_connections_all_security_types",
+            "generic_total_used": _integer(payload.get("total_used")) or 0,
+            "generic_own_used": _integer(payload.get("own_used")) or 0,
+            "generic_remaining": _integer(payload.get("remain")) or 0,
             "subscriptions": normalized_subscriptions,
         }
 
@@ -242,6 +338,20 @@ class OpenDMonitoringDataSource:
                 raise OpenDRequestError(f"OpenD {method_name} failed: {payload}")
             return payload
 
+    def _call_history(self, code: str, **kwargs: Any) -> Any:
+        with self._lock:
+            response = self._get_context().request_history_kline(code, **kwargs)
+            if not isinstance(response, tuple) or len(response) != 3:
+                raise OpenDRequestError(
+                    "OpenD request_history_kline returned an unexpected response"
+                )
+            result, payload, _next_page_key = response
+            if result != self._success_code:
+                raise OpenDRequestError(
+                    f"OpenD request_history_kline failed: {payload}"
+                )
+            return payload
+
     def _get_context(self) -> QuoteContextProtocol:
         if self._context is not None:
             return self._context
@@ -275,7 +385,7 @@ def _normalize_snapshot(
         if last_price is not None and previous_close is not None and previous_close > 0
         else None
     )
-    option_valid = bool(record.get("option_valid"))
+    option_valid = _optional_boolean(record.get("option_valid")) is True
     return {
         "code": _text(record.get("code")).upper(),
         "name": _text(record.get("name")),
@@ -299,7 +409,7 @@ def _normalize_snapshot(
         "bid_volume": _number(record.get("bid_vol")),
         "ask_volume": _number(record.get("ask_vol")),
         "lot_size": _integer(record.get("lot_size")),
-        "suspended": bool(record.get("suspension")),
+        "suspended": _optional_boolean(record.get("suspension")) is True,
         "security_status": _text(record.get("sec_status")),
         "option_type": _optional_text(record.get("option_type")),
         "underlying_code": _optional_text(record.get("stock_owner")),
@@ -307,6 +417,46 @@ def _normalize_snapshot(
         "expiration": _optional_text(record.get("strike_time")),
         "days_to_expiry": _integer(record.get("option_expiry_date_distance")),
         "option_contract_size": _number(record.get("option_contract_size")),
+        "option_contract_nominal_value": _number(
+            record.get("option_contract_nominal_value")
+        ),
+        "option_contract_multiplier": _first_number(
+            record,
+            "option_contract_multiplier",
+            "contract_multiplier",
+        ),
+        "option_owner_lot_multiplier": _number(
+            record.get("option_owner_lot_multiplier")
+        ),
+        "option_area_type": _optional_text(record.get("option_area_type")),
+        "option_in_the_money": _first_optional_boolean(
+            record,
+            "option_in_the_money",
+            "in_the_money",
+            "is_in_the_money",
+        ),
+        "option_intrinsic_value": _first_number(
+            record,
+            "option_intrinsic_value",
+            "intrinsic_value",
+            "intrinsic_value_per",
+        ),
+        "option_time_value": _first_number(
+            record,
+            "option_time_value",
+            "time_value",
+            "time_value_per",
+        ),
+        "option_intrinsic_value_per": _first_number(
+            record,
+            "option_intrinsic_value_per",
+            "intrinsic_value_per",
+        ),
+        "option_time_value_per": _first_number(
+            record,
+            "option_time_value_per",
+            "time_value_per",
+        ),
         "option_open_interest": _number(record.get("option_open_interest")),
         "option_net_open_interest": _number(record.get("option_net_open_interest")),
         "option_implied_volatility": _number(record.get("option_implied_volatility")),
@@ -316,6 +466,33 @@ def _normalize_snapshot(
         "option_vega": _number(record.get("option_vega")),
         "option_theta": _number(record.get("option_theta")),
         "option_rho": _number(record.get("option_rho")),
+        "index_option_type": _optional_text(record.get("index_option_type")),
+    }
+
+
+def _normalize_recent_bar(
+    record: Mapping[str, Any],
+    *,
+    fallback_code: str,
+    ktype: str,
+    fetched_at: str,
+) -> dict[str, Any]:
+    return {
+        "code": (_optional_text(record.get("code")) or fallback_code).upper(),
+        "source": "opend",
+        "source_time": _optional_text(record.get("time_key")),
+        "fetched_at": fetched_at,
+        "ktype": ktype,
+        "open": _number(record.get("open")),
+        "high": _number(record.get("high")),
+        "low": _number(record.get("low")),
+        "close": _number(record.get("close")),
+        "volume": _number(record.get("volume")),
+        "turnover": _number(record.get("turnover")),
+        "turnover_rate": _number(record.get("turnover_rate")),
+        "change_rate": _number(record.get("change_rate")),
+        "last_close": _number(record.get("last_close")),
+        "is_closed": False,
     }
 
 
@@ -378,6 +555,37 @@ def _text(value: Any) -> str:
 def _optional_text(value: Any) -> str | None:
     text = _text(value)
     return None if not text or text == "N/A" else text
+
+
+def _optional_boolean(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    number = _number(value)
+    if number is not None:
+        return number != 0
+    text = _text(value).lower()
+    if text in {"true", "yes", "y", "on"}:
+        return True
+    if text in {"false", "no", "n", "off"}:
+        return False
+    return None
+
+
+def _first_number(record: Mapping[str, Any], *fields: str) -> float | None:
+    for field in fields:
+        if (number := _number(record.get(field))) is not None:
+            return number
+    return None
+
+
+def _first_optional_boolean(
+    record: Mapping[str, Any],
+    *fields: str,
+) -> bool | None:
+    for field in fields:
+        if (value := _optional_boolean(record.get(field))) is not None:
+            return value
+    return None
 
 
 def _normalize_code(value: str) -> str:
