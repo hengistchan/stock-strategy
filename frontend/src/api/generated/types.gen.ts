@@ -827,7 +827,7 @@ export type MonitorBar = {
     /**
      * Source Time
      */
-    source_time: string;
+    source_time: string | null;
     /**
      * Ktype
      */
@@ -1234,7 +1234,7 @@ export type OptionContract = {
     /**
      * Option Type
      */
-    option_type: 'CALL' | 'PUT';
+    option_type: 'CALL' | 'PUT' | null;
     /**
      * Expiration
      */
@@ -1242,7 +1242,7 @@ export type OptionContract = {
     /**
      * Strike Price
      */
-    strike_price: number;
+    strike_price: number | null;
     [key: string]: unknown;
 };
 

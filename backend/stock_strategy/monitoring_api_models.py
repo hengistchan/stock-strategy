@@ -29,10 +29,30 @@ class MonitorInstrumentRequest(BaseModel):
     def normalize_code(cls, value: Any) -> Any:
         return value.strip().upper() if isinstance(value, str) else value
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ValueError("instrument name cannot be blank")
+            return normalized
+        return value
+
 
 class MonitorInstrumentUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     enabled: bool | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ValueError("instrument name cannot be blank")
+            return normalized
+        return value
 
 
 class MarketSnapshot(MonitoringApiModel):
@@ -93,9 +113,9 @@ class OptionContract(MonitoringApiModel):
     code: str
     name: str
     underlying_code: str
-    option_type: Literal["CALL", "PUT"]
+    option_type: Literal["CALL", "PUT"] | None
     expiration: str
-    strike_price: float
+    strike_price: float | None
 
 
 class OptionChainResponse(BaseModel):
@@ -116,7 +136,7 @@ class OptionContractResponse(BaseModel):
 
 class MonitorBar(MonitoringApiModel):
     code: str
-    source_time: str
+    source_time: str | None
     ktype: str
     open: float | None = None
     high: float | None = None
@@ -150,6 +170,16 @@ class MonitorRuleRequest(BaseModel):
     def normalize_rule_code(cls, value: Any) -> Any:
         return value.strip().upper() if isinstance(value, str) else value
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_rule_name(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ValueError("rule name cannot be blank")
+            return normalized
+        return value
+
 
 class MonitorRuleUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -161,6 +191,16 @@ class MonitorRuleUpdate(BaseModel):
     daily_trigger_limit: int | None = Field(default=None, ge=1, le=1_000)
     session: Literal["regular", "extended", "all"] | None = None
     enabled: bool | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_rule_name(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ValueError("rule name cannot be blank")
+            return normalized
+        return value
 
 
 class MonitorRule(MonitoringApiModel):

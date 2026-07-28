@@ -5,6 +5,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 from stock_strategy.event_stream import EventBroker
 from stock_strategy.monitoring_repository import MonitoringRepository
 from stock_strategy.monitoring_service import MonitoringService
+from stock_strategy.opend import OpenDRequestError
 from stock_strategy.web import create_app
 
 
@@ -301,6 +303,32 @@ class MonitoringWebTest(unittest.TestCase):
                 for path in monitoring_paths
                 for forbidden in ("order", "trade", "unlock")
             )
+        )
+
+    def test_market_permission_and_quota_failures_remain_distinct(self):
+        with TestClient(self.app) as client:
+            with patch.object(
+                self.market_data,
+                "snapshots",
+                side_effect=OpenDRequestError("option authority permission denied"),
+            ):
+                permission = client.get("/api/monitoring/underlyings/US.AAPL/snapshot")
+            with patch.object(
+                self.market_data,
+                "snapshots",
+                side_effect=OpenDRequestError("subscription quota exhausted"),
+            ):
+                quota = client.get("/api/monitoring/underlyings/US.AAPL/snapshot")
+
+        self.assertEqual(permission.status_code, 503)
+        self.assertEqual(
+            permission.json()["error"]["code"],
+            "market_data_permission_denied",
+        )
+        self.assertEqual(quota.status_code, 503)
+        self.assertEqual(
+            quota.json()["error"]["code"],
+            "market_data_quota_exhausted",
         )
 
 

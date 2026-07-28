@@ -3900,7 +3900,14 @@
             "title": "Code"
           },
           "source_time": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Source Time"
           },
           "ktype": {
@@ -4667,10 +4674,17 @@
             "title": "Underlying Code"
           },
           "option_type": {
-            "type": "string",
-            "enum": [
-              "CALL",
-              "PUT"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CALL",
+                  "PUT"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Option Type"
           },
@@ -4679,7 +4693,14 @@
             "title": "Expiration"
           },
           "strike_price": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Strike Price"
           }
         },
