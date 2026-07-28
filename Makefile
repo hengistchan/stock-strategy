@@ -1,6 +1,7 @@
-.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance monitor-acceptance api-schema api-schema-check dev-api dev-web serve
+.PHONY: install frontend-install doctor build package test quality backend-lint backend-typecheck backend-coverage backend-security acceptance monitor-acceptance opend-smoke api-schema api-schema-check dev-api dev-web serve
 
 PYTHON ?= .venv/bin/python
+OPEND_SMOKE_MARKET ?= all
 
 install:
 	python3.12 -m venv .venv
@@ -47,6 +48,9 @@ acceptance: build
 
 monitor-acceptance:
 	PYTHONPATH=backend .venv/bin/python backend/scripts/monitoring_acceptance.py
+
+opend-smoke:
+	PYTHONPATH=backend $(PYTHON) backend/scripts/monitoring_opend_smoke.py --market $(OPEND_SMOKE_MARKET) --blocked-exit-code 2
 
 api-schema:
 	PYTHONPATH=backend $(PYTHON) backend/scripts/export_openapi.py frontend/openapi.json
