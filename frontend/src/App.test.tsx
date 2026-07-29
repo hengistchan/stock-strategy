@@ -106,4 +106,25 @@ describe("workspace entity routes", () => {
       screen.getByRole("link", { name: /实时监控|Live monitor/ }),
     ).toHaveAttribute("aria-current", "page");
   });
+
+  it("prefills a new backtest from a monitoring deep link", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          initialEntries={["/backtests/new?symbol=HK.00700"]}
+        >
+          <I18nProvider>
+            <App />
+          </I18nProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("combobox", { name: /^(标的|Symbol)$/ }),
+    ).toHaveValue("HK.00700");
+  });
 });

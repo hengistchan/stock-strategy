@@ -67,6 +67,27 @@ describe("BacktestForm", () => {
     expect(screen.getByRole("button", { name: /运行 OpenD 回测/ })).toBeDisabled();
   });
 
+  it("submits a symbol prefilled from another workspace", () => {
+    const onSubmit = vi.fn();
+    render(
+      <BacktestForm
+        config={config}
+        selectedStrategy="examples/ma_cross.py"
+        onStrategyChange={() => undefined}
+        onSubmit={onSubmit}
+        running={false}
+        opendConnected
+        initialSymbol="HK.00700"
+      />,
+    );
+
+    expect(screen.getByLabelText(/^标的$/)).toHaveValue("HK.00700");
+    fireEvent.click(screen.getByRole("button", { name: /运行 OpenD 回测/ }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: "HK.00700" }),
+    );
+  });
+
   it("explains strategy compatibility blockers before execution", () => {
     render(
       <BacktestForm

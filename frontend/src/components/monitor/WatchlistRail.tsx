@@ -12,6 +12,7 @@ import { api } from "../../api/client";
 import type { MonitoredInstrument, SymbolMatch } from "../../api/types";
 import { useI18n } from "../../i18n/I18nContext";
 import { workspacePaths } from "../../lib/workspaceRoutes";
+import { normalizeFutuSymbol } from "../../lib/symbols";
 import {
   formatMonitorPrice,
   formatQuoteTimestamp,
@@ -27,8 +28,6 @@ interface WatchlistRailProps {
   onToggle: (instrument: MonitoredInstrument) => void;
   onDelete: (instrument: MonitoredInstrument) => void;
 }
-
-const FUTU_CODE = /^[A-Za-z]{2,3}\.[A-Za-z0-9.-]+$/;
 
 export function WatchlistRail({
   activeSymbol,
@@ -120,9 +119,7 @@ export function WatchlistRail({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const directCode = FUTU_CODE.test(value.trim())
-      ? value.trim().toUpperCase()
-      : "";
+    const directCode = normalizeFutuSymbol(value) ?? "";
     const candidate = selected ?? (
       directCode
         ? { code: directCode, name: directCode, market: directCode.split(".", 1)[0] }

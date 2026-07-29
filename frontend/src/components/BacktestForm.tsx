@@ -14,6 +14,7 @@ interface BacktestFormProps {
   opendConnected: boolean;
   parameterDefinitions?: StrategyParameterDefinition[];
   compatibility?: StrategyCompatibility;
+  initialSymbol?: string;
 }
 
 export function BacktestForm({
@@ -25,6 +26,7 @@ export function BacktestForm({
   opendConnected,
   parameterDefinitions = [],
   compatibility,
+  initialSymbol = "US.AAPL",
 }: BacktestFormProps) {
   const { t } = useI18n();
   const sessionLabels: Record<string, string> = {
@@ -111,7 +113,12 @@ export function BacktestForm({
         </aside>
       ) : null}
 
-      <SymbolSearchField className="field-wide" searchEnabled={opendConnected} />
+      <SymbolSearchField
+        key={initialSymbol}
+        className="field-wide"
+        defaultCode={initialSymbol}
+        searchEnabled={opendConnected}
+      />
 
       <div className="field-pair">
         <label className="field">

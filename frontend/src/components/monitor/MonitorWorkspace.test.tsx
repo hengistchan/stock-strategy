@@ -280,6 +280,9 @@ describe("MonitorWorkspace", () => {
     expect(screen.getByText(/通用全证券行情订阅余量|Generic all-security quote subs left/)).toBeInTheDocument();
     expect(screen.getByText("199")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /标的概览|Overview/ })).toHaveClass("active");
+    expect(
+      screen.getByRole("link", { name: /用此标的新建回测|Backtest this symbol/ }),
+    ).toHaveAttribute("href", "/backtests/new?symbol=US.AAPL");
     expect(screen.getByRole("img")).toBeInTheDocument();
     expect(api.monitoringDiagnostics).not.toHaveBeenCalled();
 
@@ -306,8 +309,10 @@ describe("MonitorWorkspace", () => {
       }),
     );
     expect(api.addWatchlistItem).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("location")).toHaveTextContent(
-      "/monitors/US.AAPL",
+    await waitFor(() =>
+      expect(screen.getByLabelText("location")).toHaveTextContent(
+        "/monitors/US.AAPL",
+      ),
     );
   });
 

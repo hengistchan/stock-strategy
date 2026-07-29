@@ -57,4 +57,34 @@ describe("SymbolSearchField", () => {
     fireEvent.change(input, { target: { value: "hk.00700" } });
     await waitFor(() => expect(document.querySelector('input[name="symbol"]')).toHaveValue("HK.00700"));
   });
+
+  it("updates the submitted code when a route prefill changes", () => {
+    const { rerender } = render(
+      <SymbolSearchField
+        key="US.AAPL"
+        defaultCode="US.AAPL"
+        searchEnabled={false}
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "标的" })).toHaveValue(
+      "US.AAPL",
+    );
+    expect(document.querySelector('input[name="symbol"]')).toHaveValue(
+      "US.AAPL",
+    );
+
+    rerender(
+      <SymbolSearchField
+        key="hk.00700"
+        defaultCode="hk.00700"
+        searchEnabled={false}
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "标的" })).toHaveValue(
+      "hk.00700",
+    );
+    expect(document.querySelector('input[name="symbol"]')).toHaveValue(
+      "HK.00700",
+    );
+  });
 });

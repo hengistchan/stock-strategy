@@ -2,8 +2,7 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEven
 import { api } from "../api/client";
 import type { SymbolMatch } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
-
-const FUTU_SYMBOL = /^[A-Za-z]{2,3}\.[A-Za-z0-9.-]+$/;
+import { normalizeFutuSymbol } from "../lib/symbols";
 
 interface SymbolSearchFieldProps {
   className?: string;
@@ -45,7 +44,7 @@ export function SymbolSearchField({
         const exact = response.symbols.find(
           (item) => item.code.toUpperCase() === query.toUpperCase(),
         );
-        if (exact && FUTU_SYMBOL.test(query)) {
+        if (exact && normalizeFutuSymbol(query)) {
           setSelected(exact);
           setInputValue(formatSymbol(exact));
         }
@@ -63,9 +62,7 @@ export function SymbolSearchField({
     };
   }, [inputValue, searchEnabled, selected]);
 
-  const directCode = FUTU_SYMBOL.test(inputValue.trim())
-    ? inputValue.trim().toUpperCase()
-    : "";
+  const directCode = normalizeFutuSymbol(inputValue) ?? "";
   const submittedCode = selected?.code ?? directCode;
   const showPanel = open && inputValue.trim().length > 0;
 
@@ -120,7 +117,11 @@ export function SymbolSearchField({
           value={inputValue}
           placeholder={t("form.symbolPlaceholder")}
           required
-          pattern={selected ? undefined : "[A-Za-z]{2,3}\\.[A-Za-z0-9.-]+"}
+          pattern={
+            selected
+              ? undefined
+              : "[A-Za-z]{2,8}\\.[A-Za-z0-9.-]{1,24}"
+          }
           onChange={handleChange}
           onFocus={() => {
             if (results.length > 0) setOpen(true);

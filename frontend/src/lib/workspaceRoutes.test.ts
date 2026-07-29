@@ -5,6 +5,9 @@ describe("workspace routes", () => {
   it("maps stable paths to each workspace", () => {
     expect(workspacePaths.backtest).toBe("/backtests");
     expect(workspacePaths.backtestNew).toBe("/backtests/new");
+    expect(workspacePaths.backtestNewForSymbol("hk.00700")).toBe(
+      "/backtests/new?symbol=HK.00700",
+    );
     expect(workspacePaths.backtestDetail("job 1")).toBe("/backtests/job%201");
     expect(workspacePaths.iterate).toBe("/experiments");
     expect(workspacePaths.experimentNew).toBe("/experiments/new");

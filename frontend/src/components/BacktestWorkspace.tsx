@@ -26,6 +26,7 @@ interface BacktestWorkspaceProps {
   onActiveJobChange: (jobId: string | null) => void;
   opendConnected: boolean;
   onNotice: (message: string) => void;
+  initialSymbol?: string;
 }
 
 export function BacktestWorkspace({
@@ -39,6 +40,7 @@ export function BacktestWorkspace({
   onActiveJobChange,
   opendConnected,
   onNotice,
+  initialSymbol,
 }: BacktestWorkspaceProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -143,6 +145,7 @@ export function BacktestWorkspace({
             opendConnected={opendConnected}
             parameterDefinitions={selectedStrategyMetadata?.parameters ?? []}
             compatibility={selectedStrategyMetadata?.compatibility}
+            initialSymbol={initialSymbol}
           />
         ) : (
           <RunHistory

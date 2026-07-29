@@ -1,6 +1,8 @@
 export const workspacePaths = {
   backtest: "/backtests",
   backtestNew: "/backtests/new",
+  backtestNewForSymbol: (code: string) =>
+    `/backtests/new?symbol=${encodeURIComponent(code.trim().toUpperCase())}`,
   backtestDetail: (jobId: string) => `/backtests/${encodeURIComponent(jobId)}`,
   iterate: "/experiments",
   experimentNew: "/experiments/new",

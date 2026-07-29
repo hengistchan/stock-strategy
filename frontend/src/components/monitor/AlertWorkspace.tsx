@@ -175,7 +175,7 @@ export function AlertWorkspace({
             <input
               value={code}
               required
-              pattern="[A-Za-z]{2,3}\\.[A-Za-z0-9.-]+"
+              pattern="[A-Za-z]{2,8}\\.[A-Za-z0-9.-]{1,24}"
               placeholder={instrumentType === "stock" ? symbol : "US.AAPL260731C200000"}
               onChange={(event) => setCode(event.currentTarget.value)}
             />

@@ -4,6 +4,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
   useMatch,
   useNavigate,
 } from "react-router-dom";
@@ -13,6 +14,7 @@ import { useI18n } from "./i18n/I18nContext";
 import { useTransientNotice } from "./hooks/useTransientNotice";
 import { useApiEvents } from "./hooks/useApiEvents";
 import { workspacePaths } from "./lib/workspaceRoutes";
+import { normalizeFutuSymbol } from "./lib/symbols";
 import { BacktestWorkspace } from "./components/BacktestWorkspace";
 import { Header } from "./components/Header";
 
@@ -43,6 +45,7 @@ const MonitorWorkspace = lazy(() =>
 export function App() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedStrategy, setSelectedStrategy] = useState("");
   const [toast, setToast] = useTransientNotice();
   useApiEvents();
@@ -74,6 +77,11 @@ export function App() {
     ? null
     : backtestDetailMatch?.params.jobId ?? null;
   const backtestRail = backtestNewMatch ? "create" : "archive";
+  const initialBacktestSymbol = backtestNewMatch
+    ? normalizeFutuSymbol(
+        new URLSearchParams(location.search).get("symbol") ?? "",
+      ) ?? undefined
+    : undefined;
   const activeExperimentId = experimentNewMatch
     ? null
     : experimentDetailMatch?.params.experimentId ?? null;
@@ -109,6 +117,7 @@ export function App() {
         )}
       opendConnected={opendConnected}
       onNotice={setToast}
+      initialSymbol={initialBacktestSymbol}
     />
   );
   const iterationWorkspace = (
@@ -166,7 +175,10 @@ export function App() {
           path={workspacePaths.portfolios}
           element={(
             <Suspense fallback={<div className="workspace-loading">{t("portfolio.loading")}</div>}>
-              <PortfolioWorkspace opendConnected={opendConnected} />
+              <PortfolioWorkspace
+                opendConnected={opendConnected}
+                onNotice={setToast}
+              />
             </Suspense>
           )}
         />

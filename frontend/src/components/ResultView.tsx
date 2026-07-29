@@ -1,6 +1,8 @@
 import type { BacktestJob, BacktestResult } from "../api/types";
+import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/I18nContext";
 import { formatDateTime, formatNumber, formatSignedCurrency, shortDate } from "../lib/format";
+import { workspacePaths } from "../lib/workspaceRoutes";
 import { MetricsGrid } from "./MetricsGrid";
 import { PerformanceDistributionPanel } from "./PerformanceDistributionPanel";
 import { PerformanceChart } from "./PerformanceChart";
@@ -84,6 +86,12 @@ export function ResultView({ job, result, loading, emptyContext = "archive", sym
           >
             {t("evidence.export")}
           </a>
+          <Link
+            className="evidence-download"
+            to={workspacePaths.monitorSymbol(summary.symbol)}
+          >
+            {t("result.openMonitor")}
+          </Link>
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
 import type { PortfolioRequest } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
 import {
@@ -8,17 +10,100 @@ import {
   formatSignedCurrency,
   formatSignedPercent,
 } from "../lib/format";
+import { normalizeFutuSymbol } from "../lib/symbols";
+import { workspacePaths } from "../lib/workspaceRoutes";
 import { PerformanceChart } from "./PerformanceChart";
 
 interface PortfolioWorkspaceProps {
   opendConnected: boolean;
+  onNotice: (message: string) => void;
 }
 
-export function PortfolioWorkspace({ opendConnected }: PortfolioWorkspaceProps) {
+interface MonitorImportResult {
+  firstCode: string;
+  total: number;
+  added: number;
+  reenabled: number;
+  existing: number;
+}
+
+export function PortfolioWorkspace({
+  opendConnected,
+  onNotice,
+}: PortfolioWorkspaceProps) {
   const { locale, t } = useI18n();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [symbols, setSymbols] = useState("US.AAPL, US.MSFT, US.NVDA");
   const [weights, setWeights] = useState("40, 35, 25");
   const mutation = useMutation({ mutationFn: api.runPortfolio });
+  const monitorMutation = useMutation({
+    mutationFn: async (rawCodes: readonly string[]): Promise<MonitorImportResult> => {
+      const codes = [
+        ...new Set(
+          rawCodes
+            .map((code) => normalizeFutuSymbol(code))
+            .filter((code): code is string => Boolean(code)),
+        ),
+      ];
+      if (codes.length === 0) {
+        throw new Error(t("portfolio.monitorNoSymbols"));
+      }
+      const watchlist = await api.watchlist();
+      const existingByCode = new Map(
+        watchlist.instruments.map((instrument) => [
+          instrument.code.toUpperCase(),
+          instrument,
+        ]),
+      );
+      let added = 0;
+      let reenabled = 0;
+      let existing = 0;
+      for (const code of codes) {
+        const instrument = existingByCode.get(code);
+        if (instrument?.enabled) {
+          existing += 1;
+        } else if (instrument) {
+          await api.updateWatchlistItem(code, { enabled: true });
+          reenabled += 1;
+        } else {
+          await api.addWatchlistItem({
+            code,
+            name: code,
+            instrument_type: "stock",
+            enabled: true,
+          });
+          added += 1;
+        }
+      }
+      return {
+        firstCode: codes[0]!,
+        total: codes.length,
+        added,
+        reenabled,
+        existing,
+      };
+    },
+    onSuccess: (summary) => {
+      onNotice(
+        t("portfolio.monitorAdded", {
+          total: summary.total,
+          added: summary.added,
+          reenabled: summary.reenabled,
+          existing: summary.existing,
+        }),
+      );
+      navigate(workspacePaths.monitorSymbol(summary.firstCode));
+    },
+    onError: (error) => {
+      onNotice(
+        error instanceof Error ? error.message : t("portfolio.monitorFailed"),
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.watchlist });
+    },
+  });
   const result = mutation.data;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -103,7 +188,21 @@ export function PortfolioWorkspace({ opendConnected }: PortfolioWorkspaceProps) 
           <>
             <header className="portfolio-result-heading">
               <div><span className="section-code">PORTFOLIO EVIDENCE</span><h2>{result.id}</h2></div>
-              <span>OpenD · {result.period.start} → {result.period.end}</span>
+              <div className="portfolio-result-actions">
+                <span>OpenD · {result.period.start} → {result.period.end}</span>
+                <button
+                  type="button"
+                  disabled={monitorMutation.isPending || !opendConnected}
+                  onClick={() =>
+                    monitorMutation.mutate(Object.keys(result.weights))}
+                >
+                  {monitorMutation.isPending
+                    ? t("portfolio.addingToMonitor")
+                    : t("portfolio.addToMonitor", {
+                        count: Object.keys(result.weights).length,
+                      })}
+                </button>
+              </div>
             </header>
             <div className="portfolio-metrics">
               <Metric label={t("metrics.return")} value={formatSignedPercent(result.metrics.total_return_pct, locale)} />

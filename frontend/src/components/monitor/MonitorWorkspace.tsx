@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { NavLink, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import type {
   MonitorAlert,
   MonitoringDiagnosticsResponse,
@@ -343,6 +350,12 @@ export function MonitorWorkspace({
               <NavLink to={workspacePaths.monitorAlerts(symbol)}>
                 {t("monitor.alerts")}
               </NavLink>
+              <Link
+                className="monitor-context-action"
+                to={workspacePaths.backtestNewForSymbol(symbol)}
+              >
+                {t("monitor.openBacktest")}
+              </Link>
             </nav>
           </header>
         ) : null}

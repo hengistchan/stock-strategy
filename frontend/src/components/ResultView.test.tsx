@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import type { BacktestJob, BacktestResult } from "../api/types";
 import { ResultView } from "./ResultView";
 
@@ -68,7 +69,7 @@ function makeResult(settings: BacktestResult["summary"]["settings"]): BacktestRe
 
 describe("ResultView compatibility evidence", () => {
   it("shows a clean output state for a new backtest", () => {
-    render(<ResultView loading={false} emptyContext="create" />);
+    renderView(<ResultView loading={false} emptyContext="create" />);
 
     expect(screen.getByText("配置一组新的回测条件。")).toBeInTheDocument();
     expect(screen.queryByText("metrics")).not.toBeInTheDocument();
@@ -77,7 +78,7 @@ describe("ResultView compatibility evidence", () => {
   });
 
   it("shows the strategy failure instead of a later OpenD disconnect log", () => {
-    render(
+    renderView(
       <ResultView
         job={{
           ...job,
@@ -94,14 +95,14 @@ describe("ResultView compatibility evidence", () => {
   });
 
   it("marks pre-contract results as legacy", () => {
-    render(<ResultView job={job} result={makeResult({})} loading={false} />);
+    renderView(<ResultView job={job} result={makeResult({})} loading={false} />);
 
     expect(screen.getByText("LEGACY RESULT")).toBeInTheDocument();
     expect(screen.getByText(/旧版撮合契约/)).toBeInTheDocument();
   });
 
   it("shows an unliquidated ending position for contract v2 results", () => {
-    render(
+    renderView(
       <ResultView
         job={job}
         loading={false}
@@ -127,11 +128,14 @@ describe("ResultView compatibility evidence", () => {
     expect(screen.getByText("OPEND CONTRACT V2")).toBeInTheDocument();
     expect(screen.getByText("· 苹果")).toBeInTheDocument();
     expect(screen.getByText("期末持仓未强平")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "在实时监控中打开" }),
+    ).toHaveAttribute("href", "/monitors/US.AAPL");
     expect(screen.queryByText(/旧版撮合契约/)).not.toBeInTheDocument();
   });
 
   it("accepts newer engine contract versions", () => {
-    render(
+    renderView(
       <ResultView
         job={job}
         loading={false}
@@ -150,3 +154,7 @@ describe("ResultView compatibility evidence", () => {
     expect(screen.queryByText(/旧版撮合契约/)).not.toBeInTheDocument();
   });
 });
+
+function renderView(view: React.ReactElement) {
+  return render(<MemoryRouter>{view}</MemoryRouter>);
+}
