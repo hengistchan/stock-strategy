@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:integrated": "playwright test --config=playwright.integrated.config.ts"
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
