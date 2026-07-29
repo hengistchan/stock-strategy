@@ -49,6 +49,29 @@ jobs:
         working-directory: backend
       - run: python scripts/acceptance.py
         working-directory: backend
+      - run: python scripts/monitoring_acceptance.py
+        working-directory: backend
+
+  monitoring-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: npm ci
+        working-directory: frontend
+      - run: python -m pip install -e './backend[web]'
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e:integrated
+        working-directory: frontend
 
   backend-quality:
     runs-on: ubuntu-latest

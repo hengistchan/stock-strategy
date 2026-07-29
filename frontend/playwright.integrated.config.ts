@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,9 @@ const fixtureStateRoot = mkdtempSync(
 );
 const statePath = join(fixtureStateRoot, "state.sqlite3");
 const baseURL = "http://127.0.0.1:8765";
+const venvPython = join(repositoryRoot, ".venv", "bin", "python");
+const pythonExecutable =
+  process.env.PYTHON ?? (existsSync(venvPython) ? venvPython : "python");
 
 function shellArgument(value: string): string {
   return `'${value.replaceAll("'", "'\"'\"'")}'`;
@@ -26,7 +29,7 @@ const fixtureCommand = [
   "--outDir",
   shellArgument(join(frontendRoot, "dist")),
   "&&",
-  shellArgument(join(repositoryRoot, ".venv", "bin", "python")),
+  shellArgument(pythonExecutable),
   shellArgument(
     join(repositoryRoot, "backend", "scripts", "monitoring_browser_fixture.py"),
   ),
