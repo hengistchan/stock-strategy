@@ -732,8 +732,15 @@ class MonitoringService:
                 await self.poll_once()
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                pass
+            except Exception as error:
+                message = str(error) or type(error).__name__
+                if self._phase != "degraded" or self._last_error != message:
+                    self._phase = "degraded"
+                    self._last_error = message
+                    self.events.publish(
+                        "monitor.status.updated",
+                        self.status(),
+                    )
             await asyncio.sleep(self.poll_interval_seconds)
 
     async def _option_diagnostic(

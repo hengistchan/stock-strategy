@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import time
 import unittest
@@ -56,12 +57,15 @@ class FakeMonitoringMarketData:
         self.snapshot_calls: list[list[str]] = []
         self.global_state_calls = 0
         self.global_state_delay = 0.0
+        self.global_state_error: Exception | None = None
         self.chain_calls = 0
         self.closed = False
         self.generic_remaining = 10
 
     def global_state(self) -> dict[str, Any]:
         self.global_state_calls += 1
+        if self.global_state_error is not None:
+            raise self.global_state_error
         if self.global_state_delay:
             time.sleep(self.global_state_delay)
         return {
@@ -310,6 +314,40 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(bounded.status()["phase"], "degraded")
         finally:
             await bounded.stop()
+
+    async def test_supervisor_records_an_unexpected_failure_and_recovers(self):
+        self.service.add_instrument(_instrument_request())
+        self.market_data.global_state_error = RuntimeError("unexpected poll fault")
+        supervised = MonitoringService(
+            self.repository,
+            self.market_data,
+            self.events,
+            poll_interval_seconds=0.01,
+            now=self.clock.now,
+            monotonic_clock=self.clock.monotonic,
+        )
+        try:
+            await supervised.start()
+            for _attempt in range(100):
+                if supervised.status()["phase"] == "degraded":
+                    break
+                await asyncio.sleep(0.005)
+            self.assertEqual(supervised.status()["phase"], "degraded")
+            self.assertEqual(
+                supervised.status()["last_error"],
+                "unexpected poll fault",
+            )
+
+            self.market_data.global_state_error = None
+            for _attempt in range(100):
+                if supervised.status()["phase"] == "ready":
+                    break
+                await asyncio.sleep(0.005)
+            self.assertEqual(supervised.status()["phase"], "ready")
+            self.assertIsNone(supervised.status()["last_error"])
+            self.assertGreaterEqual(self.market_data.global_state_calls, 2)
+        finally:
+            await supervised.stop()
 
     async def test_stale_and_closed_quotes_pause_rule_state(self):
         us_rule = self.service.create_rule(_rule_request())
