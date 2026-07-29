@@ -1,6 +1,8 @@
 export type SymbolNameMap = Record<string, string>;
 
 const FUTU_SYMBOL_PATTERN = /^[A-Z]{2,8}\.[A-Z0-9.-]{1,24}$/;
+export const FUTU_SYMBOL_HTML_PATTERN =
+  String.raw`[A-Za-z]{2,8}\.[A-Za-z0-9.\-]{1,24}`;
 
 export function normalizeFutuSymbol(value: string): string | null {
   const normalized = value.trim().toUpperCase();

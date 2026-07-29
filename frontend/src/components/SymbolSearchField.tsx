@@ -2,7 +2,10 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEven
 import { api } from "../api/client";
 import type { SymbolMatch } from "../api/types";
 import { useI18n } from "../i18n/I18nContext";
-import { normalizeFutuSymbol } from "../lib/symbols";
+import {
+  FUTU_SYMBOL_HTML_PATTERN,
+  normalizeFutuSymbol,
+} from "../lib/symbols";
 
 interface SymbolSearchFieldProps {
   className?: string;
@@ -120,7 +123,7 @@ export function SymbolSearchField({
           pattern={
             selected
               ? undefined
-              : "[A-Za-z]{2,8}\\.[A-Za-z0-9.-]{1,24}"
+              : FUTU_SYMBOL_HTML_PATTERN
           }
           onChange={handleChange}
           onFocus={() => {

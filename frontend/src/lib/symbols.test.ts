@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatSymbolLabel, normalizeFutuSymbol } from "./symbols";
+import {
+  FUTU_SYMBOL_HTML_PATTERN,
+  formatSymbolLabel,
+  normalizeFutuSymbol,
+} from "./symbols";
 
 describe("formatSymbolLabel", () => {
   it("appends an OpenD name and keeps a code-only fallback", () => {
@@ -14,5 +18,14 @@ describe("formatSymbolLabel", () => {
     );
     expect(normalizeFutuSymbol("Apple")).toBeNull();
     expect(normalizeFutuSymbol("U.AAPL")).toBeNull();
+  });
+
+  it("keeps the browser pattern valid under Unicode Sets semantics", () => {
+    const browserPattern = new RegExp(
+      `^(?:${FUTU_SYMBOL_HTML_PATTERN})$`,
+      "v",
+    );
+    expect(browserPattern.test("US.BRK-B")).toBe(true);
+    expect(browserPattern.test("Apple")).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import type {
   RuleSeverity,
 } from "../../api/types";
 import { useI18n } from "../../i18n/I18nContext";
+import { FUTU_SYMBOL_HTML_PATTERN } from "../../lib/symbols";
 import {
   formatGreek,
   formatQuoteTimestamp,
@@ -175,7 +176,7 @@ export function AlertWorkspace({
             <input
               value={code}
               required
-              pattern="[A-Za-z]{2,8}\\.[A-Za-z0-9.-]{1,24}"
+              pattern={FUTU_SYMBOL_HTML_PATTERN}
               placeholder={instrumentType === "stock" ? symbol : "US.AAPL260731C200000"}
               onChange={(event) => setCode(event.currentTarget.value)}
             />
