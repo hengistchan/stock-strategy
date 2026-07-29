@@ -19,6 +19,7 @@ Strategy Lab connects directly to a local OpenD instance, runs Python stock stra
 | --- | --- | --- |
 | 📈 | **Backtest** | Run stock strategies against OpenD OHLCV data with costs, slippage, drawdown, and trade-level results. |
 | 🧪 | **Experiment** | Compare parameter grids on a shared market-data cache and rank candidates by return, Sharpe, or drawdown. |
+| 👁️ | **Monitor stocks and options** | Track US/HK quotes, option chains, Greeks, volatility, rule edges, and durable alert evidence. |
 | ✍️ | **Build strategies** | Create, edit, validate, save, and reuse Python strategies from the browser. |
 | 🔌 | **Use OpenD directly** | Search US/HK stocks, resolve names, and request paginated historical K-lines without a web-data fallback. |
 | 🧾 | **Reproduce evidence** | Keep the request, strategy revision, runtime manifest, market-data hash, JSON, CSV, and SVG evidence with each run. |
@@ -41,7 +42,10 @@ The server binds to loopback by default. A remote bind requires both
 `--allow-remote` and a 32+ character `STRATEGY_LAB_API_TOKEN`; read
 [SECURITY.md](SECURITY.md) before enabling it.
 
-The workbench also provides stable routes for `/experiments` and `/strategies`. To run the deterministic sample without OpenD:
+The workbench also provides stable routes for `/experiments`, `/strategies`,
+and the read-only stock/option monitor at `/monitors`. See
+[the monitoring contract](docs/MONITORING.md). To run the deterministic sample
+without OpenD:
 
 ```bash
 .venv/bin/python -m stock_strategy \
@@ -64,7 +68,11 @@ docs/                      Architecture, compatibility, and acceptance notes
 ```bash
 make test
 make acceptance
-cd frontend && npx playwright install chromium && npm run test:e2e
+make monitor-acceptance
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+npm run test:e2e:integrated
 ```
 
 OpenD integration never silently falls back to simulated or third-party web data. Backtest semantics and supported Futu stock APIs are documented in [FUTU_COMPATIBILITY.md](docs/FUTU_COMPATIBILITY.md).

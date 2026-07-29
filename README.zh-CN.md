@@ -17,6 +17,7 @@ Strategy Lab 直接连接本机 OpenD，以独立 Python 子进程运行股票�
 | --- | --- | --- |
 | 📈 | **股票回测** | 使用 OpenD OHLCV 行情，计算费用、滑点、回撤和逐笔交易结果。 |
 | 🧪 | **参数实验** | 复用行情缓存批量比较参数，并按收益、Sharpe 或回撤排序。 |
+| 👁️ | **股票与期权监控** | 跟踪美股/港股报价、期权链、Greeks、波动率、规则边沿和持久告警证据。 |
 | ✍️ | **策略编辑** | 在浏览器中创建、编辑、校验、保存和复用 Python 策略。 |
 | 🔌 | **OpenD 直连** | 模糊搜索美股和港股，获取名称与分页历史 K 线，不使用网页行情回退。 |
 | 🧾 | **可复现证据** | 每次回测保留请求、策略 revision、运行清单、行情哈希以及 JSON、CSV、SVG 产物。 |
@@ -33,7 +34,7 @@ make doctor
 make serve
 ```
 
-打开 [http://127.0.0.1:8000/backtests](http://127.0.0.1:8000/backtests)。参数实验和策略管理分别位于 `/experiments` 与 `/strategies`。
+打开 [http://127.0.0.1:8000/backtests](http://127.0.0.1:8000/backtests)。参数实验、策略管理和只读股票/期权监控分别位于 `/experiments`、`/strategies` 与 `/monitors`；监控的数据语义和验收边界见 [监控说明](docs/MONITORING.md)。
 
 服务默认只绑定本机。远程绑定必须同时提供 `--allow-remote` 和至少 32 字符的
 `STRATEGY_LAB_API_TOKEN`；启用前请阅读 [SECURITY.md](SECURITY.md)。
@@ -51,7 +52,11 @@ make serve
 ```bash
 make test
 make acceptance
-cd frontend && npx playwright install chromium && npm run test:e2e
+make monitor-acceptance
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+npm run test:e2e:integrated
 ```
 
 欢迎提交 Issue 和 Pull Request。参与前请阅读 [贡献指南](CONTRIBUTING.md) 与 [行为准则](CODE_OF_CONDUCT.md)，漏洞请按照 [安全策略](SECURITY.md) 私密报告。
