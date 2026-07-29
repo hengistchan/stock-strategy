@@ -86,8 +86,10 @@ describe("PortfolioWorkspace", () => {
         /已同步 3 个标的：新增 1、重新启用 1、已有 1。|Synced 3 symbols: 1 added, 1 re-enabled, 1 already present\./,
       ),
     );
-    expect(screen.getByLabelText("current-path")).toHaveTextContent(
-      "/monitors/US.AAPL",
+    await waitFor(() =>
+      expect(screen.getByLabelText("current-path")).toHaveTextContent(
+        "/monitors/US.AAPL",
+      ),
     );
   });
 });
