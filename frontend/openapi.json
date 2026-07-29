@@ -82,7 +82,7 @@
         "operationId": "event_stream_api_events_get",
         "responses": {
           "200": {
-            "description": "Backtest and experiment state changes",
+            "description": "Backtest, experiment, and monitoring state changes",
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1984,6 +1984,22 @@
             }
           },
           {
+            "name": "underlying_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Underlying Code"
+            }
+          },
+          {
             "name": "enabled",
             "in": "query",
             "required": false,
@@ -2190,6 +2206,22 @@
                 }
               ],
               "title": "Code"
+            }
+          },
+          {
+            "name": "underlying_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Underlying Code"
             }
           },
           {
@@ -3792,6 +3824,17 @@
             "type": "string",
             "title": "Code"
           },
+          "underlying_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Code"
+          },
           "triggered_at": {
             "type": "string",
             "title": "Triggered At"
@@ -3851,6 +3894,7 @@
           "rule_id",
           "rule_name",
           "code",
+          "underlying_code",
           "triggered_at",
           "acknowledged_at",
           "severity",
@@ -4096,6 +4140,17 @@
             "type": "string",
             "title": "Code"
           },
+          "underlying_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Code"
+          },
           "instrument_type": {
             "$ref": "#/components/schemas/InstrumentType"
           },
@@ -4148,6 +4203,7 @@
           "id",
           "name",
           "code",
+          "underlying_code",
           "instrument_type",
           "metric",
           "operator",
@@ -4174,6 +4230,18 @@
             "type": "string",
             "pattern": "^[A-Z]{2,8}\\.[A-Z0-9.-]{1,24}$",
             "title": "Code"
+          },
+          "underlying_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{2,8}\\.[A-Z0-9.-]{1,24}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Code"
           },
           "instrument_type": {
             "$ref": "#/components/schemas/InstrumentType"

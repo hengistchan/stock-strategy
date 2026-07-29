@@ -450,11 +450,11 @@ export const api = {
         path: { code },
       }),
     ),
-  monitorRules: (code?: string, enabled?: boolean) =>
+  monitorRules: (underlyingCode?: string, enabled?: boolean) =>
     unwrap<MonitorRulesResponse>(
       monitorRulesApiMonitoringRulesGet({
         headers: requestHeaders(),
-        query: { code, enabled },
+        query: { underlying_code: underlyingCode, enabled },
       }),
     ),
   createMonitorRule: (payload: MonitorRuleRequest) =>
@@ -480,7 +480,7 @@ export const api = {
       }),
     ),
   monitorAlerts: (
-    code?: string,
+    underlyingCode?: string,
     unacknowledgedOnly = false,
     cursor?: string,
     limit = 100,
@@ -489,7 +489,7 @@ export const api = {
       monitorAlertsApiMonitoringAlertsGet({
         headers: requestHeaders(),
         query: {
-          code,
+          underlying_code: underlyingCode,
           unacknowledged_only: unacknowledgedOnly,
           cursor,
           limit,

@@ -117,6 +117,7 @@ export function AlertWorkspace({
     onCreateRule({
       name: name.trim(),
       code: code.trim().toUpperCase(),
+      underlying_code: symbol,
       instrument_type: instrumentType,
       metric,
       operator,

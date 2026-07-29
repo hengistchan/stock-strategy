@@ -11,7 +11,7 @@ from .database import (
     set_component_schema_version,
 )
 
-MONITORING_SCHEMA_VERSION = 4
+MONITORING_SCHEMA_VERSION = 5
 
 
 class MonitoringRepository:
@@ -84,11 +84,16 @@ class MonitoringRepository:
 
     def create_rule(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         rule = dict(payload)
+        underlying_code = rule.get("underlying_code")
+        if not underlying_code and rule["instrument_type"] == "stock":
+            underlying_code = rule["code"]
+        if not underlying_code:
+            raise ValueError("rule underlying_code is required")
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT INTO monitor_rules(
-                    id, name, code, instrument_type, metric, operator,
+                    id, name, code, underlying_code, instrument_type, metric, operator,
                     threshold, severity, cooldown_seconds, daily_trigger_limit,
                     session, enabled,
                     created_at, updated_at, last_evaluated_at,
@@ -97,13 +102,14 @@ class MonitoringRepository:
                     trigger_date, trigger_count
                 )
                 VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 """,
                 (
                     rule["id"],
                     rule["name"],
                     rule["code"],
+                    underlying_code,
                     rule["instrument_type"],
                     rule["metric"],
                     rule["operator"],
@@ -141,6 +147,7 @@ class MonitoringRepository:
         self,
         *,
         code: str | None = None,
+        underlying_code: str | None = None,
         enabled: bool | None = None,
     ) -> list[dict[str, Any]]:
         clauses: list[str] = []
@@ -148,6 +155,9 @@ class MonitoringRepository:
         if code is not None:
             clauses.append("code = ?")
             parameters.append(code)
+        if underlying_code is not None:
+            clauses.append("underlying_code = ?")
+            parameters.append(underlying_code)
         if enabled is not None:
             clauses.append("enabled = ?")
             parameters.append(int(enabled))
@@ -342,6 +352,7 @@ class MonitoringRepository:
         self,
         *,
         code: str | None = None,
+        underlying_code: str | None = None,
         unacknowledged_only: bool = False,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
@@ -352,6 +363,9 @@ class MonitoringRepository:
         if code is not None:
             clauses.append("code = ?")
             parameters.append(code)
+        if underlying_code is not None:
+            clauses.append("underlying_code = ?")
+            parameters.append(underlying_code)
         if unacknowledged_only:
             clauses.append("acknowledged_at IS NULL")
         statement = "SELECT * FROM monitor_alerts"
@@ -367,6 +381,7 @@ class MonitoringRepository:
         self,
         *,
         code: str | None = None,
+        underlying_code: str | None = None,
         unacknowledged_only: bool = False,
         before: tuple[str, str] | None = None,
         limit: int = 50,
@@ -378,6 +393,9 @@ class MonitoringRepository:
         if code is not None:
             clauses.append("code = ?")
             parameters.append(code)
+        if underlying_code is not None:
+            clauses.append("underlying_code = ?")
+            parameters.append(underlying_code)
         if unacknowledged_only:
             clauses.append("acknowledged_at IS NULL")
         if before is not None:
@@ -444,6 +462,7 @@ class MonitoringRepository:
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
                     code TEXT NOT NULL,
+                    underlying_code TEXT NOT NULL,
                     instrument_type TEXT NOT NULL
                         CHECK(instrument_type IN ('stock', 'option')),
                     metric TEXT NOT NULL,
@@ -480,6 +499,7 @@ class MonitoringRepository:
                     rule_id TEXT NOT NULL,
                     rule_name TEXT NOT NULL,
                     code TEXT NOT NULL,
+                    underlying_code TEXT NOT NULL,
                     triggered_at TEXT NOT NULL,
                     acknowledged_at TEXT,
                     severity TEXT NOT NULL,
@@ -499,6 +519,12 @@ class MonitoringRepository:
                 CREATE INDEX IF NOT EXISTS monitor_alerts_unread_idx
                     ON monitor_alerts(acknowledged_at, triggered_at DESC);
                 """
+            )
+            _ensure_column(
+                connection,
+                "monitor_rules",
+                "underlying_code",
+                "TEXT",
             )
             _ensure_column(
                 connection,
@@ -539,6 +565,12 @@ class MonitoringRepository:
             _ensure_column(
                 connection,
                 "monitor_alerts",
+                "underlying_code",
+                "TEXT",
+            )
+            _ensure_column(
+                connection,
+                "monitor_alerts",
                 "source",
                 "TEXT NOT NULL DEFAULT 'opend'",
             )
@@ -553,6 +585,19 @@ class MonitoringRepository:
                 "monitor_alerts",
                 "received_at",
                 "TEXT",
+            )
+            _backfill_underlying_codes(connection)
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS monitor_rules_underlying_idx
+                ON monitor_rules(underlying_code, enabled, created_at DESC)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS monitor_alerts_underlying_idx
+                ON monitor_alerts(underlying_code, triggered_at DESC)
+                """
             )
             connection.execute(
                 """
@@ -589,6 +634,9 @@ def _rule_payload(row: sqlite3.Row) -> dict[str, Any]:
         "id": str(row["id"]),
         "name": str(row["name"]),
         "code": str(row["code"]),
+        "underlying_code": (
+            str(row["underlying_code"]) if row["underlying_code"] is not None else None
+        ),
         "instrument_type": str(row["instrument_type"]),
         "metric": str(row["metric"]),
         "operator": str(row["operator"]),
@@ -620,6 +668,9 @@ def _alert_payload(row: sqlite3.Row) -> dict[str, Any]:
         "rule_id": str(row["rule_id"]),
         "rule_name": str(row["rule_name"]),
         "code": str(row["code"]),
+        "underlying_code": (
+            str(row["underlying_code"]) if row["underlying_code"] is not None else None
+        ),
         "triggered_at": str(row["triggered_at"]),
         "acknowledged_at": row["acknowledged_at"],
         "severity": str(row["severity"]),
@@ -639,16 +690,17 @@ def _insert_alert(
     payload: Mapping[str, Any],
 ) -> tuple[dict[str, Any], bool]:
     alert = dict(payload)
+    underlying_code = _alert_underlying_code(alert)
     provider_time = alert.get("provider_time") or alert["triggered_at"]
     received_at = alert.get("received_at") or alert["triggered_at"]
     cursor = connection.execute(
         """
         INSERT OR IGNORE INTO monitor_alerts(
-            id, dedupe_key, rule_id, rule_name, code, triggered_at,
+            id, dedupe_key, rule_id, rule_name, code, underlying_code, triggered_at,
             acknowledged_at, severity, metric, operator, threshold,
             value, source, provider_time, received_at, snapshot_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             alert["id"],
@@ -656,6 +708,7 @@ def _insert_alert(
             alert["rule_id"],
             alert["rule_name"],
             alert["code"],
+            underlying_code,
             alert["triggered_at"],
             alert.get("acknowledged_at"),
             alert["severity"],
@@ -681,6 +734,81 @@ def _insert_alert(
     if row is None:
         raise RuntimeError("monitor alert was not persisted")
     return _alert_payload(row), created
+
+
+def _alert_underlying_code(alert: Mapping[str, Any]) -> str:
+    explicit = alert.get("underlying_code")
+    if isinstance(explicit, str) and explicit:
+        return explicit
+    snapshot = alert.get("snapshot")
+    if isinstance(snapshot, Mapping):
+        snapshot_underlying = snapshot.get("underlying_code")
+        if isinstance(snapshot_underlying, str) and snapshot_underlying:
+            return snapshot_underlying
+        if snapshot.get("instrument_type") == "option":
+            raise ValueError("option alert underlying_code is required")
+    return str(alert["code"])
+
+
+def _backfill_underlying_codes(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        UPDATE monitor_rules
+        SET underlying_code = code
+        WHERE underlying_code IS NULL AND instrument_type = 'stock'
+        """
+    )
+    connection.execute(
+        """
+        UPDATE monitor_rules
+        SET underlying_code = (
+            SELECT monitored_instruments.underlying_code
+            FROM monitored_instruments
+            WHERE monitored_instruments.code = monitor_rules.code
+        )
+        WHERE underlying_code IS NULL AND instrument_type = 'option'
+        """
+    )
+    connection.execute(
+        """
+        UPDATE monitor_alerts
+        SET underlying_code = (
+            SELECT monitor_rules.underlying_code
+            FROM monitor_rules
+            WHERE monitor_rules.id = monitor_alerts.rule_id
+        )
+        WHERE underlying_code IS NULL
+        """
+    )
+    rows = connection.execute(
+        """
+        SELECT id, code, snapshot_json
+        FROM monitor_alerts
+        WHERE underlying_code IS NULL
+        """
+    ).fetchall()
+    for row in rows:
+        try:
+            snapshot = json.loads(str(row["snapshot_json"]))
+        except (TypeError, ValueError):
+            snapshot = {}
+        underlying_code = (
+            snapshot.get("underlying_code") if isinstance(snapshot, Mapping) else None
+        )
+        if not underlying_code and (
+            not isinstance(snapshot, Mapping)
+            or snapshot.get("instrument_type") != "option"
+        ):
+            underlying_code = str(row["code"])
+        if underlying_code:
+            connection.execute(
+                """
+                UPDATE monitor_alerts
+                SET underlying_code = ?
+                WHERE id = ?
+                """,
+                (str(underlying_code), str(row["id"])),
+            )
 
 
 def _ensure_column(

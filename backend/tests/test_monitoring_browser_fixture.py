@@ -325,6 +325,7 @@ def _option_rule() -> dict[str, Any]:
     return {
         "name": "Apple call IV crosses 30",
         "code": US_CALL,
+        "underlying_code": US_STOCK,
         "instrument_type": "option",
         "metric": "option_implied_volatility",
         "operator": "crosses_above",

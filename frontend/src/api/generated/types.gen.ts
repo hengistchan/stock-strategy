@@ -763,6 +763,10 @@ export type MonitorAlert = {
      */
     code: string;
     /**
+     * Underlying Code
+     */
+    underlying_code: string | null;
+    /**
      * Triggered At
      */
     triggered_at: string;
@@ -930,6 +934,10 @@ export type MonitorRule = {
      * Code
      */
     code: string;
+    /**
+     * Underlying Code
+     */
+    underlying_code: string | null;
     instrument_type: InstrumentType;
     metric: RuleMetric;
     operator: RuleOperator;
@@ -977,6 +985,10 @@ export type MonitorRuleRequest = {
      * Code
      */
     code: string;
+    /**
+     * Underlying Code
+     */
+    underlying_code?: string | null;
     instrument_type: InstrumentType;
     metric: RuleMetric;
     operator: RuleOperator;
@@ -1923,7 +1935,7 @@ export type EventStreamApiEventsGetData = {
 
 export type EventStreamApiEventsGetResponses = {
     /**
-     * Backtest and experiment state changes
+     * Backtest, experiment, and monitoring state changes
      */
     200: string;
 };
@@ -3080,6 +3092,10 @@ export type MonitorRulesApiMonitoringRulesGetData = {
          */
         code?: string | null;
         /**
+         * Underlying Code
+         */
+        underlying_code?: string | null;
+        /**
          * Enabled
          */
         enabled?: boolean | null;
@@ -3206,6 +3222,10 @@ export type MonitorAlertsApiMonitoringAlertsGetData = {
          * Code
          */
         code?: string | null;
+        /**
+         * Underlying Code
+         */
+        underlying_code?: string | null;
         /**
          * Unacknowledged Only
          */

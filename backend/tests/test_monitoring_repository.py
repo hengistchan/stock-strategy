@@ -328,6 +328,69 @@ class MonitoringRepositoryTest(unittest.TestCase):
         self.assertEqual([alert["id"] for alert in second], ["alert-a"])
         self.assertFalse(second_has_more)
 
+    def test_underlying_scope_groups_stock_and_option_rules_and_alert_pages(self):
+        stock_rule = self.repository.create_rule(_rule_payload())
+        option_rule = self.repository.create_rule(_option_rule_payload())
+        hk_rule = self.repository.create_rule(
+            {
+                **_rule_payload(),
+                "id": "rule-hk",
+                "name": "Tencent move",
+                "code": "HK.00700",
+                "underlying_code": "HK.00700",
+            }
+        )
+
+        for alert_id, rule, triggered_at in (
+            ("alert-option", option_rule, "2026-07-27T10:02:00+08:00"),
+            ("alert-stock", stock_rule, "2026-07-27T10:01:00+08:00"),
+            ("alert-hk", hk_rule, "2026-07-27T10:00:00+08:00"),
+        ):
+            self.repository.create_alert(
+                {
+                    **_alert_payload(
+                        alert_id=alert_id,
+                        dedupe_key=f"{rule['id']}:{alert_id}",
+                        triggered_at=triggered_at,
+                    ),
+                    "rule_id": rule["id"],
+                    "rule_name": rule["name"],
+                    "code": rule["code"],
+                    "underlying_code": rule["underlying_code"],
+                    "snapshot": {
+                        "instrument_type": rule["instrument_type"],
+                        "underlying_code": rule["underlying_code"],
+                    },
+                }
+            )
+
+        scoped_rules = self.repository.list_rules(
+            underlying_code="US.AAPL",
+            enabled=True,
+        )
+        first, has_more = self.repository.list_alerts_page(
+            underlying_code="US.AAPL",
+            limit=1,
+        )
+        second, second_has_more = self.repository.list_alerts_page(
+            underlying_code="US.AAPL",
+            before=(first[-1]["triggered_at"], first[-1]["id"]),
+            limit=1,
+        )
+
+        self.assertEqual(
+            {rule["id"] for rule in scoped_rules},
+            {"rule-1", "rule-option"},
+        )
+        self.assertEqual(
+            self.repository.list_rules(code=option_rule["code"]),
+            [option_rule],
+        )
+        self.assertEqual([alert["id"] for alert in first], ["alert-option"])
+        self.assertTrue(has_more)
+        self.assertEqual([alert["id"] for alert in second], ["alert-stock"])
+        self.assertFalse(second_has_more)
+
     def test_rejects_a_distinct_observation_with_the_same_provider_time(self):
         rule = self.repository.create_rule(_rule_payload())
         first, _, _ = self.repository.record_evaluation(
@@ -470,9 +533,35 @@ class MonitoringRepositoryTest(unittest.TestCase):
                 """,
                 tuple(payload.values())[:16],
             )
+            connection.execute(
+                """
+                INSERT INTO monitor_alerts(
+                    id, dedupe_key, rule_id, rule_name, code, triggered_at,
+                    acknowledged_at, severity, metric, operator, threshold,
+                    value, snapshot_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "alert-legacy",
+                    "rule-1:legacy",
+                    "rule-1",
+                    "Apple daily move",
+                    "US.AAPL",
+                    "2026-07-27T10:00:05+08:00",
+                    None,
+                    "warning",
+                    "change_rate",
+                    "above",
+                    3,
+                    3.2,
+                    '{"instrument_type":"stock","last_price":339.15}',
+                ),
+            )
 
         migrated = MonitoringRepository(database_path)
         rule = migrated.get_rule("rule-1")
+        alert = migrated.list_alerts()[0]
         with sqlite3.connect(database_path) as connection:
             version = connection.execute(
                 """
@@ -486,6 +575,8 @@ class MonitoringRepositoryTest(unittest.TestCase):
             ).fetchall()
 
         self.assertEqual(rule["name"], "Apple daily move")
+        self.assertEqual(rule["underlying_code"], "US.AAPL")
+        self.assertEqual(alert["underlying_code"], "US.AAPL")
         self.assertIsNone(rule["last_observation_key"])
         self.assertEqual(rule["daily_trigger_limit"], 10)
         self.assertEqual(rule["session"], "regular")
@@ -553,6 +644,19 @@ def _rule_payload() -> dict[str, object]:
         "condition_active": False,
         "last_observation_key": None,
         "last_provider_time": None,
+    }
+
+
+def _option_rule_payload() -> dict[str, object]:
+    return {
+        **_rule_payload(),
+        "id": "rule-option",
+        "name": "Apple call IV",
+        "code": "US.AAPL260731C100000",
+        "underlying_code": "US.AAPL",
+        "instrument_type": "option",
+        "metric": "option_implied_volatility",
+        "threshold": 30,
     }
 
 

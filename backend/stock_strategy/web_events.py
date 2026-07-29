@@ -14,7 +14,7 @@ def create_events_router(events: EventBroker) -> APIRouter:
         response_class=StreamingResponse,
         responses={
             200: {
-                "description": "Backtest and experiment state changes",
+                "description": ("Backtest, experiment, and monitoring state changes"),
                 "content": {
                     "text/event-stream": {
                         "schema": {"type": "string"},

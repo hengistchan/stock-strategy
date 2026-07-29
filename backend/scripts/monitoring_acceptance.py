@@ -377,6 +377,26 @@ def run_acceptance() -> dict[str, Any]:
                 == ["last_price", "option_implied_volatility"],
                 "stock and option rules were not both created",
             )
+            scoped_rules = _request_json(
+                client.get(
+                    "/api/monitoring/rules",
+                    params={"underlying_code": US_STOCK},
+                ),
+                200,
+                "read rules by underlying",
+            )
+            _require(
+                {rule["code"] for rule in scoped_rules["rules"]}
+                == {US_STOCK, CALL_OPTION},
+                "underlying scope did not group stock and option rules",
+            )
+            _require(
+                all(
+                    rule["underlying_code"] == US_STOCK
+                    for rule in scoped_rules["rules"]
+                ),
+                "rule evidence did not preserve the underlying code",
+            )
 
             _poll(client, first_service)
             baseline_alerts = _alerts(client)
@@ -403,6 +423,26 @@ def run_acceptance() -> dict[str, Any]:
             _require(
                 len(first_edge_alerts) == 2,
                 f"first edge expected 2 alerts, got {len(first_edge_alerts)}",
+            )
+            scoped_alerts = _request_json(
+                client.get(
+                    "/api/monitoring/alerts",
+                    params={"underlying_code": US_STOCK, "limit": 100},
+                ),
+                200,
+                "read alerts by underlying",
+            )
+            _require(
+                {alert["code"] for alert in scoped_alerts["alerts"]}
+                == {US_STOCK, CALL_OPTION},
+                "underlying scope did not group stock and option alerts",
+            )
+            _require(
+                all(
+                    alert["underlying_code"] == US_STOCK
+                    for alert in scoped_alerts["alerts"]
+                ),
+                "alert evidence did not preserve the underlying code",
             )
 
             _poll(client, first_service)
@@ -562,6 +602,8 @@ def run_acceptance() -> dict[str, Any]:
                 "expiration": EXPIRATION,
                 "chain_contract_codes": [CALL_OPTION, PUT_OPTION],
                 "rule_metrics": ["last_price", "option_implied_volatility"],
+                "underlying_scoped_rule_count": len(scoped_rules["rules"]),
+                "underlying_scoped_alert_count": len(scoped_alerts["alerts"]),
                 "baseline_alert_count": 0,
                 "first_edge_alert_count": len(first_edge_alerts),
                 "duplicate_alert_count": len(duplicate_alerts),
@@ -745,6 +787,7 @@ def _option_rule() -> dict[str, Any]:
     return {
         "name": "Apple call IV crosses 30",
         "code": CALL_OPTION,
+        "underlying_code": US_STOCK,
         "instrument_type": "option",
         "metric": "option_implied_volatility",
         "operator": "crosses_above",

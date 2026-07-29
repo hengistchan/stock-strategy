@@ -29,8 +29,13 @@ export const queryKeys = {
     ["monitoring", "option-chain", code, expiration] as const,
   optionContract: (code: string | null) =>
     ["monitoring", "option-contract", code] as const,
-  monitorRules: (code?: string) =>
-    ["monitoring", "rules", code ?? "all"] as const,
-  monitorAlerts: (code?: string, unacknowledgedOnly = false) =>
-    ["monitoring", "alerts", code ?? "all", unacknowledgedOnly] as const,
+  monitorRules: (underlyingCode?: string) =>
+    ["monitoring", "rules", underlyingCode ?? "all"] as const,
+  monitorAlerts: (underlyingCode?: string, unacknowledgedOnly = false) =>
+    [
+      "monitoring",
+      "alerts",
+      underlyingCode ?? "all",
+      unacknowledgedOnly,
+    ] as const,
 };

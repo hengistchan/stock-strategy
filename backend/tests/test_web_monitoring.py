@@ -192,7 +192,30 @@ class MonitoringWebTest(unittest.TestCase):
                 "/api/monitoring/rules",
                 json=_rule_request(),
             )
-            rules = client.get("/api/monitoring/rules")
+            option_rule = client.post(
+                "/api/monitoring/rules",
+                json={
+                    **_rule_request(),
+                    "name": "Apple call IV",
+                    "code": "US.AAPL260731C100000",
+                    "underlying_code": "US.AAPL",
+                    "instrument_type": "option",
+                    "metric": "option_implied_volatility",
+                },
+            )
+            rules = client.get(
+                "/api/monitoring/rules",
+                params={"underlying_code": "us.aapl"},
+            )
+            missing_option_underlying = client.post(
+                "/api/monitoring/rules",
+                json={
+                    **_rule_request(),
+                    "code": "US.AAPL260731C100000",
+                    "instrument_type": "option",
+                    "metric": "option_implied_volatility",
+                },
+            )
             invalid_rule = client.post(
                 "/api/monitoring/rules",
                 json={
@@ -231,7 +254,15 @@ class MonitoringWebTest(unittest.TestCase):
             ],
         )
         self.assertEqual(rule.status_code, 201)
-        self.assertEqual(len(rules.json()["rules"]), 1)
+        self.assertEqual(option_rule.status_code, 201)
+        self.assertEqual(
+            {item["code"] for item in rules.json()["rules"]},
+            {"US.AAPL", "US.AAPL260731C100000"},
+        )
+        self.assertTrue(
+            all(item["underlying_code"] == "US.AAPL" for item in rules.json()["rules"])
+        )
+        self.assertEqual(missing_option_underlying.status_code, 422)
         self.assertEqual(invalid_rule.status_code, 422)
         self.assertEqual(
             invalid_rule.json()["error"]["code"],
@@ -268,6 +299,10 @@ class MonitoringWebTest(unittest.TestCase):
                     "cursor": first.json()["next_cursor"],
                 },
             )
+            scoped = client.get(
+                "/api/monitoring/alerts",
+                params={"underlying_code": "us.aapl", "limit": 100},
+            )
             acknowledged = client.post(
                 f"/api/monitoring/alerts/{first.json()['alerts'][0]['id']}/ack"
             )
@@ -281,6 +316,13 @@ class MonitoringWebTest(unittest.TestCase):
         self.assertIsNotNone(first.json()["next_cursor"])
         self.assertEqual(len(second.json()["alerts"]), 1)
         self.assertIsNone(second.json()["next_cursor"])
+        self.assertEqual(len(scoped.json()["alerts"]), 3)
+        self.assertTrue(
+            all(
+                alert["underlying_code"] == "US.AAPL"
+                for alert in scoped.json()["alerts"]
+            )
+        )
         self.assertIsNotNone(acknowledged.json()["acknowledged_at"])
         self.assertEqual(missing.status_code, 404)
         self.assertEqual(

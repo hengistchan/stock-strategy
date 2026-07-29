@@ -155,6 +155,7 @@ class MonitorBarsResponse(BaseModel):
 class MonitorRuleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     code: str = Field(pattern=SYMBOL_PATTERN)
+    underlying_code: str | None = Field(default=None, pattern=SYMBOL_PATTERN)
     instrument_type: InstrumentType
     metric: RuleMetric
     operator: RuleOperator
@@ -165,7 +166,7 @@ class MonitorRuleRequest(BaseModel):
     session: Literal["regular", "extended", "all"] = "regular"
     enabled: bool = True
 
-    @field_validator("code", mode="before")
+    @field_validator("code", "underlying_code", mode="before")
     @classmethod
     def normalize_rule_code(cls, value: Any) -> Any:
         return value.strip().upper() if isinstance(value, str) else value
@@ -207,6 +208,7 @@ class MonitorRule(MonitoringApiModel):
     id: str
     name: str
     code: str
+    underlying_code: str | None
     instrument_type: InstrumentType
     metric: RuleMetric
     operator: RuleOperator
@@ -230,6 +232,7 @@ class MonitorAlert(MonitoringApiModel):
     rule_id: str
     rule_name: str
     code: str
+    underlying_code: str | None
     triggered_at: str
     acknowledged_at: str | None
     severity: RuleSeverity

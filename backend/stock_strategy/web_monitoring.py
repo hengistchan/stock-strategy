@@ -173,10 +173,17 @@ def create_monitoring_router(service: MonitoringService) -> APIRouter:
     @router.get("/rules", response_model=MonitorRulesResponse)
     async def monitor_rules(
         code: str | None = None,
+        underlying_code: str | None = None,
         enabled: bool | None = None,
     ) -> dict[str, Any]:
         try:
-            return {"rules": service.list_rules(code=code, enabled=enabled)}
+            return {
+                "rules": service.list_rules(
+                    code=code,
+                    underlying_code=underlying_code,
+                    enabled=enabled,
+                )
+            }
         except ValueError as error:
             raise _invalid_request(error) from error
 
@@ -228,6 +235,7 @@ def create_monitoring_router(service: MonitoringService) -> APIRouter:
     @router.get("/alerts", response_model=MonitorAlertsResponse)
     async def monitor_alerts(
         code: str | None = None,
+        underlying_code: str | None = None,
         unacknowledged_only: bool = False,
         cursor: str | None = None,
         limit: int = Query(default=50, ge=1, le=100),
@@ -235,6 +243,7 @@ def create_monitoring_router(service: MonitoringService) -> APIRouter:
         try:
             return service.alerts(
                 code=code,
+                underlying_code=underlying_code,
                 unacknowledged_only=unacknowledged_only,
                 cursor=cursor,
                 limit=limit,

@@ -8,6 +8,7 @@ const rule: MonitorRule = {
   id: "rule-1",
   name: "AAPL price",
   code: "US.AAPL",
+  underlying_code: "US.AAPL",
   instrument_type: "stock",
   metric: "last_price",
   operator: "crosses_above",
@@ -27,6 +28,7 @@ const alert: MonitorAlert = {
   rule_id: "rule-1",
   rule_name: "AAPL price",
   code: "US.AAPL",
+  underlying_code: "US.AAPL",
   triggered_at: "2026-07-28T02:00:00Z",
   acknowledged_at: null,
   severity: "warning",
@@ -98,6 +100,7 @@ describe("AlertWorkspace", () => {
     expect(onCreateRule).toHaveBeenCalledWith({
       name: "AAPL breakout",
       code: "US.AAPL",
+      underlying_code: "US.AAPL",
       instrument_type: "stock",
       metric: "last_price",
       operator: "crosses_above",
@@ -117,6 +120,43 @@ describe("AlertWorkspace", () => {
     expect(onAcknowledge).toHaveBeenCalledWith(alert);
     fireEvent.click(screen.getByRole("checkbox", { name: /仅未确认|Unacknowledged only/ }));
     expect(onFilter).toHaveBeenCalledWith(true);
+  });
+
+  it("scopes an option contract rule to the current underlying", () => {
+    const onCreateRule = vi.fn();
+    render(workspace({ onCreateRule, rules: [], alerts: [] }));
+
+    fireEvent.change(screen.getByLabelText(/监控对象|Instrument/), {
+      target: { value: "option" },
+    });
+    fireEvent.change(screen.getByLabelText(/规则名称|Rule name/), {
+      target: { value: "AAPL call IV" },
+    });
+    fireEvent.change(screen.getByLabelText(/Futu 代码|Futu code/), {
+      target: { value: "US.AAPL260731C100000" },
+    });
+    fireEvent.change(screen.getByLabelText(/指标|Metric/), {
+      target: { value: "option_implied_volatility" },
+    });
+    fireEvent.change(screen.getByLabelText(/阈值|Threshold/), {
+      target: { value: "30" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /创建监控规则|Create monitoring rule/,
+      }),
+    );
+
+    expect(onCreateRule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "AAPL call IV",
+        code: "US.AAPL260731C100000",
+        underlying_code: "US.AAPL",
+        instrument_type: "option",
+        metric: "option_implied_volatility",
+        threshold: 30,
+      }),
+    );
   });
 
   it("resets the stock rule code when a keyed workspace changes symbols", () => {

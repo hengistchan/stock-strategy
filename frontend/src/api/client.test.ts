@@ -175,4 +175,31 @@ describe("remote API token bootstrap", () => {
     );
     expect(requests[3].method).toBe("POST");
   });
+
+  it("queries rules and alert pages by explicit underlying scope", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      return Response.json(
+        pathname.endsWith("/rules")
+          ? { rules: [] }
+          : { alerts: [], next_cursor: null },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.monitorRules("us.aapl", true);
+    await api.monitorAlerts("us.aapl", true, "cursor-1", 25);
+
+    const urls = fetchMock.mock.calls.map(([input]) =>
+      new URL(input instanceof Request ? input.url : String(input)),
+    );
+    expect(urls[0].searchParams.get("underlying_code")).toBe("us.aapl");
+    expect(urls[0].searchParams.get("code")).toBeNull();
+    expect(urls[0].searchParams.get("enabled")).toBe("true");
+    expect(urls[1].searchParams.get("underlying_code")).toBe("us.aapl");
+    expect(urls[1].searchParams.get("unacknowledged_only")).toBe("true");
+    expect(urls[1].searchParams.get("cursor")).toBe("cursor-1");
+    expect(urls[1].searchParams.get("limit")).toBe("25");
+  });
 });

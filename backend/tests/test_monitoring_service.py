@@ -207,7 +207,9 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
             "2026-07-27 10:00:14",
         )
         await self.service.poll_once()
-        self.assertEqual(len(self.repository.list_alerts()), 1)
+        alerts = self.repository.list_alerts()
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["underlying_code"], "US.AAPL")
 
         await self.service.poll_once()
         self.assertEqual(len(self.repository.list_alerts()), 1)
@@ -243,6 +245,53 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.service.status()["phase"], "ready")
         self.assertEqual(self.market_data.global_state_calls, 0)
+
+    async def test_rule_underlying_scope_is_explicit_for_options(self):
+        stock_rule = self.service.create_rule(_rule_request())
+        with self.assertRaisesRegex(
+            ValueError,
+            "option rule underlying_code is required",
+        ):
+            self.service.create_rule(
+                {
+                    **_rule_request(),
+                    "code": "US.AAPL260731C100000",
+                    "instrument_type": "option",
+                    "metric": "option_implied_volatility",
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "same market"):
+            self.service.create_rule(
+                {
+                    **_rule_request(),
+                    "code": "US.AAPL260731C100000",
+                    "underlying_code": "HK.00700",
+                    "instrument_type": "option",
+                    "metric": "option_implied_volatility",
+                }
+            )
+        option_rule = self.service.create_rule(
+            {
+                **_rule_request(),
+                "name": "Apple call IV",
+                "code": "US.AAPL260731C100000",
+                "underlying_code": "US.AAPL",
+                "instrument_type": "option",
+                "metric": "option_implied_volatility",
+            }
+        )
+
+        self.assertEqual(stock_rule["underlying_code"], "US.AAPL")
+        self.assertEqual(option_rule["underlying_code"], "US.AAPL")
+        self.assertEqual(
+            {
+                rule["id"]
+                for rule in self.service.list_rules(
+                    underlying_code="US.AAPL",
+                )
+            },
+            {stock_rule["id"], option_rule["id"]},
+        )
 
     async def test_slow_opend_request_is_bounded_and_marks_runtime_degraded(self):
         self.service.add_instrument(_instrument_request())
@@ -333,6 +382,7 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
                 **_rule_request(),
                 "name": "Option IV",
                 "code": "US.AAPL260731C100000",
+                "underlying_code": "US.AAPL",
                 "instrument_type": "option",
                 "metric": "option_implied_volatility",
                 "threshold": 30,
@@ -366,6 +416,7 @@ class MonitoringServiceTest(unittest.IsolatedAsyncioTestCase):
                 **_rule_request(),
                 "name": "Option volatility premium",
                 "code": "US.AAPL260731C100000",
+                "underlying_code": "US.AAPL",
                 "instrument_type": "option",
                 "metric": "iv_hv_premium",
                 "threshold": 5,

@@ -596,10 +596,16 @@ class MonitoringService:
         self,
         *,
         code: str | None = None,
+        underlying_code: str | None = None,
         enabled: bool | None = None,
     ) -> list[dict[str, Any]]:
         return self.repository.list_rules(
             code=_normalize_code(code) if code is not None else None,
+            underlying_code=(
+                _normalize_code(underlying_code)
+                if underlying_code is not None
+                else None
+            ),
             enabled=enabled,
         )
 
@@ -607,12 +613,31 @@ class MonitoringService:
         instrument_type = InstrumentType(str(payload["instrument_type"]))
         metric = RuleMetric(str(payload["metric"]))
         validate_rule_metric(instrument_type, metric)
+        code = _normalize_code(str(payload["code"]))
+        requested_underlying = payload.get("underlying_code")
+        if instrument_type is InstrumentType.STOCK:
+            underlying_code = (
+                _normalize_code(str(requested_underlying))
+                if requested_underlying is not None
+                else code
+            )
+            if underlying_code != code:
+                raise ValueError("stock rule underlying_code must match the rule code")
+        else:
+            if requested_underlying is None:
+                raise ValueError("option rule underlying_code is required")
+            underlying_code = _normalize_code(str(requested_underlying))
+            if underlying_code.split(".", 1)[0] != code.split(".", 1)[0]:
+                raise ValueError(
+                    "option rule and underlying_code must use the same market"
+                )
         now = _iso(self._now())
         rule = self.repository.create_rule(
             {
                 "id": f"rule-{uuid.uuid4().hex}",
                 "name": str(payload["name"]).strip(),
-                "code": _normalize_code(str(payload["code"])),
+                "code": code,
+                "underlying_code": underlying_code,
                 "instrument_type": instrument_type.value,
                 "metric": metric.value,
                 "operator": RuleOperator(str(payload["operator"])).value,
@@ -663,6 +688,7 @@ class MonitoringService:
         self,
         *,
         code: str | None,
+        underlying_code: str | None = None,
         unacknowledged_only: bool,
         cursor: str | None,
         limit: int,
@@ -670,6 +696,11 @@ class MonitoringService:
         before = _decode_cursor(cursor) if cursor is not None else None
         alerts, has_more = self.repository.list_alerts_page(
             code=_normalize_code(code) if code is not None else None,
+            underlying_code=(
+                _normalize_code(underlying_code)
+                if underlying_code is not None
+                else None
+            ),
             unacknowledged_only=unacknowledged_only,
             before=before,
             limit=limit,
@@ -883,6 +914,7 @@ class MonitoringService:
                     "rule_id": rule["id"],
                     "rule_name": rule["name"],
                     "code": code,
+                    "underlying_code": rule.get("underlying_code"),
                     "triggered_at": triggered_at,
                     "severity": rule["severity"],
                     "metric": metric.value,

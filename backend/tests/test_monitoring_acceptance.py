@@ -58,6 +58,8 @@ class MonitoringAcceptanceScriptTest(unittest.TestCase):
             journey["rule_metrics"],
             ["last_price", "option_implied_volatility"],
         )
+        self.assertEqual(journey["underlying_scoped_rule_count"], 2)
+        self.assertEqual(journey["underlying_scoped_alert_count"], 2)
         self.assertEqual(journey["baseline_alert_count"], 0)
         self.assertEqual(journey["first_edge_alert_count"], 2)
         self.assertEqual(journey["duplicate_alert_count"], 2)
